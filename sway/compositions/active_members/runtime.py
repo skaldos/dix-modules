@@ -1,16 +1,19 @@
 from __future__ import annotations
-from collections.abc import Mapping
+
 import os
-from pathlib import Path
 import tempfile
-from dix.core.composition import CompositionRuntimeContext
+from collections.abc import Mapping
+from pathlib import Path
+
 
 class Runtime:
-    def __init__(self, *, context: CompositionRuntimeContext, config: Mapping[str, object]) -> None:
+    def __init__(self, *, context: object, config: Mapping[str, object]) -> None:
         self.context, self.config = context, config
         raw = config.get("path", os.environ.get("SKALDOS_SWAY_ACTIVE_MEMBERS_FILE"))
         if not isinstance(raw, str) or not raw:
-            raise ValueError("active members path requires path or SKALDOS_SWAY_ACTIVE_MEMBERS_FILE")
+            raise ValueError(
+                "active members path requires path or SKALDOS_SWAY_ACTIVE_MEMBERS_FILE"
+            )
         self.path = Path(raw)
 
     def get(self) -> list[int]:
@@ -35,8 +38,10 @@ class Runtime:
         values = _validate(members)
         _atomic(self.path, (" ".join(map(str, values)) + "\n").encode("ascii"))
 
+
 def _canonical(value: str) -> bool:
     return bool(value) and value[0] in "123456789" and value.isascii() and value.isdigit()
+
 
 def _validate(value: object) -> list[int]:
     if not isinstance(value, list) or any(type(v) is not int or v <= 0 for v in value):
@@ -45,12 +50,20 @@ def _validate(value: object) -> list[int]:
         raise ValueError("active members must not contain duplicates")
     return list(value)
 
+
 def _atomic(path: Path, payload: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile("wb", dir=path.parent, prefix=f".{path.name}.", delete=False) as out:
-            temporary = out.name; out.write(payload); out.flush(); os.fsync(out.fileno())
-        os.replace(temporary, path); temporary = None
+        with tempfile.NamedTemporaryFile(
+            "wb", dir=path.parent, prefix=f".{path.name}.", delete=False
+        ) as out:
+            temporary = out.name
+            out.write(payload)
+            out.flush()
+            os.fsync(out.fileno())
+        os.replace(temporary, path)
+        temporary = None
     finally:
-        if temporary: Path(temporary).unlink(missing_ok=True)
+        if temporary:
+            Path(temporary).unlink(missing_ok=True)

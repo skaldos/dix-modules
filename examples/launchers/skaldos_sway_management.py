@@ -4,6 +4,6 @@ from pathlib import Path
 
 MODULE_ROOT = Path(__file__).resolve().parents[2] / "sway"
 sys.path.insert(0, str(MODULE_ROOT))
-from navigation_entry import main
+from management_entry import main
 
 raise SystemExit(main(module_root=MODULE_ROOT))

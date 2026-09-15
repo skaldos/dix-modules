@@ -1,15 +1,18 @@
 from __future__ import annotations
+
 from collections.abc import Mapping
+
 import i3ipc
-from dix.core.composition import CompositionRuntimeContext
 
 _DIRECTIONS = frozenset({"left", "right", "up", "down"})
+
 
 class SwayIpcError(RuntimeError):
     pass
 
+
 class Runtime:
-    def __init__(self, *, context: CompositionRuntimeContext, config: Mapping[str, object]) -> None:
+    def __init__(self, *, context: object, config: Mapping[str, object]) -> None:
         self.context, self.config = context, config
 
     def focused_con_id(self) -> int:
@@ -49,6 +52,7 @@ class Runtime:
         for reply in replies:
             if getattr(reply, "success", None) is not True:
                 raise SwayIpcError(f"Sway command failed: {value!r}: {getattr(reply, 'error', '')}")
+
 
 def _con_id(value: object, label: str) -> int:
     if type(value) is not int or value <= 0:

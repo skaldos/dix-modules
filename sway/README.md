@@ -18,3 +18,8 @@ repository as `dix/modules/skaldos`. The caller must prepare the ROBA daemon and
 existing `dix/roba` management surface. The Wofi helpers are optional adapters and expect a
 `SKALDOS_SWAY_MANAGEMENT` executable with the documented line-oriented commands; they never read
 private state artifacts.
+
+`examples/launchers/skaldos_sway_management.py` is the line/JSON management delivery consumed by
+the Wofi adapters. Install or wrap it as `skaldos-sway-json`, or set
+`SKALDOS_SWAY_MANAGEMENT`. Its `list-lines` and `memberships-lines` outputs are newline-delimited
+names; mutations use explicit Group Application functions and emit compact JSON.
