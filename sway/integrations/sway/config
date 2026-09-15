@@ -1,0 +1,9 @@
+# Fixed bindings: no Sway mode and no runtime rebinding.
+bindsym $mod+h exec --no-startup-id skaldos-sway-nav left
+bindsym $mod+j exec --no-startup-id skaldos-sway-nav down
+bindsym $mod+k exec --no-startup-id skaldos-sway-nav up
+bindsym $mod+l exec --no-startup-id skaldos-sway-nav right
+# Choose keys appropriate for the local configuration:
+# bindsym $mod+g exec --no-startup-id /path/to/sway/integrations/wofi/select
+# bindsym $mod+Shift+g exec --no-startup-id /path/to/sway/integrations/wofi/add
+# bindsym $mod+Ctrl+g exec --no-startup-id /path/to/sway/integrations/wofi/remove

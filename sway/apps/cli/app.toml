@@ -1,0 +1,8 @@
+[app]
+id = "cli"
+[compositions.typer]
+use = "dix/cli/typer"
+[apps.groups]
+use = "skaldos/sway/groups"
+[functions.main]
+description = "Run the external Skaldos Sway management CLI."

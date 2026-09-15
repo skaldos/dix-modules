@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+manage=${SKALDOS_SWAY_MANAGEMENT:-skaldos-sway-json}
+menu=${SKALDOS_SWAY_WOFI:-wofi --dmenu --prompt 'Sway group'}
+groups=$($manage list-lines)
+choice=$(printf '%s\n%s\n%s\n' 'Keine Gruppe' '+ Neue Gruppe' "$groups" | sed '/^$/d' | sh -c "$menu") || exit 0
+case "$choice" in
+  'Keine Gruppe') exec "$manage" deactivate ;;
+  '+ Neue Gruppe')
+    name=$(printf '' | sh -c "${SKALDOS_SWAY_WOFI_NAME:-wofi --dmenu --prompt 'Neue Gruppe'}") || exit 0
+    [ -n "$name" ] || exit 0
+    "$manage" create "$name"; exec "$manage" select "$name" ;;
+  *) exec "$manage" select "$choice" ;;
+esac

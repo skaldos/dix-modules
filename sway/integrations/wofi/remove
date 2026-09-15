@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+manage=${SKALDOS_SWAY_MANAGEMENT:-skaldos-sway-json}
+menu=${SKALDOS_SWAY_WOFI:-wofi --dmenu --prompt 'Aus Gruppe'}
+groups=$($manage memberships-lines)
+[ -n "$groups" ] || exit 0
+choice=$(printf '%s\n' "$groups" | sh -c "$menu") || exit 0
+[ -n "$choice" ] || exit 0
+exec "$manage" remove "$choice"

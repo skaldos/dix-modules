@@ -8,3 +8,14 @@ below a DIX source tree as `modules/skaldos`; then `sway/` is loaded with module
 
 This repository currently provides source modules and development tests. It does not promise a PyPI
 package or an installer.
+
+## Source assembly
+
+```sh
+git clone git@github.com:skaldos/dix.git
+cd dix/modules
+git clone git@github.com:skaldos/dix-modules.git skaldos
+```
+
+The optional artifacts below each module's `integrations/` directory stay owned by that module and
+are ignored by DIX module-definition inspection.
