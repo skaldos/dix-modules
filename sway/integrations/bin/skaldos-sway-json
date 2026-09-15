@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+
+self=$(readlink -f "$0") || {
+    printf 'skaldos-sway-json: cannot resolve wrapper path: %s\n' "$0" >&2
+    exit 1
+}
+module_root=${SKALDOS_SWAY_ROOT:-$(CDPATH= cd "$(dirname "$self")/../.." && pwd -P)}
+[ -d "$module_root" ] || {
+    printf 'skaldos-sway-json: Sway module root is not a directory: %s\n' "$module_root" >&2
+    exit 1
+}
+module_root=$(CDPATH= cd "$module_root" && pwd -P)
+dix_root=${SKALDOS_DIX_ROOT:-$(CDPATH= cd "$module_root/../../.." && pwd -P)}
+[ -d "$dix_root" ] || {
+    printf 'skaldos-sway-json: DIX root is not a directory: %s\n' "$dix_root" >&2
+    exit 1
+}
+dix_root=$(CDPATH= cd "$dix_root" && pwd -P)
+python=$dix_root/.venv/bin/python
+entry=$module_root/management_entry.py
+[ -x "$python" ] || {
+    printf 'skaldos-sway-json: DIX environment Python is not executable: %s\n' "$python" >&2
+    exit 1
+}
+[ -f "$entry" ] || {
+    printf 'skaldos-sway-json: management entry is missing: %s\n' "$entry" >&2
+    exit 1
+}
+exec "$python" "$entry" "$@"
