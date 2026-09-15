@@ -163,9 +163,10 @@ def test_group_navigation_resolves_hidden_leaf_in_entered_branch(load_runtime, a
         live_con_ids=lambda: [10, 20, 30, 40],
         navigation_topology=lambda: [
             {"con_id": 1, "parent_id": None, "children": [100, 200], "focus": [100, 200]},
-            {"con_id": 100, "parent_id": 1, "children": [20, 30, 40], "focus": [40, 30, 20]},
-            {"con_id": 20, "parent_id": 100, "children": [], "focus": []},
-            {"con_id": 30, "parent_id": 100, "children": [], "focus": []},
+            {"con_id": 100, "parent_id": 1, "children": [110, 40], "focus": [110, 40]},
+            {"con_id": 110, "parent_id": 100, "children": [20, 30], "focus": [30, 20]},
+            {"con_id": 20, "parent_id": 110, "children": [], "focus": []},
+            {"con_id": 30, "parent_id": 110, "children": [], "focus": []},
             {"con_id": 40, "parent_id": 100, "children": [], "focus": []},
             {"con_id": 200, "parent_id": 1, "children": [10], "focus": [10]},
             {"con_id": 10, "parent_id": 200, "children": [], "focus": []},
@@ -183,9 +184,9 @@ def test_group_navigation_resolves_hidden_leaf_in_entered_branch(load_runtime, a
         ipc=ipc,
     )
     result = group.left()
-    assert result["matched"] is True and result["focused_id"] == 40
-    assert result["visited_ids"] == [10, 20, 40]
-    assert direct == [40]
+    assert result["matched"] is True and result["focused_id"] == 30
+    assert result["visited_ids"] == [10, 20, 30]
+    assert direct == [30]
 
 
 def test_group_navigation_direct_hit_does_not_read_topology(load_runtime, api, tmp_path):
@@ -213,3 +214,40 @@ def test_group_navigation_direct_hit_does_not_read_topology(load_runtime, api, t
         ipc=ipc,
     )
     assert group.right()["focused_id"] == 20
+
+
+def test_group_navigation_reports_failed_direct_focus(load_runtime, api, tmp_path):
+    current = [10]
+
+    def direction(_value):
+        current[0] = 20
+
+    ipc = api(
+        focused_con_id=lambda: current[0],
+        focus_direction=direction,
+        focus_con_id=lambda _value: None,
+        live_con_ids=lambda: [10, 20, 30],
+        navigation_topology=lambda: [
+            {"con_id": 1, "parent_id": None, "children": [100, 200], "focus": []},
+            {"con_id": 100, "parent_id": 1, "children": [20, 30], "focus": [30]},
+            {"con_id": 20, "parent_id": 100, "children": [], "focus": []},
+            {"con_id": 30, "parent_id": 100, "children": [], "focus": []},
+            {"con_id": 200, "parent_id": 1, "children": [10], "focus": []},
+            {"con_id": 10, "parent_id": 200, "children": [], "focus": []},
+        ],
+    )
+    Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
+    Group = load_runtime("sway/apps/navigation_group/runtime.py")
+    context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
+    basic = Basic(context=context, config={}, ipc=ipc)
+    group = Group(
+        context=context,
+        config={},
+        basic=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
+        active_members=api(get=lambda: [30]),
+        ipc=ipc,
+    )
+    import pytest
+
+    with pytest.raises(RuntimeError, match="direct focus failed"):
+        group.left()

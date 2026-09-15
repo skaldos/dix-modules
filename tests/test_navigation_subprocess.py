@@ -14,15 +14,15 @@ def fake(tmp_path):
     path = tmp_path / "fake"
     path.mkdir(exist_ok=True)
     (path / "i3ipc.py").write_text(
-        """\ncurrent=34\ncommands=[]\nclass N:\n def __init__(self,id):self.id=id\nclass T:\n def find_focused(self):return N(current)\n def leaves(self):return [N(34),N(32)]\nclass R:success=True;error=None\nclass Connection:\n def get_tree(self):return T()\n def command(self,value):\n  global current\n  commands.append(value)\n  current=32 if "focus" in value else current\n  return [R()]\n"""
+        """\ncurrent=34\ncommands=[]\nclass N:\n def __init__(self,id,nodes=(),focus=()):\n  self.id=id;self.nodes=list(nodes);self.floating_nodes=[];self.focus=list(focus)\nclass T(N):\n def __init__(self):\n  self.hidden=N(392);self.visible=N(32);self.origin=N(34)\n  self.left=N(100,[self.visible,self.hidden],[392,32])\n  self.right=N(200,[self.origin],[34])\n  super().__init__(1,[self.left,self.right],[100,200])\n def find_focused(self):return N(current)\n def leaves(self):return [self.visible,self.hidden,self.origin]\nclass R:success=True;error=None\nclass Connection:\n def get_tree(self):return T()\n def command(self,value):\n  global current\n  commands.append(value)\n  if "con_id=" in value: current=int(value.split("con_id=",1)[1].split("]",1)[0])\n  elif "focus" in value: current=32\n  return [R()]\n"""
     )
     return path
 
 
-def invoke(tmp_path, target=None, route="basic\n", direction="right"):
+def invoke(tmp_path, target=None, route="basic\n", direction="right", members="32\n"):
     if route is not None:
         (tmp_path / "route").write_text(route)
-    (tmp_path / "members").write_text("32\n")
+    (tmp_path / "members").write_text(members)
     f = fake(tmp_path)
     cmd = [
         sys.executable,
@@ -57,6 +57,14 @@ def test_group_closure_excludes_heavy_modules_and_override_is_not_persisted(tmp_
     assert value["code"] == 0
     assert value["loaded"] == ["skaldos_sway_active_members", "skaldos_sway_group_navigation"]
     assert (tmp_path / "route").read_text() == "basic\n"
+
+
+def test_group_subprocess_resolves_hidden_stack_member(tmp_path):
+    value = invoke(tmp_path, "group", members="392\n")
+    assert value["code"] == 0
+    result = json.loads(value["stdout"])
+    assert result["focused_id"] == 392 and result["matched"] is True
+    assert value["commands"] == ["focus right", "[con_id=392] focus"]
 
 
 def test_invalid_route_is_runtime_error_without_target_closure(tmp_path):
