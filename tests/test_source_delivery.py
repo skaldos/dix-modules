@@ -107,3 +107,19 @@ def test_wrapper_reports_missing_dix_environment(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "DIX environment Python is not executable" in result.stderr
+
+
+def test_sway_fragment_uses_delivered_commands_and_explicit_state() -> None:
+    config = (ROOT / "sway" / "integrations" / "sway" / "config").read_text()
+    for value in (
+        "skaldos-sway-nav",
+        "skaldos-sway-json",
+        "SKALDOS_SWAY_GROUP_STATE_FILE",
+        "SKALDOS_SWAY_ACTIVE_MEMBERS_FILE",
+        "SKALDOS_SWAY_NAVIGATION_TARGET_FILE",
+        "integrations/wofi/select",
+        "integrations/wofi/add",
+        "integrations/wofi/remove",
+    ):
+        assert value in config
+    assert not any(line.startswith("mode ") for line in config.splitlines())
