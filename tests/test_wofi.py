@@ -36,16 +36,16 @@ def run(name, tmp_path, choice, name_choice=""):
 
 
 def test_select_existing_and_none(tmp_path):
-    result, log = run("select", tmp_path, "work")
+    result, log = run("select", tmp_path, "  work")
     assert result.returncode == 0 and log.endswith("select work\n")
-    result, log = run("select", tmp_path, "Keine Gruppe")
+    result, log = run("select", tmp_path, "[Keine Gruppe]")
     assert result.returncode == 0 and log.endswith("deactivate\n")
 
 
 def test_add_does_not_select_and_remove_uses_memberships(tmp_path):
-    result, log = run("add", tmp_path, "private")
+    result, log = run("add", tmp_path, "  private")
     assert result.returncode == 0 and log == "list-lines\nadd private\n" and "select" not in log
-    result, log = run("remove", tmp_path, "work")
+    result, log = run("remove", tmp_path, "  work")
     assert result.returncode == 0 and log == "memberships-lines\nremove work\n"
 
 
@@ -66,7 +66,7 @@ def test_select_new_group_uses_explicit_management_calls(tmp_path):
     name.write_text("#!/bin/sh\ncat >/dev/null\nprintf 'fresh\\n'\n")
     name.chmod(0o755)
     chooser = tmp_path / "chooser"
-    chooser.write_text("#!/bin/sh\ncat >/dev/null\nprintf '+ Neue Gruppe\\n'\n")
+    chooser.write_text("#!/bin/sh\ncat >/dev/null\nprintf '[+ Neue Gruppe]\\n'\n")
     chooser.chmod(0o755)
     result = subprocess.run(
         [str(ROOT / "select")],
@@ -80,3 +80,21 @@ def test_select_new_group_uses_explicit_management_calls(tmp_path):
         capture_output=True,
     )
     assert result.returncode == 0 and log.read_text() == "list-lines\ncreate fresh\nselect fresh\n"
+
+
+def test_action_like_group_names_remain_real_groups(tmp_path):
+    result, log = run("select", tmp_path, "  Keine Gruppe")
+    assert result.returncode == 0 and log.endswith("select Keine Gruppe\n")
+
+    result, log = run("add", tmp_path, "  + Neue Gruppe")
+    assert result.returncode == 0 and log.endswith("add + Neue Gruppe\n")
+
+    result, log = run("remove", tmp_path, "  Keine Gruppe")
+    assert result.returncode == 0 and log.endswith("remove Keine Gruppe\n")
+
+
+def test_unframed_choice_fails_without_mutation(tmp_path):
+    result, log = run("select", tmp_path, "work")
+    assert result.returncode == 1
+    assert log == "list-lines\n"
+    assert "invalid Wofi selection" in result.stderr

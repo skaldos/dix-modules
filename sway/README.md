@@ -23,3 +23,7 @@ private state artifacts.
 the Wofi adapters. Install or wrap it as `skaldos-sway-json`, or set
 `SKALDOS_SWAY_MANAGEMENT`. Its `list-lines` and `memberships-lines` outputs are newline-delimited
 names; mutations use explicit Group Application functions and emit compact JSON.
+
+Group names are normalized non-empty single-line strings. The Wofi adapters frame group entries
+separately from their `none` and `new` actions, so groups named `Keine Gruppe` or `+ Neue Gruppe`
+remain ordinary selectable groups.

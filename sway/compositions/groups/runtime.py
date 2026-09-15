@@ -175,7 +175,10 @@ class Runtime:
 def _name(value: object) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError("group name must be a non-empty string")
-    return value.strip()
+    normalized = value.strip()
+    if "\n" in normalized or "\r" in normalized:
+        raise ValueError("group name must occupy exactly one line")
+    return normalized
 
 
 def _group(groups: Mapping[str, list[int]], name: str) -> list[int]:

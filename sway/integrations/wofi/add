@@ -3,10 +3,16 @@ set -eu
 manage=${SKALDOS_SWAY_MANAGEMENT:-skaldos-sway-json}
 menu=${SKALDOS_SWAY_WOFI:-wofi --dmenu --prompt 'Zu Gruppe'}
 groups=$($manage list-lines)
-choice=$(printf '%s\n%s\n' '+ Neue Gruppe' "$groups" | sed '/^$/d' | sh -c "$menu") || exit 0
-if [ "$choice" = '+ Neue Gruppe' ]; then
+entries=$(printf '%s\n' "$groups" | sed '/^$/d; s/^/  /')
+choice=$(printf '%s\n%s\n' '[+ Neue Gruppe]' "$entries" | sed '/^$/d' | sh -c "$menu") || exit 0
+if [ "$choice" = '[+ Neue Gruppe]' ]; then
   choice=$(printf '' | sh -c "${SKALDOS_SWAY_WOFI_NAME:-wofi --dmenu --prompt 'Neue Gruppe'}") || exit 0
   [ -n "$choice" ] || exit 0
   "$manage" create "$choice"
+elif [ "${choice#  }" != "$choice" ]; then
+  choice=${choice#  }
+else
+  printf 'invalid Wofi selection\n' >&2
+  exit 1
 fi
 exec "$manage" add "$choice"

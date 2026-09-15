@@ -19,3 +19,19 @@ git clone git@github.com:skaldos/dix-modules.git skaldos
 
 The optional artifacts below each module's `integrations/` directory stay owned by that module and
 are ignored by DIX module-definition inspection.
+
+## Development tests
+
+This repository is a source-module collection, not a standalone Python package. Run its tests in
+the DIX development environment so that the exact DIX, ROBA and optional Sway dependencies are
+explicit inputs:
+
+```sh
+DIX_REPOSITORY=/path/to/dix
+uv run --project "$DIX_REPOSITORY" --frozen \
+  --extra dev --extra roba --extra sway \
+  python -m pytest -q /path/to/dix-modules/tests
+```
+
+The repository's own `pyproject.toml` intentionally does not add path or Git dependencies between
+the source repositories.

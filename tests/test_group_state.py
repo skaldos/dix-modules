@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from dix.core.composition import CompositionRuntimeContext
 
 
@@ -112,3 +113,41 @@ def test_projection_order_and_inactive_mutations(tmp_path, load_runtime, api):
     events.clear()
     r.deactivate()
     assert [x[0] for x in events] == ["route", "roba", "members"] and set(r.list()) == {"a", "b"}
+
+
+@pytest.mark.parametrize("name", ["work\nprivate", "work\rprivate"])
+def test_group_name_must_fit_line_protocol_without_mutation(name, tmp_path, load_runtime, api):
+    events = []
+    Runtime = load_runtime("sway/compositions/groups/runtime.py")
+    state_file = tmp_path / "groups.json"
+    runtime = Runtime(
+        context=ctx(tmp_path),
+        config={"state_file": str(state_file)},
+        state=api(set=lambda value: events.append(value) or True),
+        ipc=api(focused_con_id=lambda: 1, live_con_ids=lambda: [1]),
+        active_members=api(set=lambda value: None),
+        navigation_target=api(set=lambda value: None),
+    )
+
+    with pytest.raises(ValueError, match="exactly one line"):
+        runtime.create(name)
+
+    assert not state_file.exists()
+    assert events == []
+
+
+def test_action_like_group_names_remain_valid_domain_names(tmp_path, load_runtime, api):
+    Runtime = load_runtime("sway/compositions/groups/runtime.py")
+    runtime = Runtime(
+        context=ctx(tmp_path),
+        config={"state_file": str(tmp_path / "groups.json")},
+        state=api(set=lambda value: True),
+        ipc=api(focused_con_id=lambda: 1, live_con_ids=lambda: [1]),
+        active_members=api(set=lambda value: None),
+        navigation_target=api(set=lambda value: None),
+    )
+
+    runtime.create("Keine Gruppe")
+    runtime.create("+ Neue Gruppe")
+
+    assert runtime.list() == {"Keine Gruppe": [], "+ Neue Gruppe": []}
