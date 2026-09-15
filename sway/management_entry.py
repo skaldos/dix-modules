@@ -64,7 +64,7 @@ def _application(root: Path):
     apps = registry.require("application", ApplicationComponent)
     loaded = []
     try:
-        for module_id in ("dix/state", "dix/roba"):
+        for module_id in ("dix/state", "dix/cli", "dix/roba"):
             modules.load_module(first_party_module_path(module_id), module_id=module_id)
             loaded.append(module_id)
         modules.load_module(root, module_id="skaldos/sway")

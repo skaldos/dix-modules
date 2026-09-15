@@ -37,6 +37,7 @@ def test_real_dix_roba_multiprocess_management_path(tmp_path):
     external = build_launcher(
         modules / "skaldos/examples/launchers/skaldos_sway.toml", tmp_path / "skaldos-sway.py"
     )
+    management = modules / "skaldos/examples/launchers/skaldos_sway_management.py"
     roba = build_launcher(DIX / "examples/launchers/dix_roba.toml", tmp_path / "dix-roba.py")
     fake = tmp_path / "fake"
     fake.mkdir()
@@ -57,6 +58,8 @@ def test_real_dix_roba_multiprocess_management_path(tmp_path):
             roba, "control", "create_context", "--context_id", "skaldos-sway", env=env, cwd=tmp_path
         )
         run(external, "group", "create", "--group", "work", env=env, cwd=tmp_path)
+        listed = run(management, "list-lines", env=env, cwd=tmp_path)
+        assert listed.stdout == "work\n"
         run(external, "group", "add", "--group", "work", env=env, cwd=tmp_path)
         run(external, "group", "select", "--group", "work", env=env, cwd=tmp_path)
         assert (
