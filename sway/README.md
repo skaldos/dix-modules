@@ -64,12 +64,33 @@ mkdir -p skaldos-sway-showcase
 cd skaldos-sway-showcase
 git clone https://github.com/skaldos/roba.git roba
 git clone https://github.com/skaldos/dix.git dix
-git clone https://github.com/skaldos/dix-modules.git dix/modules/skaldos
 
 export SKALDOS_WORKSPACE=$PWD
 export DIX_ROOT=$SKALDOS_WORKSPACE/dix
-export SWAY_ROOT=$DIX_ROOT/modules/skaldos/sway
 ```
+
+Do not place the external checkout below `dix/modules` before the initial DIX sync. Directories
+present there are inputs to a locally built DIX distribution. Preparing the committed DIX source
+first keeps that distribution limited to DIX-owned modules; the external checkout remains a source
+consumer added afterwards.
+
+## 2. Prepare the DIX environment
+
+DIX already points to the sibling `../roba` source in this layout. Sync its declared extras, then
+install the Sway-owned requirements into the same environment:
+
+```sh
+cd "$DIX_ROOT"
+uv sync --frozen --extra dev --extra cli --extra state --extra roba
+
+git clone https://github.com/skaldos/dix-modules.git "$DIX_ROOT/modules/skaldos"
+export SWAY_ROOT=$DIX_ROOT/modules/skaldos/sway
+
+uv pip install --python "$DIX_ROOT/.venv/bin/python" -r "$SWAY_ROOT/requirements.txt"
+```
+
+The final dependency-install command is intentionally visible. No import hook silently installs
+`i3ipc`.
 
 The resulting shape is intentional:
 
@@ -84,19 +105,6 @@ $SKALDOS_WORKSPACE/
 
 There is no Git-submodule, package-manager, or discovery relationship between the repositories.
 DIX receives `skaldos/sway` as an explicit source path and module ID.
-
-## 2. Prepare the DIX environment
-
-DIX already points to the sibling `../roba` source in this layout. Sync its declared extras, then
-install the Sway-owned requirements into the same environment:
-
-```sh
-cd "$DIX_ROOT"
-uv sync --frozen --extra dev --extra cli --extra state --extra roba
-uv pip install --python "$DIX_ROOT/.venv/bin/python" -r "$SWAY_ROOT/requirements.txt"
-```
-
-The second command is intentionally visible. No import hook silently installs `i3ipc`.
 
 ## 3. Define local Sway state files
 

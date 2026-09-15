@@ -65,8 +65,18 @@ mkdir -p skaldos-sway-showcase
 cd skaldos-sway-showcase
 git clone https://github.com/skaldos/roba.git roba
 git clone https://github.com/skaldos/dix.git dix
+
+cd dix
+uv sync --frozen --extra dev --extra cli --extra state --extra roba
+cd ..
+
 git clone https://github.com/skaldos/dix-modules.git dix/modules/skaldos
 ```
+
+DIX is prepared before the external checkout is placed below `dix/modules`. This order keeps a
+locally built DIX distribution limited to the modules owned by its committed source; directories
+already present below `modules/` are build inputs. The external checkout is then consumed from its
+source path, not rebuilt as part of DIX.
 
 DIX does not discover the checkout. The Sway application and its launchers pass both the source
 path and module ID explicitly.

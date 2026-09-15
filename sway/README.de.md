@@ -65,12 +65,33 @@ mkdir -p skaldos-sway-showcase
 cd skaldos-sway-showcase
 git clone https://github.com/skaldos/roba.git roba
 git clone https://github.com/skaldos/dix.git dix
-git clone https://github.com/skaldos/dix-modules.git dix/modules/skaldos
 
 export SKALDOS_WORKSPACE=$PWD
 export DIX_ROOT=$SKALDOS_WORKSPACE/dix
-export SWAY_ROOT=$DIX_ROOT/modules/skaldos/sway
 ```
+
+Den externen Checkout nicht vor dem initialen DIX-Sync unter `dix/modules` ablegen. Dort bereits
+vorhandene Verzeichnisse sind Inputs einer lokal gebauten DIX-Distribution. Wird zuerst der
+committete DIX-Source vorbereitet, bleibt diese Distribution auf DIX-eigene Module begrenzt; der
+externe Checkout kommt danach als Source-Consumer hinzu.
+
+## 2. DIX-Umgebung vorbereiten
+
+DIX verweist in dieser Struktur bereits auf den benachbarten Source `../roba`. Die deklarierten
+Extras synchronisieren und danach die Sway-eigenen Requirements in dieselbe Umgebung installieren:
+
+```sh
+cd "$DIX_ROOT"
+uv sync --frozen --extra dev --extra cli --extra state --extra roba
+
+git clone https://github.com/skaldos/dix-modules.git "$DIX_ROOT/modules/skaldos"
+export SWAY_ROOT=$DIX_ROOT/modules/skaldos/sway
+
+uv pip install --python "$DIX_ROOT/.venv/bin/python" -r "$SWAY_ROOT/requirements.txt"
+```
+
+Der abschliessende Dependency-Installationsbefehl ist bewusst sichtbar. Kein Import-Hook
+installiert `i3ipc` stillschweigend.
 
 Die resultierende Form ist beabsichtigt:
 
@@ -85,19 +106,6 @@ $SKALDOS_WORKSPACE/
 
 Zwischen den Repositories existiert keine Git-Submodule-, Package-Manager- oder Discovery-
 Beziehung. DIX erhaelt `skaldos/sway` als expliziten Sourcepfad mit der Modul-ID `skaldos/sway`.
-
-## 2. DIX-Umgebung vorbereiten
-
-DIX verweist in dieser Struktur bereits auf den benachbarten Source `../roba`. Die deklarierten
-Extras synchronisieren und danach die Sway-eigenen Requirements in dieselbe Umgebung installieren:
-
-```sh
-cd "$DIX_ROOT"
-uv sync --frozen --extra dev --extra cli --extra state --extra roba
-uv pip install --python "$DIX_ROOT/.venv/bin/python" -r "$SWAY_ROOT/requirements.txt"
-```
-
-Der zweite Befehl ist bewusst sichtbar. Kein Import-Hook installiert `i3ipc` stillschweigend.
 
 ## 3. Lokale Sway-State-Dateien festlegen
 

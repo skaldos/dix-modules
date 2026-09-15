@@ -82,7 +82,8 @@ def verify() -> None:
         "i3ipc==2.2.1",
         "git clone https://github.com/skaldos/roba.git roba",
         "git clone https://github.com/skaldos/dix.git dix",
-        "git clone https://github.com/skaldos/dix-modules.git dix/modules/skaldos",
+        "git clone https://github.com/skaldos/dix-modules.git",
+        '"$DIX_ROOT/modules/skaldos"',
         "SKALDOS_SWAY_GROUP_STATE_FILE",
         "SKALDOS_SWAY_ACTIVE_MEMBERS_FILE",
         "SKALDOS_SWAY_NAVIGATION_TARGET_FILE",
@@ -116,6 +117,14 @@ def verify() -> None:
     _require(sway_de, detailed_markers, "German Sway README")
     _require(sway_en, ("ROBA **persists nothing**",), "English persistence boundary")
     _require(sway_de, ("ROBA **persistiert nichts**",), "German persistence boundary")
+
+    sync = "uv sync --frozen --extra dev --extra cli --extra state --extra roba"
+    external_clone = "git clone https://github.com/skaldos/dix-modules.git"
+    for relative, text in docs.items():
+        if text.index(sync) > text.index(external_clone):
+            raise AssertionError(
+                f"{relative} places external source in the DIX build input before initial sync"
+            )
 
     config = (ROOT / "sway/integrations/sway/config").read_text()
     active_config_lines = [
