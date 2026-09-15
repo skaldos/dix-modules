@@ -1,0 +1,20 @@
+[composition]
+id = "groups"
+[compositions.state]
+use = "dix/roba/state"
+config = { model = "models/sway_groups.toml", context_id = "skaldos-sway" }
+[compositions.ipc]
+use = "skaldos/sway/ipc"
+[compositions.active_members]
+use = "skaldos/sway/active_members"
+[compositions.navigation_target]
+use = "skaldos/sway/navigation_target"
+[functions.create]
+[functions.add]
+[functions.remove]
+[functions.show]
+[functions.list]
+[functions.memberships]
+[functions.select]
+[functions.deactivate]
+[functions.current]

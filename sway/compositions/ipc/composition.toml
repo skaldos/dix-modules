@@ -1,0 +1,11 @@
+[composition]
+id = "ipc"
+
+[functions.focused_con_id]
+description = "Return the positive ID of the focused Sway container."
+[functions.focus_direction]
+description = "Move focus by one native Sway direction."
+[functions.focus_con_id]
+description = "Focus one Sway container by ID."
+[functions.live_con_ids]
+description = "Return ordered IDs of live Sway leaves."
