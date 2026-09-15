@@ -9,3 +9,5 @@ description = "Move focus by one native Sway direction."
 description = "Focus one Sway container by ID."
 [functions.live_con_ids]
 description = "Return ordered IDs of live Sway leaves."
+[functions.navigation_topology]
+description = "Return the minimal normalized Sway navigation topology."
