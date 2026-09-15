@@ -98,3 +98,40 @@ def test_unframed_choice_fails_without_mutation(tmp_path):
     assert result.returncode == 1
     assert log == "list-lines\n"
     assert "invalid Wofi selection" in result.stderr
+
+
+def test_default_wofi_commits_initial_existing_entry(tmp_path):
+    log, manage, _menu = tools(tmp_path)
+    arguments = tmp_path / "arguments"
+    entries = tmp_path / "entries"
+    wofi = tmp_path / "wofi"
+    wofi.write_text(
+        f"""#!/bin/sh
+printf '%s\\n' "$@" > {arguments}
+cat > {entries}
+sed -n '/^  /{{p;q;}}' {entries}
+"""
+    )
+    wofi.chmod(0o755)
+
+    result = subprocess.run(
+        [str(ROOT / "remove")],
+        env={
+            **os.environ,
+            "PATH": f"{tmp_path}:{os.environ['PATH']}",
+            "SKALDOS_SWAY_MANAGEMENT": str(manage),
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert log.read_text() == "memberships-lines\nremove work\n"
+    assert arguments.read_text().splitlines() == [
+        "--dmenu",
+        "--no-custom-entry",
+        "--prompt",
+        "Aus Gruppe",
+    ]
+    assert entries.read_text() == "  work\n  private\n"

@@ -1,11 +1,17 @@
 #!/bin/sh
 set -eu
 manage=${SKALDOS_SWAY_MANAGEMENT:-skaldos-sway-json}
-menu=${SKALDOS_SWAY_WOFI:-wofi --dmenu --prompt 'Aus Gruppe'}
+choose_group() {
+  if [ -n "${SKALDOS_SWAY_WOFI:-}" ]; then
+    sh -c "$SKALDOS_SWAY_WOFI"
+  else
+    wofi --dmenu --no-custom-entry --prompt 'Aus Gruppe'
+  fi
+}
 groups=$($manage memberships-lines)
 [ -n "$groups" ] || exit 0
 entries=$(printf '%s\n' "$groups" | sed '/^$/d; s/^/  /')
-choice=$(printf '%s\n' "$entries" | sh -c "$menu") || exit 0
+choice=$(printf '%s\n' "$entries" | choose_group) || exit 0
 [ -n "$choice" ] || exit 0
 if [ "${choice#  }" = "$choice" ]; then
   printf 'invalid Wofi selection\n' >&2
