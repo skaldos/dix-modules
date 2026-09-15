@@ -1,0 +1,19 @@
+[project]
+name = "skaldos-dix-modules-dev"
+version = "0.0.0"
+description = "Development workspace for external Skaldos DIX modules"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
