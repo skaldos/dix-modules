@@ -55,9 +55,11 @@ class Runtime:
         visited = [origin]
         seen = {origin}
         current = origin
+        topology: dict[int, tuple[int | None, list[int], list[int]]] | None = None
         if not any(value != origin for value in allowed):
             return _result(direction, origin, origin, False, True, visited, stale)
         for _ in range(max(1, len(live_ids) + 1)):
+            previous = current
             step = _mapping(self.basic.require(direction)(), "basic navigation")
             if step.get("direction") != direction or step.get("origin_id") != current:
                 raise ValueError("basic navigation returned an inconsistent step")
@@ -72,6 +74,23 @@ class Runtime:
             current = focused
             if focused != origin and focused in allowed:
                 return _result(direction, origin, focused, True, False, visited, stale)
+            if changed:
+                if topology is None:
+                    topology = _topology(self.ipc.require("navigation_topology")())
+                candidate = _target_branch_candidate(topology, previous, focused, allowed)
+                if candidate is not None:
+                    value = self.ipc.require("focus_con_id")(candidate)
+                    if value is not None:
+                        raise TypeError("focus_con_id must return None")
+                    actual = _id(self.ipc.require("focused_con_id")(), "directly focused con_id")
+                    if actual != candidate:
+                        raise RuntimeError(
+                            f"Sway direct focus failed: expected {candidate}, got {actual}"
+                        )
+                    if candidate not in seen:
+                        seen.add(candidate)
+                        visited.append(candidate)
+                    return _result(direction, origin, candidate, True, False, visited, stale)
             if not changed or repeated:
                 break
         value = self.ipc.require("focus_con_id")(origin)
@@ -102,6 +121,96 @@ def _mapping(value: object, label: str) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
         raise TypeError(f"{label} must return a mapping")
     return value
+
+
+def _topology(value: object) -> dict[int, tuple[int | None, list[int], list[int]]]:
+    if not isinstance(value, list) or not value:
+        raise TypeError("navigation topology must be a non-empty list")
+    result: dict[int, tuple[int | None, list[int], list[int]]] = {}
+    for raw in value:
+        node = _mapping(raw, "navigation topology node")
+        if set(node) != {"con_id", "parent_id", "children", "focus"}:
+            raise ValueError("navigation topology node has invalid fields")
+        con_id = _id(node["con_id"], "topology con_id")
+        if con_id in result:
+            raise ValueError(f"navigation topology contains duplicate con_id {con_id}")
+        parent = node["parent_id"]
+        if parent is not None:
+            parent = _id(parent, "topology parent_id")
+        children = _ids(node["children"], "topology children")
+        focus = _ids(node["focus"], "topology focus")
+        if not set(focus) <= set(children):
+            raise ValueError(f"topology focus for {con_id} must reference direct children")
+        result[con_id] = (parent, children, focus)
+    for con_id, (parent, children, _) in result.items():
+        if parent is not None and parent not in result:
+            raise ValueError(f"topology node {con_id} references missing parent {parent}")
+        for child in children:
+            if child not in result:
+                raise ValueError(f"topology node {con_id} references missing child {child}")
+            if result[child][0] != con_id:
+                raise ValueError(f"topology parent edge for {child} is inconsistent")
+    return result
+
+
+def _target_branch_candidate(
+    topology: dict[int, tuple[int | None, list[int], list[int]]],
+    origin: int,
+    focused: int,
+    allowed: set[int],
+) -> int | None:
+    origin_path = _ancestor_path(topology, origin)
+    target_path = _ancestor_path(topology, focused)
+    origin_ancestors = set(origin_path)
+    lca = next((con_id for con_id in target_path if con_id in origin_ancestors), None)
+    if lca is None:
+        raise ValueError(f"topology has no common ancestor for {origin} and {focused}")
+    target_to_lca = target_path[: target_path.index(lca)]
+    if not target_to_lca:
+        return None
+    branch = target_to_lca[-1]
+    return _first_allowed_leaf(topology, branch, allowed, set())
+
+
+def _ancestor_path(
+    topology: dict[int, tuple[int | None, list[int], list[int]]], con_id: int
+) -> list[int]:
+    if con_id not in topology:
+        raise ValueError(f"focused con_id {con_id} is missing from navigation topology")
+    result: list[int] = []
+    seen: set[int] = set()
+    current: int | None = con_id
+    while current is not None:
+        if current in seen:
+            raise ValueError("navigation topology contains a parent cycle")
+        if current not in topology:
+            raise ValueError(f"navigation topology references missing parent {current}")
+        seen.add(current)
+        result.append(current)
+        current = topology[current][0]
+    return result
+
+
+def _first_allowed_leaf(
+    topology: dict[int, tuple[int | None, list[int], list[int]]],
+    con_id: int,
+    allowed: set[int],
+    active: set[int],
+) -> int | None:
+    if con_id in active:
+        raise ValueError("navigation topology contains a child cycle")
+    _, children, focus = topology[con_id]
+    if not children:
+        return con_id if con_id in allowed else None
+    active.add(con_id)
+    ordered = [*focus, *(child for child in children if child not in set(focus))]
+    for child in ordered:
+        candidate = _first_allowed_leaf(topology, child, allowed, active)
+        if candidate is not None:
+            active.remove(con_id)
+            return candidate
+    active.remove(con_id)
+    return None
 
 
 def _result(direction, origin, focused, matched, restored, visited, stale):

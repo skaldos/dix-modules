@@ -35,7 +35,13 @@ def execute(module_root: Path, direction: str, target: str | None = None) -> dic
     ipc_api = Api(
         {
             name: getattr(ipc, name)
-            for name in ("focused_con_id", "focus_direction", "focus_con_id", "live_con_ids")
+            for name in (
+                "focused_con_id",
+                "focus_direction",
+                "focus_con_id",
+                "live_con_ids",
+                "navigation_topology",
+            )
         }
     )
     basic = basic_mod.Runtime(context=None, config={}, ipc=ipc_api)

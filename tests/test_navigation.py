@@ -18,6 +18,12 @@ def test_navigation_basic_and_group(load_runtime, api, tmp_path):
         focus_direction=direction,
         focus_con_id=lambda value: current.__setitem__(0, value),
         live_con_ids=lambda: [10, 20, 30],
+        navigation_topology=lambda: [
+            {"con_id": 1, "parent_id": None, "children": [10, 20, 30], "focus": []},
+            {"con_id": 10, "parent_id": 1, "children": [], "focus": []},
+            {"con_id": 20, "parent_id": 1, "children": [], "focus": []},
+            {"con_id": 30, "parent_id": 1, "children": [], "focus": []},
+        ],
     )
     Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
     Group = load_runtime("sway/apps/navigation_group/runtime.py")
@@ -108,6 +114,12 @@ def test_group_navigation_restores_origin_when_no_target(load_runtime, api, tmp_
         focus_direction=direction,
         focus_con_id=restore,
         live_con_ids=lambda: [10, 20, 30],
+        navigation_topology=lambda: [
+            {"con_id": 1, "parent_id": None, "children": [10, 20, 30], "focus": []},
+            {"con_id": 10, "parent_id": 1, "children": [], "focus": []},
+            {"con_id": 20, "parent_id": 1, "children": [], "focus": []},
+            {"con_id": 30, "parent_id": 1, "children": [], "focus": []},
+        ],
     )
     Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
     Group = load_runtime("sway/apps/navigation_group/runtime.py")
@@ -131,3 +143,73 @@ def test_group_navigation_restores_origin_when_no_target(load_runtime, api, tmp_
     result = group.right()
     assert result["matched"] is False and result["restored"] is True
     assert result["focused_id"] == 10 and restored == [10]
+
+
+def test_group_navigation_resolves_hidden_leaf_in_entered_branch(load_runtime, api, tmp_path):
+    current = [10]
+    direct = []
+
+    def direction(_value):
+        current[0] = 20
+
+    def focus(value):
+        direct.append(value)
+        current[0] = value
+
+    ipc = api(
+        focused_con_id=lambda: current[0],
+        focus_direction=direction,
+        focus_con_id=focus,
+        live_con_ids=lambda: [10, 20, 30, 40],
+        navigation_topology=lambda: [
+            {"con_id": 1, "parent_id": None, "children": [100, 200], "focus": [100, 200]},
+            {"con_id": 100, "parent_id": 1, "children": [20, 30, 40], "focus": [40, 30, 20]},
+            {"con_id": 20, "parent_id": 100, "children": [], "focus": []},
+            {"con_id": 30, "parent_id": 100, "children": [], "focus": []},
+            {"con_id": 40, "parent_id": 100, "children": [], "focus": []},
+            {"con_id": 200, "parent_id": 1, "children": [10], "focus": [10]},
+            {"con_id": 10, "parent_id": 200, "children": [], "focus": []},
+        ],
+    )
+    Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
+    Group = load_runtime("sway/apps/navigation_group/runtime.py")
+    context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
+    basic = Basic(context=context, config={}, ipc=ipc)
+    group = Group(
+        context=context,
+        config={},
+        basic=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
+        active_members=api(get=lambda: [30, 40]),
+        ipc=ipc,
+    )
+    result = group.left()
+    assert result["matched"] is True and result["focused_id"] == 40
+    assert result["visited_ids"] == [10, 20, 40]
+    assert direct == [40]
+
+
+def test_group_navigation_direct_hit_does_not_read_topology(load_runtime, api, tmp_path):
+    current = [10]
+
+    def direction(_value):
+        current[0] = 20
+
+    ipc = api(
+        focused_con_id=lambda: current[0],
+        focus_direction=direction,
+        focus_con_id=lambda value: current.__setitem__(0, value),
+        live_con_ids=lambda: [10, 20],
+        navigation_topology=lambda: (_ for _ in ()).throw(AssertionError("must stay lazy")),
+    )
+    Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
+    Group = load_runtime("sway/apps/navigation_group/runtime.py")
+    context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
+    basic = Basic(context=context, config={}, ipc=ipc)
+    group = Group(
+        context=context,
+        config={},
+        basic=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
+        active_members=api(get=lambda: [20]),
+        ipc=ipc,
+    )
+    assert group.right()["focused_id"] == 20
