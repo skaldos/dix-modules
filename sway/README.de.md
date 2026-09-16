@@ -110,67 +110,48 @@ $SKALDOS_WORKSPACE/
 Zwischen den Repositories existiert keine Git-Submodule-, Package-Manager- oder Discovery-
 Beziehung. DIX erhaelt `skaldos/sway` als expliziten Sourcepfad mit der Modul-ID `skaldos/sway`.
 
-## 3. Lokale Sway-State-Dateien festlegen
+## 3. Eine zentrale DIX-Umgebung anlegen
 
-Ein privates Verzeichnis verwenden und alle drei Grenzen konsistent exportieren:
+Das kommentierte XDG-orientierte Template einmal installieren. Nur diese Datei wird von den
+lokalen Befehlen geladen:
 
 ```sh
-export SKALDOS_SWAY_STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/skaldos/sway
-export SKALDOS_SWAY_GROUP_STATE_FILE=$SKALDOS_SWAY_STATE_DIR/groups.json
-export SKALDOS_SWAY_ACTIVE_MEMBERS_FILE=$SKALDOS_SWAY_STATE_DIR/active-members
-export SKALDOS_SWAY_NAVIGATION_TARGET_FILE=$SKALDOS_SWAY_STATE_DIR/navigation-target
-mkdir -p "$SKALDOS_SWAY_STATE_DIR"
+mkdir -p "$HOME/.dix"
+cp "$SWAY_ROOT/integrations/env" "$HOME/.dix/env"
+${EDITOR:-vi} "$HOME/.dix/env"
 ```
 
-- `groups.json` ist private Group-Ownership und enthaelt Namen samt gespeicherten `con_id`-Listen.
-- `active-members` ist eine schmale, newline-terminierte Liste fuer den Navigations-Hot-Path.
-- `navigation-target` enthaelt exakt `basic` oder `group` plus Newline.
+Die Defaults verwenden passend `XDG_RUNTIME_DIR`, `XDG_STATE_HOME` und `XDG_DATA_HOME`. Fuer einen
+eigenen Baum wie `~/.dix` werden nur hier Werte ueberschrieben, nicht in Sway.
+`SKALDOS_SWAY_GROUP_STATE_FILE`, `SKALDOS_SWAY_ACTIVE_MEMBERS_FILE` und
+`SKALDOS_SWAY_NAVIGATION_TARGET_FILE` bleiben getrennte Grenzen.
 
 `groups.json` ist lokaler Nutzerzustand. Die Projektionsdateien sind ersetzbare Ausgaben und
 duerfen nicht in ungueltige Werte editiert werden.
 
-## 4. DIX-ROBA-CLI bauen und installieren
+## 4. Lokale Launcher und Befehle bauen und installieren
 
 Der Management-Einstieg benoetigt einen laufenden ROBA-Daemon, die DIX-Control-Registry und einen
-verwalteten Context. Die committete Typer-Application einmal bauen und danach einen transparenten
-lokalen Befehl installieren:
+verwalteten Context. Der Integrationsinstaller baut die committete Typer-Application, kopiert beide
+Sway-Python-Launcher und installiert die kleinen Befehle unter `DIX_BIN`:
 
 ```sh
-export DIX_LAUNCHER_HOME=${XDG_DATA_HOME:-$HOME/.local/share}/dix/launchers
-mkdir -p "$DIX_LAUNCHER_HOME" "$HOME/.local/bin"
-"$DIX_ROOT/.venv/bin/python" -m dix.bootstrap build \
-  "$DIX_ROOT/examples/launchers/dix_roba.toml" \
-  --output "$DIX_LAUNCHER_HOME/dix-roba.py" \
-  --replace
-
-cat > "$HOME/.local/bin/dix-roba" <<EOF
-#!/bin/sh
-exec "$DIX_ROOT/.venv/bin/python" "$DIX_LAUNCHER_HOME/dix-roba.py" "\$@"
-EOF
-chmod 0755 "$HOME/.local/bin/dix-roba"
+"$SWAY_ROOT/integrations/install"
 export PATH=$HOME/.local/bin:$PATH
 dix-roba --help
 ```
 
-Der erzeugte Launcher ist die echte Typer-Application `dix/roba/cli` mit expliziten
-Modul-Sources. Die lokale Datei `dix-roba` bindet diesen Launcher nur an DIX' Python-Umgebung.
-Keine der beiden Dateien ist ein Daemon oder fuehrt Discovery aus. Nach dem Verschieben des
-DIX-Checkouts beide neu bauen.
+Die resultierenden Befehle `dix-roba`, `skaldos-sway-json`, `skaldos-sway-nav` und die
+Wofi-Helfer laden alle `~/.dix/env`. Ihre Python-Launcher liegen gemeinsam unter `DIX_LAUNCHERS`.
 
 ## 5. ROBA konfigurieren, starten und `skaldos-sway` erzeugen
 
-Ohne Overrides behaelt DIX die belegte Daemon-ID `default`, den Runtime-Root `~/.roba/runtime` und
-den Log-Root `~/.roba/logs`. Fuer XDG-orientierte lokale Pfade vor jedem DIX-ROBA-Consumer einen
-gemeinsamen DIX-Vertrag setzen:
+Ohne Overrides behaelt DIX selbst die belegte Daemon-ID `default`, den Runtime-Root
+`~/.roba/runtime` und den Log-Root `~/.roba/logs`. Das installierte Environment-Template gibt
+stattdessen jedem lokalen Befehl XDG-orientierte Werte fuer `DIX_ROBA_RUNTIME_ROOT` und
+`DIX_ROBA_LOGS_ROOT`:
 
 ```sh
-if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-  export DIX_ROBA_RUNTIME_ROOT=$XDG_RUNTIME_DIR/dix/roba
-else
-  export DIX_ROBA_RUNTIME_ROOT=${XDG_STATE_HOME:-$HOME/.local/state}/dix/roba/runtime
-fi
-export DIX_ROBA_LOGS_ROOT=${XDG_STATE_HOME:-$HOME/.local/state}/dix/roba/logs
-
 dix-roba managed start
 dix-roba control create_context \
   --context_id skaldos-sway
@@ -181,39 +162,28 @@ dix-roba daemon status
 den Modul-Context und dessen Manager-Socket. Diese Befehle geben capability-tragende Ergebnisdaten
 aus; Tokens gehoeren nicht in Dokumentation, Logs oder Tickets.
 
-Die beiden Werte duerfen stattdessen beliebige absolute nutzereigene Pfade sein:
+Fuer beliebige absolute nutzereigene Pfade werden die beiden Werte in `~/.dix/env` gesetzt:
 
 ```sh
 export DIX_ROBA_RUNTIME_ROOT=/absoluter/pfad/zur/roba-runtime
 export DIX_ROBA_LOGS_ROOT=/absoluter/pfad/zu/roba-logs
 ```
 
-Jeder getrennt gestartete DIX-Consumer, einschliesslich `skaldos-sway-json` und der Wofi-Helfer,
-muss dieselben beiden Werte erben. Benannte Typer-Parameter wie `--runtime_root` und `--logs_root`
-ueberschreiben sie fuer einen Aufruf; dann benoetigen aber alle zusammengehoerigen Aufrufe dieselben
-expliziten Werte. Kein nicht expandiertes literales `~` in exportierten oder benannten
-Custom-Pfaden verwenden. Den Runtime-Root kurz genug fuer das Unix-Socket-Pfadlimit der Plattform
-halten.
+Jeder installierte Befehl liest dieselbe Datei. Benannte Typer-Parameter wie `--runtime_root` und
+`--logs_root` ueberschreiben sie weiterhin fuer einen Aufruf. Kein nicht expandiertes literales
+`~` in Custom-Pfaden verwenden.
 
 `create_context` nicht wiederholt gegen einen bereits existierenden Context ausfuehren. Ein
 Duplikat ist ein sichtbarer Fehler und kein Attach-Vorgang.
 
-## 6. Die zwei transparenten Wrapper installieren
+## 6. Die transparenten Wrapper pruefen
 
-Die Wrapper lokalisieren nur den Source-Tree und starten den committeten Einstieg mit DIX' Python:
+Der Installer hat die Wrapper bereits unter `DIX_BIN` abgelegt. Sie enthalten nur diese Grenze:
 
 ```sh
-mkdir -p "$HOME/.local/bin"
-ln -sfn "$SWAY_ROOT/integrations/bin/skaldos-sway-nav" \
-  "$HOME/.local/bin/skaldos-sway-nav"
-ln -sfn "$SWAY_ROOT/integrations/bin/skaldos-sway-json" \
-  "$HOME/.local/bin/skaldos-sway-json"
-export PATH=$HOME/.local/bin:$PATH
+cat "$HOME/.local/bin/skaldos-sway-nav"
+cat "$HOME/.local/bin/skaldos-sway-json"
 ```
-
-Sie leiten die dokumentierte Struktur aus dem realen Symlink-Ziel ab. Fuer eine abweichende
-Source-Struktur koennen absolute Werte fuer `SKALDOS_DIX_ROOT` und `SKALDOS_SWAY_ROOT` gesetzt
-werden. Kein nicht expandiertes literales `~` in diesen Variablen verwenden.
 
 Die Wrapper starten ROBA niemals. `skaldos-sway-json` ist der breite DIX-/ROBA-Managementpfad;
 `skaldos-sway-nav` ist der direkte, dependency-arme Navigationspfad.
@@ -283,13 +253,16 @@ noch Pydantic.
 
 ## 9. Optionale Wofi-Befehle
 
-Mit `skaldos-sway-json` auf `PATH` und denselben exportierten State-Variablen:
+Der Installer stellt drei direkte Befehle bereit:
 
 ```sh
-"$SWAY_ROOT/integrations/wofi/select"
-"$SWAY_ROOT/integrations/wofi/add"
-"$SWAY_ROOT/integrations/wofi/remove"
+skaldos-sway-wofi-select
+skaldos-sway-wofi-add
+skaldos-sway-wofi-remove
 ```
+
+Ihre Source-Adapter bleiben unter `integrations/wofi/select`, `integrations/wofi/add` und
+`integrations/wofi/remove`.
 
 Die Menues fuer vorhandene Eintraege starten Wofi mit `--no-custom-entry`. Enter auf der initial
 hervorgehobenen Zeile uebernimmt diese deshalb ohne vorherige Cursorbewegung. Nur der getrennte
@@ -307,37 +280,24 @@ Grenzen und keine DIX-API.
 
 Das vollstaendige gepflegte Fragment liegt unter
 [`integrations/sway/config`](integrations/sway/config). Es in die Sway-Konfiguration kopieren und
-`/home/YOU` sowie `path/to/workspace` durch absolute Werte ersetzen:
+`/home/YOU` durch das reale absolute Home-Verzeichnis ersetzen:
 
 ```text
 set $skaldos_home /home/YOU
-set $skaldos_sway $skaldos_home/path/to/workspace/dix/modules/skaldos/sway
-set $skaldos_state $skaldos_home/.local/state/skaldos/sway
+set $skaldos_bin $skaldos_home/.local/bin
 
-set $skaldos_nav env SKALDOS_SWAY_GROUP_STATE_FILE=$skaldos_state/groups.json SKALDOS_SWAY_ACTIVE_MEMBERS_FILE=$skaldos_state/active-members SKALDOS_SWAY_NAVIGATION_TARGET_FILE=$skaldos_state/navigation-target $skaldos_home/.local/bin/skaldos-sway-nav
-set $skaldos_manage env SKALDOS_SWAY_GROUP_STATE_FILE=$skaldos_state/groups.json SKALDOS_SWAY_ACTIVE_MEMBERS_FILE=$skaldos_state/active-members SKALDOS_SWAY_NAVIGATION_TARGET_FILE=$skaldos_state/navigation-target SKALDOS_SWAY_MANAGEMENT=$skaldos_home/.local/bin/skaldos-sway-json
+bindsym $mod+h exec --no-startup-id $skaldos_bin/skaldos-sway-nav left
+bindsym $mod+j exec --no-startup-id $skaldos_bin/skaldos-sway-nav down
+bindsym $mod+k exec --no-startup-id $skaldos_bin/skaldos-sway-nav up
+bindsym $mod+l exec --no-startup-id $skaldos_bin/skaldos-sway-nav right
 
-exec_always --no-startup-id mkdir -p $skaldos_state
-
-bindsym $mod+h exec --no-startup-id $skaldos_nav left
-bindsym $mod+j exec --no-startup-id $skaldos_nav down
-bindsym $mod+k exec --no-startup-id $skaldos_nav up
-bindsym $mod+l exec --no-startup-id $skaldos_nav right
-
-bindsym $mod+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrations/wofi/select
-bindsym $mod+Shift+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrations/wofi/add
-bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrations/wofi/remove
+bindsym $mod+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-select
+bindsym $mod+Shift+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-add
+bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-remove
 ```
 
-Ein Export in einer interaktiven Shell aendert die Umgebung eines bereits laufenden Sway-Prozesses
-nicht rueckwirkend. Bei Custom-ROBA-Roots entweder Sway mit beiden `DIX_ROBA_*`-Werten starten oder
-absolute Werte in den Management-Befehl des Fragments aufnehmen:
-
-```text
-set $skaldos_roba_runtime /absoluter/pfad/zur/roba-runtime
-set $skaldos_roba_logs /absoluter/pfad/zu/roba-logs
-set $skaldos_manage env DIX_ROBA_RUNTIME_ROOT=$skaldos_roba_runtime DIX_ROBA_LOGS_ROOT=$skaldos_roba_logs SKALDOS_SWAY_GROUP_STATE_FILE=$skaldos_state/groups.json SKALDOS_SWAY_ACTIVE_MEMBERS_FILE=$skaldos_state/active-members SKALDOS_SWAY_NAVIGATION_TARGET_FILE=$skaldos_state/navigation-target SKALDOS_SWAY_MANAGEMENT=$skaldos_home/.local/bin/skaldos-sway-json
-```
+Sway erhaelt keine DIX-spezifische Umgebung. Jeder Befehl laedt die aktuellen Werte aus
+`~/.dix/env`; eine Aenderung dort gilt beim naechsten Aufruf ohne Sway-Reload.
 
 Bindings waehlen, die nicht mit der eigenen Konfiguration kollidieren. Danach neu laden und einen
 Basic-Smoke-Test ausfuehren:

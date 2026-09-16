@@ -1,22 +1,14 @@
-# Replace this one value with the real absolute home directory.
+# The installed commands load ~/.dix/env themselves. Sway only needs stable command paths.
 set $skaldos_home /home/YOU
-set $skaldos_sway $skaldos_home/path/to/workspace/dix/modules/skaldos/sway
-set $skaldos_state $skaldos_home/.local/state/skaldos/sway
-
-# Every process receives the same explicit state boundary. The management command is absolute so
-# it does not depend on the environment inherited by Sway.
-set $skaldos_nav env SKALDOS_SWAY_GROUP_STATE_FILE=$skaldos_state/groups.json SKALDOS_SWAY_ACTIVE_MEMBERS_FILE=$skaldos_state/active-members SKALDOS_SWAY_NAVIGATION_TARGET_FILE=$skaldos_state/navigation-target $skaldos_home/.local/bin/skaldos-sway-nav
-set $skaldos_manage env SKALDOS_SWAY_GROUP_STATE_FILE=$skaldos_state/groups.json SKALDOS_SWAY_ACTIVE_MEMBERS_FILE=$skaldos_state/active-members SKALDOS_SWAY_NAVIGATION_TARGET_FILE=$skaldos_state/navigation-target SKALDOS_SWAY_MANAGEMENT=$skaldos_home/.local/bin/skaldos-sway-json
-
-exec_always --no-startup-id mkdir -p $skaldos_state
+set $skaldos_bin $skaldos_home/.local/bin
 
 # Fixed bindings: no Sway mode and no runtime rebinding.
-bindsym $mod+h exec --no-startup-id $skaldos_nav left
-bindsym $mod+j exec --no-startup-id $skaldos_nav down
-bindsym $mod+k exec --no-startup-id $skaldos_nav up
-bindsym $mod+l exec --no-startup-id $skaldos_nav right
+bindsym $mod+h exec --no-startup-id $skaldos_bin/skaldos-sway-nav left
+bindsym $mod+j exec --no-startup-id $skaldos_bin/skaldos-sway-nav down
+bindsym $mod+k exec --no-startup-id $skaldos_bin/skaldos-sway-nav up
+bindsym $mod+l exec --no-startup-id $skaldos_bin/skaldos-sway-nav right
 
 # Choose keys appropriate for the local configuration.
-bindsym $mod+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrations/wofi/select
-bindsym $mod+Shift+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrations/wofi/add
-bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrations/wofi/remove
+bindsym $mod+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-select
+bindsym $mod+Shift+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-add
+bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-remove

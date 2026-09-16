@@ -1,0 +1,30 @@
+# Central environment for locally installed DIX integrations.
+# Copy this file to ~/.dix/env and override only the values that differ locally.
+
+# Source checkout containing DIX and external modules.
+export DIX_SOURCE_ROOT="${DIX_SOURCE_ROOT:-$HOME/.dix/src}"
+export DIX_ROOT="${DIX_ROOT:-$DIX_SOURCE_ROOT/dix}"
+export SKALDOS_SWAY_ROOT="${SKALDOS_SWAY_ROOT:-$DIX_ROOT/modules/skaldos/sway}"
+
+# Python environment and generated/copied Python launchers.
+export DIX_VENV="${DIX_VENV:-$DIX_ROOT/.venv}"
+export DIX_LAUNCHERS="${DIX_LAUNCHERS:-${XDG_DATA_HOME:-$HOME/.local/share}/dix/launchers}"
+export DIX_BIN="${DIX_BIN:-$HOME/.local/bin}"
+
+# Volatile ROBA sockets prefer the per-user XDG runtime directory. The fallback remains
+# user-owned and works on systems without XDG_RUNTIME_DIR.
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    _dix_roba_runtime_default="$XDG_RUNTIME_DIR/dix/roba"
+else
+    _dix_roba_runtime_default="${XDG_STATE_HOME:-$HOME/.local/state}/dix/roba/runtime"
+fi
+export DIX_ROBA_RUNTIME_ROOT="${DIX_ROBA_RUNTIME_ROOT:-$_dix_roba_runtime_default}"
+unset _dix_roba_runtime_default
+
+# Durable logs and Sway-owned files follow XDG_STATE_HOME by default. ROBA itself remains
+# ephemeral; only its logs live below the state directory.
+export DIX_ROBA_LOGS_ROOT="${DIX_ROBA_LOGS_ROOT:-${XDG_STATE_HOME:-$HOME/.local/state}/dix/roba/logs}"
+export SKALDOS_SWAY_STATE_ROOT="${SKALDOS_SWAY_STATE_ROOT:-${XDG_STATE_HOME:-$HOME/.local/state}/skaldos/sway}"
+export SKALDOS_SWAY_GROUP_STATE_FILE="${SKALDOS_SWAY_GROUP_STATE_FILE:-$SKALDOS_SWAY_STATE_ROOT/groups.json}"
+export SKALDOS_SWAY_ACTIVE_MEMBERS_FILE="${SKALDOS_SWAY_ACTIVE_MEMBERS_FILE:-$SKALDOS_SWAY_STATE_ROOT/active-members}"
+export SKALDOS_SWAY_NAVIGATION_TARGET_FILE="${SKALDOS_SWAY_NAVIGATION_TARGET_FILE:-$SKALDOS_SWAY_STATE_ROOT/navigation-target}"

@@ -1,0 +1,69 @@
+#!/bin/sh
+set -eu
+
+integration_root=$(CDPATH= cd "$(dirname "$0")" && pwd -P)
+env_file=${DIX_ENV:-$HOME/.dix/env}
+
+if [ ! -e "$env_file" ]; then
+    mkdir -p "$(dirname "$env_file")"
+    cp "$integration_root/env" "$env_file"
+    printf 'created %s\n' "$env_file"
+fi
+
+[ -r "$env_file" ] || {
+    printf 'DIX environment file is not readable: %s\n' "$env_file" >&2
+    exit 1
+}
+. "$env_file"
+
+[ -x "$DIX_VENV/bin/python" ] || {
+    printf 'DIX environment Python is not executable: %s\n' "$DIX_VENV/bin/python" >&2
+    exit 1
+}
+[ -d "$SKALDOS_SWAY_ROOT" ] || {
+    printf 'Sway module root is not a directory: %s\n' "$SKALDOS_SWAY_ROOT" >&2
+    exit 1
+}
+
+mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN" "$SKALDOS_SWAY_STATE_ROOT"
+
+"$DIX_VENV/bin/python" -m dix.bootstrap build \
+    "$DIX_ROOT/examples/launchers/dix_roba.toml" \
+    --output "$DIX_LAUNCHERS/dix-roba.py" \
+    --replace
+
+cp "$integration_root/launchers/skaldos-sway-nav.py" "$DIX_LAUNCHERS/skaldos-sway-nav.py"
+cp "$integration_root/launchers/skaldos-sway-json.py" "$DIX_LAUNCHERS/skaldos-sway-json.py"
+cp "$integration_root/bin/skaldos-sway-nav" "$DIX_BIN/skaldos-sway-nav"
+cp "$integration_root/bin/skaldos-sway-json" "$DIX_BIN/skaldos-sway-json"
+
+cat >"$DIX_BIN/dix-roba" <<'EOF'
+#!/bin/sh
+set -eu
+env_file=${DIX_ENV:-$HOME/.dix/env}
+. "$env_file"
+exec "$DIX_VENV/bin/python" "$DIX_LAUNCHERS/dix-roba.py" "$@"
+EOF
+
+for action in select add remove; do
+    target="$DIX_BIN/skaldos-sway-wofi-$action"
+    cat >"$target" <<EOF
+#!/bin/sh
+set -eu
+env_file=\${DIX_ENV:-\$HOME/.dix/env}
+. "\$env_file"
+export SKALDOS_SWAY_MANAGEMENT="\$DIX_BIN/skaldos-sway-json"
+exec "\$SKALDOS_SWAY_ROOT/integrations/wofi/$action" "\$@"
+EOF
+done
+
+chmod 0755 \
+    "$DIX_BIN/dix-roba" \
+    "$DIX_BIN/skaldos-sway-nav" \
+    "$DIX_BIN/skaldos-sway-json" \
+    "$DIX_BIN/skaldos-sway-wofi-select" \
+    "$DIX_BIN/skaldos-sway-wofi-add" \
+    "$DIX_BIN/skaldos-sway-wofi-remove"
+
+printf 'installed launchers in %s\n' "$DIX_LAUNCHERS"
+printf 'installed commands in %s\n' "$DIX_BIN"

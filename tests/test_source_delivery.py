@@ -6,30 +6,45 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
-BIN = ROOT / "sway" / "integrations" / "bin"
+INTEGRATIONS = ROOT / "sway" / "integrations"
+BIN = INTEGRATIONS / "bin"
+LAUNCHERS = INTEGRATIONS / "launchers"
 
 
-def _layout(tmp_path: Path) -> tuple[Path, Path]:
-    dix_root = tmp_path / "workspace" / "dix"
+def _layout(tmp_path: Path) -> tuple[Path, Path, Path]:
+    home = tmp_path / "home"
+    dix_home = home / ".dix"
+    dix_root = dix_home / "src" / "dix"
     module_root = dix_root / "modules" / "skaldos" / "sway"
-    wrapper_root = module_root / "integrations" / "bin"
-    wrapper_root.mkdir(parents=True)
-    for name in ("skaldos-sway-nav", "skaldos-sway-json"):
-        shutil.copy2(BIN / name, wrapper_root / name)
-        (wrapper_root / name).chmod(0o755)
-    (module_root / "navigation_entry.py").write_text("# navigation fixture\n")
-    (module_root / "management_entry.py").write_text("# management fixture\n")
+    launcher_root = dix_home / "share" / "dix" / "launchers"
+    user_bin = home / ".local" / "bin"
     python = dix_root / ".venv" / "bin" / "python"
+
+    launcher_root.mkdir(parents=True)
+    user_bin.mkdir(parents=True)
+    module_root.mkdir(parents=True)
     python.parent.mkdir(parents=True)
     python.write_text('#!/bin/sh\nprintf "arg=%s\\n" "$@"\nexit "${FAKE_EXIT:-0}"\n')
     python.chmod(0o755)
-    return dix_root, module_root
+
+    for name in ("skaldos-sway-nav.py", "skaldos-sway-json.py"):
+        shutil.copy2(LAUNCHERS / name, launcher_root / name)
+    for name in ("skaldos-sway-nav", "skaldos-sway-json"):
+        shutil.copy2(BIN / name, user_bin / name)
+        (user_bin / name).chmod(0o755)
+
+    (dix_home / "env").write_text(
+        f'export DIX_VENV="{dix_root / ".venv"}"\n'
+        f'export DIX_LAUNCHERS="{launcher_root}"\n'
+        f'export SKALDOS_SWAY_ROOT="{module_root}"\n'
+    )
+    return home, user_bin, launcher_root
 
 
-def _run(path: Path, *arguments: str, env: dict[str, str] | None = None):
+def _run(home: Path, path: Path, *arguments: str, env: dict[str, str] | None = None):
     return subprocess.run(
         [str(path), *arguments],
-        env={**os.environ, **(env or {})},
+        env={**os.environ, "HOME": str(home), **(env or {})},
         text=True,
         capture_output=True,
         check=False,
@@ -41,85 +56,121 @@ def test_sway_owns_one_exact_dependency() -> None:
     assert "i3ipc" not in (Path(os.environ["DIX_REPOSITORY"]) / "pyproject.toml").read_text()
 
 
-def test_wrappers_derive_clone_layout_and_forward_arguments(tmp_path: Path) -> None:
-    dix_root, module_root = _layout(tmp_path)
+def test_wrappers_load_one_central_environment_and_forward_arguments(tmp_path: Path) -> None:
+    home, user_bin, launcher_root = _layout(tmp_path)
 
-    nav = _run(
-        module_root / "integrations" / "bin" / "skaldos-sway-nav",
-        "--target",
-        "group",
-        "left",
-    )
+    nav = _run(home, user_bin / "skaldos-sway-nav", "--target", "group", "left")
     assert nav.returncode == 0, nav.stderr
     assert nav.stdout.splitlines() == [
-        f"arg={module_root / 'navigation_entry.py'}",
+        f"arg={launcher_root / 'skaldos-sway-nav.py'}",
         "arg=--target",
         "arg=group",
         "arg=left",
     ]
 
     management = _run(
-        module_root / "integrations" / "bin" / "skaldos-sway-json",
+        home,
+        user_bin / "skaldos-sway-json",
         "select",
         "work",
         env={"FAKE_EXIT": "23"},
     )
     assert management.returncode == 23
     assert management.stdout.splitlines() == [
-        f"arg={module_root / 'management_entry.py'}",
+        f"arg={launcher_root / 'skaldos-sway-json.py'}",
         "arg=select",
         "arg=work",
     ]
-    assert dix_root.is_dir()
 
 
-def test_symlink_and_explicit_roots_use_the_same_delivery(tmp_path: Path) -> None:
-    dix_root, module_root = _layout(tmp_path)
-    user_bin = tmp_path / "home" / ".local" / "bin"
-    user_bin.mkdir(parents=True)
-    link = user_bin / "skaldos-sway-nav"
-    link.symlink_to(module_root / "integrations" / "bin" / "skaldos-sway-nav")
+def test_explicit_environment_file_replaces_default_home_location(tmp_path: Path) -> None:
+    home, user_bin, launcher_root = _layout(tmp_path)
+    explicit = tmp_path / "custom" / "dix.env"
+    explicit.parent.mkdir()
+    explicit.write_text((home / ".dix" / "env").read_text())
+    (home / ".dix" / "env").unlink()
 
-    linked = _run(link, "right")
-    assert linked.returncode == 0, linked.stderr
-    assert linked.stdout.splitlines() == [
-        f"arg={module_root / 'navigation_entry.py'}",
-        "arg=right",
-    ]
-
-    explicit = _run(
-        BIN / "skaldos-sway-json",
+    result = _run(
+        home,
+        user_bin / "skaldos-sway-json",
         "list-lines",
-        env={"SKALDOS_DIX_ROOT": str(dix_root), "SKALDOS_SWAY_ROOT": str(module_root)},
+        env={"DIX_ENV": str(explicit)},
     )
-    assert explicit.returncode == 0, explicit.stderr
-    assert explicit.stdout.splitlines() == [
-        f"arg={module_root / 'management_entry.py'}",
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [
+        f"arg={launcher_root / 'skaldos-sway-json.py'}",
         "arg=list-lines",
     ]
 
 
-def test_wrapper_reports_missing_dix_environment(tmp_path: Path) -> None:
-    dix_root, module_root = _layout(tmp_path)
-    (dix_root / ".venv" / "bin" / "python").unlink()
+def test_wrapper_reports_missing_central_environment(tmp_path: Path) -> None:
+    home, user_bin, _ = _layout(tmp_path)
+    (home / ".dix" / "env").unlink()
 
-    result = _run(module_root / "integrations" / "bin" / "skaldos-sway-nav", "left")
+    result = _run(home, user_bin / "skaldos-sway-nav", "left")
+
+    assert result.returncode == 1
+    assert "DIX environment file is not readable" in result.stderr
+
+
+def test_wrapper_reports_missing_dix_environment(tmp_path: Path) -> None:
+    home, user_bin, _ = _layout(tmp_path)
+    (home / ".dix" / "src" / "dix" / ".venv" / "bin" / "python").unlink()
+
+    result = _run(home, user_bin / "skaldos-sway-nav", "left")
 
     assert result.returncode == 1
     assert "DIX environment Python is not executable" in result.stderr
 
 
-def test_sway_fragment_uses_delivered_commands_and_explicit_state() -> None:
-    config = (ROOT / "sway" / "integrations" / "sway" / "config").read_text()
+def test_sway_fragment_only_addresses_installed_commands() -> None:
+    config = (INTEGRATIONS / "sway" / "config").read_text()
     for value in (
-        "skaldos-sway-nav",
-        "skaldos-sway-json",
-        "SKALDOS_SWAY_GROUP_STATE_FILE",
-        "SKALDOS_SWAY_ACTIVE_MEMBERS_FILE",
-        "SKALDOS_SWAY_NAVIGATION_TARGET_FILE",
-        "integrations/wofi/select",
-        "integrations/wofi/add",
-        "integrations/wofi/remove",
+        "$skaldos_bin/skaldos-sway-nav",
+        "$skaldos_bin/skaldos-sway-wofi-select",
+        "$skaldos_bin/skaldos-sway-wofi-add",
+        "$skaldos_bin/skaldos-sway-wofi-remove",
     ):
         assert value in config
+    for value in (
+        "DIX_ROBA_RUNTIME_ROOT",
+        "SKALDOS_SWAY_GROUP_STATE_FILE",
+        "SKALDOS_SWAY_MANAGEMENT",
+        "exec_always",
+    ):
+        assert value not in config
     assert not any(line.startswith("mode ") for line in config.splitlines())
+
+
+def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    runtime = tmp_path / "runtime"
+    state = tmp_path / "state"
+    home.mkdir()
+    runtime.mkdir()
+    command = (
+        '. "$1"; printf "%s\\n" "$DIX_ROBA_RUNTIME_ROOT" "$DIX_ROBA_LOGS_ROOT" '
+        '"$SKALDOS_SWAY_GROUP_STATE_FILE" "$DIX_LAUNCHERS"'
+    )
+    result = subprocess.run(
+        [
+            "/bin/sh",
+            "-c",
+            command,
+            "_",
+            str(INTEGRATIONS / "env"),
+        ],
+        env={"HOME": str(home), "XDG_RUNTIME_DIR": str(runtime), "XDG_STATE_HOME": str(state)},
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [
+        str(runtime / "dix" / "roba"),
+        str(state / "dix" / "roba" / "logs"),
+        str(state / "skaldos" / "sway" / "groups.json"),
+        str(home / ".local" / "share" / "dix" / "launchers"),
+    ]

@@ -91,6 +91,21 @@ def test_documented_wrapper_path_runs_real_dix_roba_and_fake_sway() -> None:
     launcher = build_launcher(
         DIX / "examples/launchers/dix_roba.toml", base / "dix-roba.py"
     )
+    sway_launchers = base / "launchers"
+    sway_launchers.mkdir()
+    for name in ("skaldos-sway-nav.py", "skaldos-sway-json.py"):
+        shutil.copy2(ROOT / "sway/integrations/launchers" / name, sway_launchers / name)
+    dix_env = base / "dix.env"
+    dix_env.write_text(
+        f'export DIX_VENV="{DIX / ".venv"}"\n'
+        f'export DIX_LAUNCHERS="{sway_launchers}"\n'
+        f'export SKALDOS_SWAY_ROOT="{ROOT / "sway"}"\n'
+        f'export DIX_ROBA_RUNTIME_ROOT="{base / "roba-runtime"}"\n'
+        f'export DIX_ROBA_LOGS_ROOT="{base / "roba-logs"}"\n'
+        f'export SKALDOS_SWAY_GROUP_STATE_FILE="{state / "groups.json"}"\n'
+        f'export SKALDOS_SWAY_ACTIVE_MEMBERS_FILE="{state / "active-members"}"\n'
+        f'export SKALDOS_SWAY_NAVIGATION_TARGET_FILE="{state / "navigation-target"}"\n'
+    )
 
     env = os.environ.copy()
     for key in tuple(env):
@@ -99,13 +114,13 @@ def test_documented_wrapper_path_runs_real_dix_roba_and_fake_sway() -> None:
     env.update(
         {
             "HOME": str(home),
+            "DIX_ENV": str(dix_env),
             "PYTHONPATH": os.pathsep.join((str(fake), str(DIX / "src"))),
             "DIX_ROBA_RUNTIME_ROOT": str(base / "roba-runtime"),
             "DIX_ROBA_LOGS_ROOT": str(base / "roba-logs"),
             "SKALDOS_SWAY_GROUP_STATE_FILE": str(state / "groups.json"),
             "SKALDOS_SWAY_ACTIVE_MEMBERS_FILE": str(state / "active-members"),
             "SKALDOS_SWAY_NAVIGATION_TARGET_FILE": str(state / "navigation-target"),
-            "SKALDOS_DIX_ROOT": str(DIX),
             "SKALDOS_SWAY_ROOT": str(ROOT / "sway"),
         }
     )
