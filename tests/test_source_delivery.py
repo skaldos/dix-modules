@@ -150,8 +150,9 @@ def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_pat
     home.mkdir()
     runtime.mkdir()
     command = (
-        '. "$1"; printf "%s\\n" "$DIX_ROBA_RUNTIME_ROOT" "$DIX_ROBA_LOGS_ROOT" '
-        '"$SKALDOS_SWAY_GROUP_STATE_FILE" "$DIX_LAUNCHERS"'
+            '. "$1"; printf "%s\\n" "$DIX_ROOT" "$DIX_SOURCE_ROOT" '
+            '"$SKALDOS_SWAY_ROOT" "$DIX_ROBA_RUNTIME_ROOT" "$DIX_ROBA_LOGS_ROOT" '
+            '"$SKALDOS_SWAY_GROUP_STATE_FILE" "$DIX_LAUNCHERS"'
     )
     result = subprocess.run(
         [
@@ -169,8 +170,84 @@ def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_pat
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == [
+        str(home / ".dix"),
+        str(home / ".dix" / "src" / "dix"),
+        str(home / ".dix" / "src" / "dix" / "modules" / "skaldos" / "sway"),
         str(runtime / "dix" / "roba"),
         str(state / "dix" / "roba" / "logs"),
         str(state / "skaldos" / "sway" / "groups.json"),
         str(home / ".local" / "share" / "dix" / "launchers"),
     ]
+
+
+def test_installer_builds_both_typer_launchers_and_installs_the_full_cli() -> None:
+    installer = (INTEGRATIONS / "install").read_text()
+
+    for value in (
+        "$DIX_SOURCE_ROOT/examples/launchers/dix_roba.toml",
+        "$SKALDOS_SWAY_ROOT/../examples/launchers/skaldos_sway.toml",
+        "$DIX_LAUNCHERS/dix-roba.py",
+        "$DIX_LAUNCHERS/skaldos-sway.py",
+        "$DIX_BIN/dix-roba",
+        "$DIX_BIN/skaldos-sway",
+    ):
+        assert value in installer
+
+
+def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) -> None:
+    dix_repository = Path(os.environ["DIX_REPOSITORY"])
+    dix_source = tmp_path / "source" / "dix"
+    modules = dix_source / "modules"
+    external = modules / "skaldos"
+    shutil.copytree(dix_repository / "examples", dix_source / "examples")
+    shutil.copytree(dix_repository / "modules" / "dix", modules / "dix")
+    shutil.copytree(
+        ROOT,
+        external,
+        ignore=shutil.ignore_patterns(".git", ".venv", ".pytest_cache", "__pycache__"),
+    )
+
+    home = tmp_path / "home"
+    dix_root = home / ".dix"
+    launchers = dix_root / "share" / "dix" / "launchers"
+    user_bin = home / ".local" / "bin"
+    state = dix_root / "state" / "skaldos" / "sway"
+    env_file = dix_root / "env"
+    env_file.parent.mkdir(parents=True)
+    env_file.write_text(
+        f'export DIX_ROOT="{dix_root}"\n'
+        f'export DIX_SOURCE_ROOT="{dix_source}"\n'
+        f'export SKALDOS_SWAY_ROOT="{external / "sway"}"\n'
+        f'export DIX_VENV="{dix_repository / ".venv"}"\n'
+        f'export DIX_LAUNCHERS="{launchers}"\n'
+        f'export DIX_BIN="{user_bin}"\n'
+        f'export DIX_ROBA_RUNTIME_ROOT="{dix_root / "run" / "roba"}"\n'
+        f'export DIX_ROBA_LOGS_ROOT="{dix_root / "state" / "roba" / "logs"}"\n'
+        f'export SKALDOS_SWAY_STATE_ROOT="{state}"\n'
+        f'export SKALDOS_SWAY_GROUP_STATE_FILE="{state / "groups.json"}"\n'
+        f'export SKALDOS_SWAY_ACTIVE_MEMBERS_FILE="{state / "active-members"}"\n'
+        f'export SKALDOS_SWAY_NAVIGATION_TARGET_FILE="{state / "navigation-target"}"\n'
+    )
+    env = {**os.environ, "HOME": str(home), "DIX_ENV": str(env_file)}
+
+    installed = subprocess.run(
+        [str(external / "sway" / "integrations" / "install")],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert installed.returncode == 0, installed.stderr
+    assert (launchers / "dix-roba.py").is_file()
+    assert (launchers / "skaldos-sway.py").is_file()
+    for command, marker in (("dix-roba", "managed"), ("skaldos-sway", "group")):
+        result = subprocess.run(
+            [str(user_bin / command), "--help"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert marker in result.stdout

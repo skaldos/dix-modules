@@ -69,7 +69,7 @@ git clone https://github.com/skaldos/roba.git roba
 git clone https://github.com/skaldos/dix.git dix
 
 export SKALDOS_WORKSPACE=$PWD
-export DIX_ROOT=$SKALDOS_WORKSPACE/dix
+export DIX_SOURCE_ROOT=$SKALDOS_WORKSPACE/dix
 ```
 
 Do not place the external checkout below `dix/modules` before the initial DIX sync. Directories
@@ -83,13 +83,13 @@ DIX already points to the sibling `../roba` source in this layout. Sync its decl
 install the Sway-owned requirements into the same environment:
 
 ```sh
-cd "$DIX_ROOT"
+cd "$DIX_SOURCE_ROOT"
 uv sync --frozen --extra dev --extra cli --extra state --extra roba
 
-git clone https://github.com/skaldos/dix-modules.git "$DIX_ROOT/modules/skaldos"
-export SWAY_ROOT=$DIX_ROOT/modules/skaldos/sway
+git clone https://github.com/skaldos/dix-modules.git "$DIX_SOURCE_ROOT/modules/skaldos"
+export SWAY_ROOT=$DIX_SOURCE_ROOT/modules/skaldos/sway
 
-uv pip install --python "$DIX_ROOT/.venv/bin/python" -r "$SWAY_ROOT/requirements.txt"
+uv pip install --python "$DIX_SOURCE_ROOT/.venv/bin/python" -r "$SWAY_ROOT/requirements.txt"
 ```
 
 The final dependency-install command is intentionally visible. No import hook silently installs
@@ -137,10 +137,12 @@ launchers, and installs the small commands below `DIX_BIN`:
 "$SWAY_ROOT/integrations/install"
 export PATH=$HOME/.local/bin:$PATH
 dix-roba --help
+skaldos-sway --help
 ```
 
-The resulting `dix-roba`, `skaldos-sway-json`, `skaldos-sway-nav`, and Wofi commands all source
-`~/.dix/env`. Their Python launchers live together below `DIX_LAUNCHERS`.
+The resulting `dix-roba`, full Typer-based `skaldos-sway`, direct `skaldos-sway-json`,
+low-latency `skaldos-sway-nav`, and Wofi commands all source `~/.dix/env`. Their Python launchers
+live together below `DIX_LAUNCHERS`.
 
 ## 5. Configure ROBA, start it, and create `skaldos-sway`
 
@@ -371,7 +373,7 @@ Verify all of the following from the same environment:
 ```sh
 printf '%s\n' "$SWAYSOCK"
 swaymsg -t get_tree >/dev/null
-"$DIX_ROOT/.venv/bin/python" -c 'import i3ipc; print(i3ipc.__version__)'
+"$DIX_SOURCE_ROOT/.venv/bin/python" -c 'import i3ipc; print(i3ipc.__version__)'
 ```
 
 If the import fails, repeat the explicit requirements installation. If `swaymsg` fails, run the
@@ -399,9 +401,9 @@ No synthetic visual is presented as execution evidence.
 From the repository root, after preparing DIX and installing `sway/requirements.txt`:
 
 ```sh
-DIX_REPOSITORY="$DIX_ROOT" "$DIX_ROOT/.venv/bin/python" -m pytest -q tests
+DIX_REPOSITORY="$DIX_SOURCE_ROOT" "$DIX_SOURCE_ROOT/.venv/bin/python" -m pytest -q tests
 uvx --from ruff==0.16.7 ruff check sway examples tests
-"$DIX_ROOT/.venv/bin/python" -W error -m compileall -f -q sway examples tests
+"$DIX_SOURCE_ROOT/.venv/bin/python" -W error -m compileall -f -q sway examples tests
 python tests/verify_public_docs.py
 ```
 

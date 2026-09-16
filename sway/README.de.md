@@ -70,7 +70,7 @@ git clone https://github.com/skaldos/roba.git roba
 git clone https://github.com/skaldos/dix.git dix
 
 export SKALDOS_WORKSPACE=$PWD
-export DIX_ROOT=$SKALDOS_WORKSPACE/dix
+export DIX_SOURCE_ROOT=$SKALDOS_WORKSPACE/dix
 ```
 
 Den externen Checkout nicht vor dem initialen DIX-Sync unter `dix/modules` ablegen. Dort bereits
@@ -84,13 +84,13 @@ DIX verweist in dieser Struktur bereits auf den benachbarten Source `../roba`. D
 Extras synchronisieren und danach die Sway-eigenen Requirements in dieselbe Umgebung installieren:
 
 ```sh
-cd "$DIX_ROOT"
+cd "$DIX_SOURCE_ROOT"
 uv sync --frozen --extra dev --extra cli --extra state --extra roba
 
-git clone https://github.com/skaldos/dix-modules.git "$DIX_ROOT/modules/skaldos"
-export SWAY_ROOT=$DIX_ROOT/modules/skaldos/sway
+git clone https://github.com/skaldos/dix-modules.git "$DIX_SOURCE_ROOT/modules/skaldos"
+export SWAY_ROOT=$DIX_SOURCE_ROOT/modules/skaldos/sway
 
-uv pip install --python "$DIX_ROOT/.venv/bin/python" -r "$SWAY_ROOT/requirements.txt"
+uv pip install --python "$DIX_SOURCE_ROOT/.venv/bin/python" -r "$SWAY_ROOT/requirements.txt"
 ```
 
 Der abschliessende Dependency-Installationsbefehl ist bewusst sichtbar. Kein Import-Hook
@@ -139,10 +139,12 @@ Sway-Python-Launcher und installiert die kleinen Befehle unter `DIX_BIN`:
 "$SWAY_ROOT/integrations/install"
 export PATH=$HOME/.local/bin:$PATH
 dix-roba --help
+skaldos-sway --help
 ```
 
-Die resultierenden Befehle `dix-roba`, `skaldos-sway-json`, `skaldos-sway-nav` und die
-Wofi-Helfer laden alle `~/.dix/env`. Ihre Python-Launcher liegen gemeinsam unter `DIX_LAUNCHERS`.
+Die resultierenden Befehle `dix-roba`, das vollstaendige Typer-basierte `skaldos-sway`, das direkte
+`skaldos-sway-json`, das latenzarme `skaldos-sway-nav` und die Wofi-Helfer laden alle
+`~/.dix/env`. Ihre Python-Launcher liegen gemeinsam unter `DIX_LAUNCHERS`.
 
 ## 5. ROBA konfigurieren, starten und `skaldos-sway` erzeugen
 
@@ -382,7 +384,7 @@ Folgendes aus derselben Umgebung pruefen:
 ```sh
 printf '%s\n' "$SWAYSOCK"
 swaymsg -t get_tree >/dev/null
-"$DIX_ROOT/.venv/bin/python" -c 'import i3ipc; print(i3ipc.__version__)'
+"$DIX_SOURCE_ROOT/.venv/bin/python" -c 'import i3ipc; print(i3ipc.__version__)'
 ```
 
 Scheitert der Import, die explizite Requirements-Installation wiederholen. Scheitert `swaymsg`,
@@ -415,9 +417,9 @@ ausgegeben.
 Vom Repository-Root nach Vorbereitung von DIX und Installation von `sway/requirements.txt`:
 
 ```sh
-DIX_REPOSITORY="$DIX_ROOT" "$DIX_ROOT/.venv/bin/python" -m pytest -q tests
+DIX_REPOSITORY="$DIX_SOURCE_ROOT" "$DIX_SOURCE_ROOT/.venv/bin/python" -m pytest -q tests
 uvx --from ruff==0.16.7 ruff check sway examples tests
-"$DIX_ROOT/.venv/bin/python" -W error -m compileall -f -q sway examples tests
+"$DIX_SOURCE_ROOT/.venv/bin/python" -W error -m compileall -f -q sway examples tests
 python tests/verify_public_docs.py
 ```
 

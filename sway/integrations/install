@@ -28,8 +28,13 @@ fi
 mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN" "$SKALDOS_SWAY_STATE_ROOT"
 
 "$DIX_VENV/bin/python" -m dix.bootstrap build \
-    "$DIX_ROOT/examples/launchers/dix_roba.toml" \
+    "$DIX_SOURCE_ROOT/examples/launchers/dix_roba.toml" \
     --output "$DIX_LAUNCHERS/dix-roba.py" \
+    --replace
+
+"$DIX_VENV/bin/python" -m dix.bootstrap build \
+    "$SKALDOS_SWAY_ROOT/../examples/launchers/skaldos_sway.toml" \
+    --output "$DIX_LAUNCHERS/skaldos-sway.py" \
     --replace
 
 cp "$integration_root/launchers/skaldos-sway-nav.py" "$DIX_LAUNCHERS/skaldos-sway-nav.py"
@@ -43,6 +48,14 @@ set -eu
 env_file=${DIX_ENV:-$HOME/.dix/env}
 . "$env_file"
 exec "$DIX_VENV/bin/python" "$DIX_LAUNCHERS/dix-roba.py" "$@"
+EOF
+
+cat >"$DIX_BIN/skaldos-sway" <<'EOF'
+#!/bin/sh
+set -eu
+env_file=${DIX_ENV:-$HOME/.dix/env}
+. "$env_file"
+exec "$DIX_VENV/bin/python" "$DIX_LAUNCHERS/skaldos-sway.py" "$@"
 EOF
 
 for action in select add remove; do
@@ -59,6 +72,7 @@ done
 
 chmod 0755 \
     "$DIX_BIN/dix-roba" \
+    "$DIX_BIN/skaldos-sway" \
     "$DIX_BIN/skaldos-sway-nav" \
     "$DIX_BIN/skaldos-sway-json" \
     "$DIX_BIN/skaldos-sway-wofi-select" \
