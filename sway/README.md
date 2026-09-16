@@ -128,38 +128,68 @@ mkdir -p "$SKALDOS_SWAY_STATE_DIR"
 Treat `groups.json` as local user state. The projection files are replaceable outputs and must not
 be edited into malformed values.
 
-## 4. Build the DIX ROBA launcher
+## 4. Build and install the DIX ROBA CLI
 
 The management entry needs a running ROBA daemon, the DIX control registry, and a managed context.
-Build the committed DIX launcher once:
+Build the committed Typer application once, then install one transparent local command:
 
 ```sh
-mkdir -p "$DIX_ROOT/.local/launchers"
+export DIX_LAUNCHER_HOME=${XDG_DATA_HOME:-$HOME/.local/share}/dix/launchers
+mkdir -p "$DIX_LAUNCHER_HOME" "$HOME/.local/bin"
 "$DIX_ROOT/.venv/bin/python" -m dix.bootstrap build \
   "$DIX_ROOT/examples/launchers/dix_roba.toml" \
-  --output "$DIX_ROOT/.local/launchers/dix-roba.py" \
+  --output "$DIX_LAUNCHER_HOME/dix-roba.py" \
   --replace
 
-export DIX_ROBA=$DIX_ROOT/.local/launchers/dix-roba.py
+cat > "$HOME/.local/bin/dix-roba" <<EOF
+#!/bin/sh
+exec "$DIX_ROOT/.venv/bin/python" "$DIX_LAUNCHER_HOME/dix-roba.py" "\$@"
+EOF
+chmod 0755 "$HOME/.local/bin/dix-roba"
+export PATH=$HOME/.local/bin:$PATH
+dix-roba --help
 ```
 
-The generated launcher uses explicit module sources. It is not a daemon and performs no discovery.
+The generated launcher is the real `dix/roba/cli` Typer application with explicit module sources.
+The local `dix-roba` file only binds that launcher to DIX's Python environment. Neither file is a
+daemon or performs discovery. Rebuild both after moving the DIX checkout.
 
-## 5. Start ROBA and create `skaldos-sway`
+## 5. Configure ROBA, start it, and create `skaldos-sway`
 
-Use the proven defaults: daemon ID `default`, runtime root `~/.roba/runtime`, and logs root
-`~/.roba/logs`.
+Without overrides DIX keeps the proven daemon ID `default`, runtime root `~/.roba/runtime`, and logs
+root `~/.roba/logs`. For XDG-oriented local paths, set one shared DIX contract before every DIX
+ROBA consumer:
 
 ```sh
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" managed start
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" control create_context \
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+  export DIX_ROBA_RUNTIME_ROOT=$XDG_RUNTIME_DIR/dix/roba
+else
+  export DIX_ROBA_RUNTIME_ROOT=${XDG_STATE_HOME:-$HOME/.local/state}/dix/roba/runtime
+fi
+export DIX_ROBA_LOGS_ROOT=${XDG_STATE_HOME:-$HOME/.local/state}/dix/roba/logs
+
+dix-roba managed start
+dix-roba control create_context \
   --context_id skaldos-sway
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" daemon status
+dix-roba daemon status
 ```
 
 `managed start` starts ROBA and bootstraps the DIX control context. `create_context` then creates
 the module context and its manager socket. These commands print capability-bearing result data;
 do not paste tokens into documentation, logs, or tickets.
+
+The two values may instead be any absolute user-owned paths:
+
+```sh
+export DIX_ROBA_RUNTIME_ROOT=/absolute/path/to/roba-runtime
+export DIX_ROBA_LOGS_ROOT=/absolute/path/to/roba-logs
+```
+
+Every separately started DIX consumer, including `skaldos-sway-json` and the Wofi helpers, must
+inherit the same two values. Named Typer parameters such as `--runtime_root` and `--logs_root`
+override them for one call, but then all related calls need the same explicit values. Do not use an
+unexpanded literal `~` in exported or named custom paths. Keep the runtime root short enough for
+the platform's Unix-socket path limit.
 
 Do not run `create_context` repeatedly against an already existing context. A duplicate is a
 visible error, not an attach operation.
@@ -292,6 +322,16 @@ bindsym $mod+Shift+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrat
 bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrations/wofi/remove
 ```
 
+An interactive-shell export does not retroactively change the environment of an already running
+Sway process. When using custom ROBA roots, either launch Sway with both `DIX_ROBA_*` values or add
+absolute values to the management command in the fragment:
+
+```text
+set $skaldos_roba_runtime /absolute/path/to/roba-runtime
+set $skaldos_roba_logs /absolute/path/to/roba-logs
+set $skaldos_manage env DIX_ROBA_RUNTIME_ROOT=$skaldos_roba_runtime DIX_ROBA_LOGS_ROOT=$skaldos_roba_logs SKALDOS_SWAY_GROUP_STATE_FILE=$skaldos_state/groups.json SKALDOS_SWAY_ACTIVE_MEMBERS_FILE=$skaldos_state/active-members SKALDOS_SWAY_NAVIGATION_TARGET_FILE=$skaldos_state/navigation-target SKALDOS_SWAY_MANAGEMENT=$skaldos_home/.local/bin/skaldos-sway-json
+```
+
 Choose bindings that do not conflict with your configuration. Reload and perform a basic smoke
 test:
 
@@ -308,7 +348,7 @@ The final command moves focus. Once a group has live members, select it and test
 Stop the default daemon explicitly:
 
 ```sh
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" daemon stop
+dix-roba daemon stop
 ```
 
 All ROBA contexts and coordination state disappear. The private JSON and projection files remain
@@ -317,8 +357,8 @@ because they are separate local files, not ROBA state.
 After a ROBA-only restart:
 
 ```sh
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" managed start
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" control create_context \
+dix-roba managed start
+dix-roba control create_context \
   --context_id skaldos-sway
 skaldos-sway-json deactivate
 skaldos-sway-json select work
@@ -333,21 +373,23 @@ instead of treating those IDs as persistent identities.
 ### `composition definition is not loaded: dix/cli/typer`
 
 An old or incomplete launcher loaded `dix/roba` without first loading `dix/state` and `dix/cli`.
-Rebuild `dix-roba.py` from the committed DIX spec shown above. Do not hand-remove its module list.
+Rebuild and reinstall `dix-roba` from the committed DIX spec shown above. Do not hand-remove its
+module list.
 
 ### Manager socket is missing
 
 A typical failure names a missing socket below
-`~/.roba/runtime/daemons/default/contexts/dix.control/sockets/`. Confirm that `managed start`
-succeeded, then create `skaldos-sway` exactly once. If the daemon was restarted, its old sockets
-and contexts no longer exist and both steps must be repeated.
+`$DIX_ROBA_RUNTIME_ROOT/daemons/default/contexts/dix.control/sockets/` or the default
+`~/.roba/runtime/...` tree. Confirm that `managed start` succeeded, then create `skaldos-sway`
+exactly once. If the daemon was restarted, its old sockets and contexts no longer exist and both
+steps must be repeated.
 
 ### A socket path contains the wrong `~` or becomes relative
 
-Shells do not expand `~` inside arbitrary quoted variables or generated strings. The public
-quickstart uses ROBA's proven defaults. If you deliberately pass custom roots or wrapper overrides,
-use absolute paths and pass the same values to daemon, control, context management, and every
-consumer. Partial custom-root configuration is unsupported in this alpha guide.
+Shells do not expand `~` inside arbitrary quoted variables or generated strings. Use absolute
+paths in `DIX_ROBA_RUNTIME_ROOT` and `DIX_ROBA_LOGS_ROOT`, and ensure the process launching a
+terminal, Wofi, or a Sway binding provides both values. Partial custom-root configuration points
+different processes at different daemons and is unsupported.
 
 ### ROBA is running, but `skaldos-sway` is missing
 
@@ -379,8 +421,8 @@ command inside the correct Sway session; the module does not create or discover 
 
 - No daemon or context is started automatically.
 - No package-manager or automatic external-module discovery exists.
-- The documented operational path uses the default ROBA roots; custom roots need end-to-end owner
-  verification.
+- Custom ROBA roots are process environment defaults; every independently launched consumer must
+  inherit the same values.
 - Group membership uses Sway runtime container IDs, not persistent application identities.
 - There is no group-delete command in this slice.
 - Wofi and Sway configuration remain user-owned optional integrations.

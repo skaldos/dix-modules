@@ -100,6 +100,8 @@ def test_documented_wrapper_path_runs_real_dix_roba_and_fake_sway() -> None:
         {
             "HOME": str(home),
             "PYTHONPATH": os.pathsep.join((str(fake), str(DIX / "src"))),
+            "DIX_ROBA_RUNTIME_ROOT": str(base / "roba-runtime"),
+            "DIX_ROBA_LOGS_ROOT": str(base / "roba-logs"),
             "SKALDOS_SWAY_GROUP_STATE_FILE": str(state / "groups.json"),
             "SKALDOS_SWAY_ACTIVE_MEMBERS_FILE": str(state / "active-members"),
             "SKALDOS_SWAY_NAVIGATION_TARGET_FILE": str(state / "navigation-target"),
@@ -116,6 +118,10 @@ def test_documented_wrapper_path_runs_real_dix_roba_and_fake_sway() -> None:
             [*daemon, "control", "create_context", "--context_id", "skaldos-sway"],
             env,
         )
+        assert (
+            base
+            / "roba-runtime/daemons/default/contexts/dix.control/sockets/skaldos-sway.sock"
+        ).is_socket()
 
         assert json.loads(_run([MANAGE, "create", "work"], env).stdout) is None
         assert _run([MANAGE, "list-lines"], env).stdout == "work\n"

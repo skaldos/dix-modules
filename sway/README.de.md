@@ -129,39 +129,71 @@ mkdir -p "$SKALDOS_SWAY_STATE_DIR"
 `groups.json` ist lokaler Nutzerzustand. Die Projektionsdateien sind ersetzbare Ausgaben und
 duerfen nicht in ungueltige Werte editiert werden.
 
-## 4. DIX-ROBA-Launcher bauen
+## 4. DIX-ROBA-CLI bauen und installieren
 
 Der Management-Einstieg benoetigt einen laufenden ROBA-Daemon, die DIX-Control-Registry und einen
-verwalteten Context. Den committeten DIX-Launcher einmal bauen:
+verwalteten Context. Die committete Typer-Application einmal bauen und danach einen transparenten
+lokalen Befehl installieren:
 
 ```sh
-mkdir -p "$DIX_ROOT/.local/launchers"
+export DIX_LAUNCHER_HOME=${XDG_DATA_HOME:-$HOME/.local/share}/dix/launchers
+mkdir -p "$DIX_LAUNCHER_HOME" "$HOME/.local/bin"
 "$DIX_ROOT/.venv/bin/python" -m dix.bootstrap build \
   "$DIX_ROOT/examples/launchers/dix_roba.toml" \
-  --output "$DIX_ROOT/.local/launchers/dix-roba.py" \
+  --output "$DIX_LAUNCHER_HOME/dix-roba.py" \
   --replace
 
-export DIX_ROBA=$DIX_ROOT/.local/launchers/dix-roba.py
+cat > "$HOME/.local/bin/dix-roba" <<EOF
+#!/bin/sh
+exec "$DIX_ROOT/.venv/bin/python" "$DIX_LAUNCHER_HOME/dix-roba.py" "\$@"
+EOF
+chmod 0755 "$HOME/.local/bin/dix-roba"
+export PATH=$HOME/.local/bin:$PATH
+dix-roba --help
 ```
 
-Der erzeugte Launcher nutzt explizite Modul-Sources. Er ist kein Daemon und fuehrt keine Discovery
-aus.
+Der erzeugte Launcher ist die echte Typer-Application `dix/roba/cli` mit expliziten
+Modul-Sources. Die lokale Datei `dix-roba` bindet diesen Launcher nur an DIX' Python-Umgebung.
+Keine der beiden Dateien ist ein Daemon oder fuehrt Discovery aus. Nach dem Verschieben des
+DIX-Checkouts beide neu bauen.
 
-## 5. ROBA starten und `skaldos-sway` erzeugen
+## 5. ROBA konfigurieren, starten und `skaldos-sway` erzeugen
 
-Die belegten Defaults verwenden: Daemon-ID `default`, Runtime-Root `~/.roba/runtime` und Log-Root
-`~/.roba/logs`.
+Ohne Overrides behaelt DIX die belegte Daemon-ID `default`, den Runtime-Root `~/.roba/runtime` und
+den Log-Root `~/.roba/logs`. Fuer XDG-orientierte lokale Pfade vor jedem DIX-ROBA-Consumer einen
+gemeinsamen DIX-Vertrag setzen:
 
 ```sh
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" managed start
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" control create_context \
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+  export DIX_ROBA_RUNTIME_ROOT=$XDG_RUNTIME_DIR/dix/roba
+else
+  export DIX_ROBA_RUNTIME_ROOT=${XDG_STATE_HOME:-$HOME/.local/state}/dix/roba/runtime
+fi
+export DIX_ROBA_LOGS_ROOT=${XDG_STATE_HOME:-$HOME/.local/state}/dix/roba/logs
+
+dix-roba managed start
+dix-roba control create_context \
   --context_id skaldos-sway
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" daemon status
+dix-roba daemon status
 ```
 
 `managed start` startet ROBA und bootstrapt den DIX-Control-Context. `create_context` erzeugt danach
 den Modul-Context und dessen Manager-Socket. Diese Befehle geben capability-tragende Ergebnisdaten
 aus; Tokens gehoeren nicht in Dokumentation, Logs oder Tickets.
+
+Die beiden Werte duerfen stattdessen beliebige absolute nutzereigene Pfade sein:
+
+```sh
+export DIX_ROBA_RUNTIME_ROOT=/absoluter/pfad/zur/roba-runtime
+export DIX_ROBA_LOGS_ROOT=/absoluter/pfad/zu/roba-logs
+```
+
+Jeder getrennt gestartete DIX-Consumer, einschliesslich `skaldos-sway-json` und der Wofi-Helfer,
+muss dieselben beiden Werte erben. Benannte Typer-Parameter wie `--runtime_root` und `--logs_root`
+ueberschreiben sie fuer einen Aufruf; dann benoetigen aber alle zusammengehoerigen Aufrufe dieselben
+expliziten Werte. Kein nicht expandiertes literales `~` in exportierten oder benannten
+Custom-Pfaden verwenden. Den Runtime-Root kurz genug fuer das Unix-Socket-Pfadlimit der Plattform
+halten.
 
 `create_context` nicht wiederholt gegen einen bereits existierenden Context ausfuehren. Ein
 Duplikat ist ein sichtbarer Fehler und kein Attach-Vorgang.
@@ -297,6 +329,16 @@ bindsym $mod+Shift+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrat
 bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_manage $skaldos_sway/integrations/wofi/remove
 ```
 
+Ein Export in einer interaktiven Shell aendert die Umgebung eines bereits laufenden Sway-Prozesses
+nicht rueckwirkend. Bei Custom-ROBA-Roots entweder Sway mit beiden `DIX_ROBA_*`-Werten starten oder
+absolute Werte in den Management-Befehl des Fragments aufnehmen:
+
+```text
+set $skaldos_roba_runtime /absoluter/pfad/zur/roba-runtime
+set $skaldos_roba_logs /absoluter/pfad/zu/roba-logs
+set $skaldos_manage env DIX_ROBA_RUNTIME_ROOT=$skaldos_roba_runtime DIX_ROBA_LOGS_ROOT=$skaldos_roba_logs SKALDOS_SWAY_GROUP_STATE_FILE=$skaldos_state/groups.json SKALDOS_SWAY_ACTIVE_MEMBERS_FILE=$skaldos_state/active-members SKALDOS_SWAY_NAVIGATION_TARGET_FILE=$skaldos_state/navigation-target SKALDOS_SWAY_MANAGEMENT=$skaldos_home/.local/bin/skaldos-sway-json
+```
+
 Bindings waehlen, die nicht mit der eigenen Konfiguration kollidieren. Danach neu laden und einen
 Basic-Smoke-Test ausfuehren:
 
@@ -314,7 +356,7 @@ ausgewaehlt und ueber die festen Bindings getestet werden.
 Den Default-Daemon explizit stoppen:
 
 ```sh
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" daemon stop
+dix-roba daemon stop
 ```
 
 Alle ROBA-Contexts und Koordinationszustaende verschwinden. Privates JSON und Projektionsdateien
@@ -323,8 +365,8 @@ bleiben bestehen, weil sie separate lokale Dateien und kein ROBA-State sind.
 Nach einem reinen ROBA-Neustart:
 
 ```sh
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" managed start
-"$DIX_ROOT/.venv/bin/python" "$DIX_ROBA" control create_context \
+dix-roba managed start
+dix-roba control create_context \
   --context_id skaldos-sway
 skaldos-sway-json deactivate
 skaldos-sway-json select work
@@ -340,23 +382,24 @@ Identitaeten zu behandeln.
 ### `composition definition is not loaded: dix/cli/typer`
 
 Ein alter oder unvollstaendiger Launcher hat `dix/roba` geladen, ohne zuvor `dix/state` und
-`dix/cli` zu laden. `dix-roba.py` aus der oben gezeigten committeten DIX-Spec neu bauen. Seine
-Modulliste nicht von Hand kuerzen.
+`dix/cli` zu laden. `dix-roba` aus der oben gezeigten committeten DIX-Spec neu bauen und
+installieren. Seine Modulliste nicht von Hand kuerzen.
 
 ### Manager-Socket fehlt
 
 Ein typischer Fehler nennt einen fehlenden Socket unter
-`~/.roba/runtime/daemons/default/contexts/dix.control/sockets/`. Sicherstellen, dass
-`managed start` erfolgreich war, und danach `skaldos-sway` exakt einmal erzeugen. Nach einem
-Daemon-Neustart existieren die alten Sockets und Contexts nicht mehr; beide Schritte wiederholen.
+`$DIX_ROBA_RUNTIME_ROOT/daemons/default/contexts/dix.control/sockets/` oder im Default-Baum
+`~/.roba/runtime/...`. Sicherstellen, dass `managed start` erfolgreich war, und danach
+`skaldos-sway` exakt einmal erzeugen. Nach einem Daemon-Neustart existieren die alten Sockets und
+Contexts nicht mehr; beide Schritte wiederholen.
 
 ### Ein Socketpfad enthaelt das falsche `~` oder wird relativ
 
-Shells expandieren `~` nicht innerhalb beliebiger gequoteter Variablen oder erzeugter Strings. Der
-oeffentliche Quickstart verwendet die belegten ROBA-Defaults. Bei bewusst gesetzten Custom-Roots
-oder Wrapper-Overrides absolute Pfade verwenden und dieselben Werte an Daemon, Control,
-Context-Management und jeden Consumer geben. Partielle Custom-Root-Konfiguration wird durch diese
-Alpha-Anleitung nicht unterstuetzt.
+Shells expandieren `~` nicht innerhalb beliebiger gequoteter Variablen oder erzeugter Strings.
+Absolute Pfade in `DIX_ROBA_RUNTIME_ROOT` und `DIX_ROBA_LOGS_ROOT` verwenden und sicherstellen,
+dass der Prozess fuer Terminal, Wofi oder Sway-Binding beide Werte bereitstellt. Eine partielle
+Custom-Root-Konfiguration richtet verschiedene Prozesse auf verschiedene Daemons und wird nicht
+unterstuetzt.
 
 ### ROBA laeuft, aber `skaldos-sway` fehlt
 
@@ -390,8 +433,8 @@ Display-Server.
 
 - Kein Daemon oder Context wird automatisch gestartet.
 - Kein Package Manager und keine automatische externe Modul-Discovery existieren.
-- Der dokumentierte Betriebsweg nutzt die Default-ROBA-Roots; Custom Roots benoetigen einen
-  durchgaengigen Owner-Nachweis.
+- Custom-ROBA-Roots sind Prozess-Environment-Defaults; jeder unabhaengig gestartete Consumer muss
+  dieselben Werte erben.
 - Gruppenmitgliedschaft verwendet Sway-Runtime-Container-IDs und keine persistenten
   Anwendungsidentitaeten.
 - In diesem Slice gibt es keinen Befehl zum Loeschen einer Gruppe.
