@@ -8,6 +8,9 @@ Topology-aware Sway window-group navigation assembled with DIX and coordinated t
 > **Public Alpha:** this module is already useful in a real Sway workflow, but setup and source
 > contracts may still change. It is delivered as source, not as a Python package.
 
+Documentation is available in English and German. Shipped command names, prompts, and
+machine-facing errors use English.
+
 ## What it does
 
 `skaldos/sway` lets a normal Sway directional binding operate either natively or against one
@@ -254,6 +257,10 @@ With `skaldos-sway-json` on `PATH` and the same state variables exported:
 The existing-entry menus invoke Wofi with `--no-custom-entry`. Pressing Enter on the initially
 highlighted row therefore commits that row without requiring a cursor movement. Only the separate
 "new group" dialog accepts free text.
+
+The action rows are `[No active group]` and `[+ New group]`. The add and remove prompts are
+`Add window to group` and `Remove window from group`; free group-name input uses
+`New group name`.
 
 Override `SKALDOS_SWAY_MANAGEMENT`, `SKALDOS_SWAY_WOFI`, or `SKALDOS_SWAY_WOFI_NAME` only when you
 intentionally own the replacement command. These variables are shell command boundaries, not a

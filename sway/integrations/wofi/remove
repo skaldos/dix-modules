@@ -5,7 +5,7 @@ choose_group() {
   if [ -n "${SKALDOS_SWAY_WOFI:-}" ]; then
     sh -c "$SKALDOS_SWAY_WOFI"
   else
-    wofi --dmenu --no-custom-entry --prompt 'Aus Gruppe'
+    wofi --dmenu --no-custom-entry --prompt 'Remove window from group'
   fi
 }
 groups=$($manage memberships-lines)

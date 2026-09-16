@@ -9,6 +9,9 @@ Topologiebewusste Sway-Fenstergruppen-Navigation, mit DIX komponiert und ueber R
 > Source-Vertraege koennen sich aber noch aendern. Es wird als Source und nicht als Python-Paket
 > geliefert.
 
+Die Dokumentation ist auf Englisch und Deutsch verfuegbar. Ausgelieferte Befehlsnamen, Prompts und
+maschinennahe Fehlermeldungen sind englisch.
+
 ## Was es macht
 
 Mit `skaldos/sway` kann ein normales gerichtetes Sway-Binding entweder nativ oder gegen eine
@@ -259,6 +262,10 @@ Mit `skaldos-sway-json` auf `PATH` und denselben exportierten State-Variablen:
 Die Menues fuer vorhandene Eintraege starten Wofi mit `--no-custom-entry`. Enter auf der initial
 hervorgehobenen Zeile uebernimmt diese deshalb ohne vorherige Cursorbewegung. Nur der getrennte
 Dialog fuer einen neuen Gruppennamen erlaubt freie Texteingabe.
+
+Die Aktionszeilen lauten `[No active group]` und `[+ New group]`. Add und Remove verwenden die
+Prompts `Add window to group` und `Remove window from group`; die freie Eingabe eines Gruppennamens
+verwendet `New group name`.
 
 `SKALDOS_SWAY_MANAGEMENT`, `SKALDOS_SWAY_WOFI` oder `SKALDOS_SWAY_WOFI_NAME` nur ueberschreiben,
 wenn der Ersatzbefehl bewusst selbst verantwortet wird. Diese Variablen sind Shell-Command-

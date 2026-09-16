@@ -11,6 +11,9 @@ Von Skaldos gepflegte externe Source-Module fuer
 > koennen sich aber noch aendern. Fuer reproduzierbare Nutzung sollten Repository-Staende gepinnt
 > werden.
 
+Die Dokumentation ist auf Englisch und Deutsch verfuegbar. Ausgelieferte Befehlsnamen, Prompts und
+maschinennahe Fehlermeldungen sind englisch.
+
 ## Was dieses Repository ist
 
 Jeder Modulordner auf oberster Ebene ist eine direkt ladbare DIX-Modulwurzel. Wird dieses

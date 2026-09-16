@@ -147,7 +147,7 @@ def test_action_like_group_names_remain_valid_domain_names(tmp_path, load_runtim
         navigation_target=api(set=lambda value: None),
     )
 
-    runtime.create("Keine Gruppe")
-    runtime.create("+ Neue Gruppe")
+    runtime.create("No active group")
+    runtime.create("+ New group")
 
-    assert runtime.list() == {"Keine Gruppe": [], "+ Neue Gruppe": []}
+    assert runtime.list() == {"No active group": [], "+ New group": []}

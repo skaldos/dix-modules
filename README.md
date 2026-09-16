@@ -10,6 +10,9 @@ External source modules maintained by Skaldos for
 > **Public Alpha:** the modules are tested and usable, but their source contracts and setup may
 > still change. Pin repository revisions for repeatable use.
 
+Documentation is available in English and German. Shipped command names, prompts, and
+machine-facing errors use English.
+
 ## What this repository is
 
 Each top-level module directory is a directly loadable DIX module root. When this repository is

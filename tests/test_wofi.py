@@ -5,6 +5,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parents[1] / "sway/integrations/wofi"
 
 
@@ -38,7 +40,7 @@ def run(name, tmp_path, choice, name_choice=""):
 def test_select_existing_and_none(tmp_path):
     result, log = run("select", tmp_path, "  work")
     assert result.returncode == 0 and log.endswith("select work\n")
-    result, log = run("select", tmp_path, "[Keine Gruppe]")
+    result, log = run("select", tmp_path, "[No active group]")
     assert result.returncode == 0 and log.endswith("deactivate\n")
 
 
@@ -66,7 +68,7 @@ def test_select_new_group_uses_explicit_management_calls(tmp_path):
     name.write_text("#!/bin/sh\ncat >/dev/null\nprintf 'fresh\\n'\n")
     name.chmod(0o755)
     chooser = tmp_path / "chooser"
-    chooser.write_text("#!/bin/sh\ncat >/dev/null\nprintf '[+ Neue Gruppe]\\n'\n")
+    chooser.write_text("#!/bin/sh\ncat >/dev/null\nprintf '[+ New group]\\n'\n")
     chooser.chmod(0o755)
     result = subprocess.run(
         [str(ROOT / "select")],
@@ -83,14 +85,14 @@ def test_select_new_group_uses_explicit_management_calls(tmp_path):
 
 
 def test_action_like_group_names_remain_real_groups(tmp_path):
-    result, log = run("select", tmp_path, "  Keine Gruppe")
-    assert result.returncode == 0 and log.endswith("select Keine Gruppe\n")
+    result, log = run("select", tmp_path, "  No active group")
+    assert result.returncode == 0 and log.endswith("select No active group\n")
 
-    result, log = run("add", tmp_path, "  + Neue Gruppe")
-    assert result.returncode == 0 and log.endswith("add + Neue Gruppe\n")
+    result, log = run("add", tmp_path, "  + New group")
+    assert result.returncode == 0 and log.endswith("add + New group\n")
 
-    result, log = run("remove", tmp_path, "  Keine Gruppe")
-    assert result.returncode == 0 and log.endswith("remove Keine Gruppe\n")
+    result, log = run("remove", tmp_path, "  No active group")
+    assert result.returncode == 0 and log.endswith("remove No active group\n")
 
 
 def test_unframed_choice_fails_without_mutation(tmp_path):
@@ -100,7 +102,17 @@ def test_unframed_choice_fails_without_mutation(tmp_path):
     assert "invalid Wofi selection" in result.stderr
 
 
-def test_default_wofi_commits_initial_existing_entry(tmp_path):
+@pytest.mark.parametrize(
+    ("adapter", "prompt", "expected_command"),
+    (
+        ("select", "Sway group", "select work\n"),
+        ("add", "Add window to group", "add work\n"),
+        ("remove", "Remove window from group", "remove work\n"),
+    ),
+)
+def test_default_wofi_commits_initial_existing_entry(
+    tmp_path, adapter, prompt, expected_command
+):
     log, manage, _menu = tools(tmp_path)
     arguments = tmp_path / "arguments"
     entries = tmp_path / "entries"
@@ -115,7 +127,7 @@ sed -n '/^  /{{p;q;}}' {entries}
     wofi.chmod(0o755)
 
     result = subprocess.run(
-        [str(ROOT / "remove")],
+        [str(ROOT / adapter)],
         env={
             **os.environ,
             "PATH": f"{tmp_path}:{os.environ['PATH']}",
@@ -127,11 +139,34 @@ sed -n '/^  /{{p;q;}}' {entries}
     )
 
     assert result.returncode == 0, result.stderr
-    assert log.read_text() == "memberships-lines\nremove work\n"
+    query = "memberships-lines\n" if adapter == "remove" else "list-lines\n"
+    assert log.read_text() == query + expected_command
     assert arguments.read_text().splitlines() == [
         "--dmenu",
         "--no-custom-entry",
         "--prompt",
-        "Aus Gruppe",
+        prompt,
     ]
-    assert entries.read_text() == "  work\n  private\n"
+    action_rows = {
+        "select": "[No active group]\n[+ New group]\n",
+        "add": "[+ New group]\n",
+        "remove": "",
+    }
+    assert entries.read_text() == action_rows[adapter] + "  work\n  private\n"
+
+
+def test_shipped_wofi_ui_is_english():
+    scripts = {name: (ROOT / name).read_text() for name in ("select", "add", "remove")}
+    combined = "\n".join(scripts.values())
+
+    for value in ("Keine Gruppe", "Neue Gruppe", "Zu Gruppe", "Aus Gruppe"):
+        assert value not in combined
+
+    assert "[No active group]" in scripts["select"]
+    assert "[+ New group]" in scripts["select"]
+    assert "[+ New group]" in scripts["add"]
+    assert "--prompt 'Sway group'" in scripts["select"]
+    assert "--prompt 'New group name'" in scripts["select"]
+    assert "--prompt 'New group name'" in scripts["add"]
+    assert "--prompt 'Add window to group'" in scripts["add"]
+    assert "--prompt 'Remove window from group'" in scripts["remove"]

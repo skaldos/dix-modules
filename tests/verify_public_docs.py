@@ -117,6 +117,37 @@ def verify() -> None:
     _require(sway_de, detailed_markers, "German Sway README")
     _require(sway_en, ("ROBA **persists nothing**",), "English persistence boundary")
     _require(sway_de, ("ROBA **persistiert nichts**",), "German persistence boundary")
+    english_tool_markers = (
+        "[No active group]",
+        "[+ New group]",
+        "Add window to group",
+        "Remove window from group",
+        "New group name",
+    )
+    _require(sway_en, english_tool_markers, "English public tool surface")
+    _require(sway_de, english_tool_markers, "German public tool surface")
+
+    for relative, text in docs.items():
+        if relative.name.endswith(".de.md"):
+            marker = (
+                "Ausgelieferte Befehlsnamen, Prompts und\n"
+                "maschinennahe Fehlermeldungen sind englisch."
+            )
+        else:
+            marker = (
+                "Shipped command names, prompts, and\n"
+                "machine-facing errors use English."
+            )
+        _require(text, (marker,), f"{relative} tool-language boundary")
+
+    wofi_text = "\n".join(
+        (ROOT / f"sway/integrations/wofi/{name}").read_text()
+        for name in ("select", "add", "remove")
+    )
+    _require(wofi_text, english_tool_markers, "committed Wofi tool surface")
+    for forbidden in ("Keine Gruppe", "Neue Gruppe", "Zu Gruppe", "Aus Gruppe"):
+        if forbidden in wofi_text:
+            raise AssertionError(f"committed Wofi tool surface contains German UI: {forbidden}")
 
     sync = "uv sync --frozen --extra dev --extra cli --extra state --extra roba"
     external_clone = "git clone https://github.com/skaldos/dix-modules.git"

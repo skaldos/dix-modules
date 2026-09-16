@@ -5,20 +5,20 @@ choose_group() {
   if [ -n "${SKALDOS_SWAY_WOFI:-}" ]; then
     sh -c "$SKALDOS_SWAY_WOFI"
   else
-    wofi --dmenu --no-custom-entry --prompt 'Zu Gruppe'
+    wofi --dmenu --no-custom-entry --prompt 'Add window to group'
   fi
 }
 read_name() {
   if [ -n "${SKALDOS_SWAY_WOFI_NAME:-}" ]; then
     sh -c "$SKALDOS_SWAY_WOFI_NAME"
   else
-    wofi --dmenu --prompt 'Neue Gruppe'
+    wofi --dmenu --prompt 'New group name'
   fi
 }
 groups=$($manage list-lines)
 entries=$(printf '%s\n' "$groups" | sed '/^$/d; s/^/  /')
-choice=$(printf '%s\n%s\n' '[+ Neue Gruppe]' "$entries" | sed '/^$/d' | choose_group) || exit 0
-if [ "$choice" = '[+ Neue Gruppe]' ]; then
+choice=$(printf '%s\n%s\n' '[+ New group]' "$entries" | sed '/^$/d' | choose_group) || exit 0
+if [ "$choice" = '[+ New group]' ]; then
   choice=$(printf '' | read_name) || exit 0
   [ -n "$choice" ] || exit 0
   "$manage" create "$choice"

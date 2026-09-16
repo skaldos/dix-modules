@@ -12,15 +12,15 @@ read_name() {
   if [ -n "${SKALDOS_SWAY_WOFI_NAME:-}" ]; then
     sh -c "$SKALDOS_SWAY_WOFI_NAME"
   else
-    wofi --dmenu --prompt 'Neue Gruppe'
+    wofi --dmenu --prompt 'New group name'
   fi
 }
 groups=$($manage list-lines)
 entries=$(printf '%s\n' "$groups" | sed '/^$/d; s/^/  /')
-choice=$(printf '%s\n%s\n%s\n' '[Keine Gruppe]' '[+ Neue Gruppe]' "$entries" | sed '/^$/d' | choose_group) || exit 0
+choice=$(printf '%s\n%s\n%s\n' '[No active group]' '[+ New group]' "$entries" | sed '/^$/d' | choose_group) || exit 0
 case "$choice" in
-  '[Keine Gruppe]') exec "$manage" deactivate ;;
-  '[+ Neue Gruppe]')
+  '[No active group]') exec "$manage" deactivate ;;
+  '[+ New group]')
     name=$(printf '' | read_name) || exit 0
     [ -n "$name" ] || exit 0
     "$manage" create "$name"; exec "$manage" select "$name" ;;
