@@ -69,6 +69,18 @@ class Runtime:
             self._members(members)
         return True
 
+    def clear(self, group: str) -> bool:
+        name = _name(group)
+        groups, active = self._read()
+        members = _group(groups, name)
+        changed = bool(members)
+        if changed:
+            groups[name] = []
+            self._write(groups, active)
+        if active == name:
+            self._members([])
+        return changed
+
     def show(self, group: str) -> list[int]:
         groups, _ = self._read()
         return list(_group(groups, _name(group)))

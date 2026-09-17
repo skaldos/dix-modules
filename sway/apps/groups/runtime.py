@@ -25,6 +25,9 @@ class Runtime:
     def remove(self, group: str) -> bool:
         return self.groups.require("remove")(group)
 
+    def clear(self, group: str) -> bool:
+        return self.groups.require("clear")(group)
+
     def show(self, group: str) -> list[int]:
         return self.groups.require("show")(group)
 

@@ -8,6 +8,8 @@ export = "groups.create"
 export = "groups.add"
 [functions.remove]
 export = "groups.remove"
+[functions.clear]
+export = "groups.clear"
 [functions.show]
 export = "groups.show"
 [functions.list]

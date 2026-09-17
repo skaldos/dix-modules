@@ -20,6 +20,9 @@ def api():
     def remove(*, group: str) -> bool:
         return True
 
+    def clear(*, group: str) -> bool:
+        return True
+
     def show(*, group: str) -> list[int]:
         return [34]
 
@@ -42,6 +45,7 @@ def api():
         "create": create,
         "add": add,
         "remove": remove,
+        "clear": clear,
         "show": show,
         "list": list_,
         "memberships": memberships,
@@ -90,6 +94,7 @@ def test_cli_projects_complete_group_surface(load_runtime, tmp_path):
         "create",
         "add",
         "remove",
+        "clear",
         "show",
         "list",
         "memberships",

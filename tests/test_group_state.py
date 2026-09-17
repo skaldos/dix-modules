@@ -115,6 +115,56 @@ def test_projection_order_and_inactive_mutations(tmp_path, load_runtime, api):
     assert [x[0] for x in events] == ["route", "roba", "members"] and set(r.list()) == {"a", "b"}
 
 
+def test_clear_owns_only_named_members_and_refreshes_active_projection(
+    tmp_path, load_runtime, api
+):
+    events = []
+    focus = [1]
+    Runtime = load_runtime("sway/compositions/groups/runtime.py")
+    runtime = Runtime(
+        context=ctx(tmp_path),
+        config={"state_file": str(tmp_path / "groups.json")},
+        state=api(set=lambda value: events.append(("roba", value)) or True),
+        ipc=api(focused_con_id=lambda: focus[0], live_con_ids=lambda: [1, 2]),
+        active_members=api(set=lambda value: events.append(("members", value))),
+        navigation_target=api(set=lambda value: events.append(("route", value))),
+    )
+    runtime.create("active")
+    runtime.create("inactive")
+    runtime.add("active")
+    focus[0] = 2
+    runtime.add("inactive")
+    runtime.select("active")
+
+    events.clear()
+    assert runtime.clear("inactive") is True
+    assert runtime.show("inactive") == []
+    assert events == []
+
+    stored = (tmp_path / "groups.json").read_bytes()
+    assert runtime.clear("inactive") is False
+    assert (tmp_path / "groups.json").read_bytes() == stored
+    assert events == []
+
+    assert runtime.clear("active") is True
+    assert runtime.current() == "active"
+    assert runtime.show("active") == []
+    assert events == [("members", [])]
+
+    events.clear()
+    stored = (tmp_path / "groups.json").read_bytes()
+    assert runtime.clear("active") is False
+    assert (tmp_path / "groups.json").read_bytes() == stored
+    assert events == [("members", [])]
+
+    events.clear()
+    stored = (tmp_path / "groups.json").read_bytes()
+    with pytest.raises(ValueError, match="unknown Sway group"):
+        runtime.clear("missing")
+    assert (tmp_path / "groups.json").read_bytes() == stored
+    assert events == []
+
+
 @pytest.mark.parametrize("name", ["work\nprivate", "work\rprivate"])
 def test_group_name_must_fit_line_protocol_without_mutation(name, tmp_path, load_runtime, api):
     events = []

@@ -12,6 +12,7 @@ use = "skaldos/sway/navigation_target"
 [functions.create]
 [functions.add]
 [functions.remove]
+[functions.clear]
 [functions.show]
 [functions.list]
 [functions.memberships]
