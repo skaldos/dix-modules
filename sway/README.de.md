@@ -151,9 +151,9 @@ Die resultierenden Befehle `dix-roba`, das vollstaendige Typer-basierte `skaldos
 `skaldos-sway-json`, das latenzarme `skaldos-sway-nav` und die Wofi-Helfer laden alle
 `~/.dix/env`. Ihre Python-Launcher liegen gemeinsam unter `DIX_LAUNCHERS`.
 
-Der Installer kopiert ausserdem die vollstaendigen Beispiele `dix.toml` und `roba.toml` nach
-`SKALDOS_SWAY_THEME_DIR`, falls sie dort noch fehlen. Ein erneuter Lauf ueberschreibt keines der
-beiden Ziele.
+Der Installer kopiert ausserdem die vollstaendigen Beispiele `dix.toml` und `roba.toml` samt ihren
+PNG-Wallpapers nach `SKALDOS_SWAY_THEME_DIR`, falls sie dort noch fehlen. Ein erneuter Lauf
+ueberschreibt keines dieser nutzereigenen Ziele.
 
 ## 5. ROBA konfigurieren, starten und `skaldos-sway` erzeugen
 

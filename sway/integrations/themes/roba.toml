@@ -32,5 +32,7 @@ indicator = "#FF8A00"
 child_border = "#D97800"
 
 [background]
-type = "solid_color"
-color = "#071512"
+type = "image"
+file = "wallpapers/roba.png"
+mode = "fit"
+fallback_color = "#071512"

@@ -149,8 +149,9 @@ The resulting `dix-roba`, full Typer-based `skaldos-sway`, direct `skaldos-sway-
 low-latency `skaldos-sway-nav`, and Wofi commands all source `~/.dix/env`. Their Python launchers
 live together below `DIX_LAUNCHERS`.
 
-The installer also copies the complete `dix.toml` and `roba.toml` examples into
-`SKALDOS_SWAY_THEME_DIR` when they do not exist. Re-running it never overwrites either target.
+The installer also copies the complete `dix.toml` and `roba.toml` examples plus their PNG
+wallpapers into `SKALDOS_SWAY_THEME_DIR` when they do not exist. Re-running it never overwrites
+any of these user-owned targets.
 
 ## 5. Configure ROBA, start it, and create `skaldos-sway`
 

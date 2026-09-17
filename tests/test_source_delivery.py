@@ -197,6 +197,7 @@ def test_installer_builds_both_typer_launchers_and_installs_the_full_cli() -> No
         "$DIX_BIN/skaldos-sway",
         "$SKALDOS_SWAY_THEME_DIR",
         "$integration_root/themes/$theme.toml",
+        "$integration_root/themes/wallpapers/$theme.png",
     ):
         assert value in installer
 
@@ -210,12 +211,16 @@ def test_example_themes_are_complete_and_load_through_generic_catalog(
 
     assert runtime.list() == ["dix", "roba"]
     assert runtime.load("dix")["background"] == {
-        "type": "solid_color",
-        "color": "#10080E",
+        "type": "image",
+        "file": str((INTEGRATIONS / "themes/wallpapers/dix.png").resolve()),
+        "mode": "fit",
+        "fallback_color": "#10080E",
     }
     assert runtime.load("roba")["background"] == {
-        "type": "solid_color",
-        "color": "#071512",
+        "type": "image",
+        "file": str((INTEGRATIONS / "themes/wallpapers/roba.png").resolve()),
+        "mode": "fit",
+        "fallback_color": "#071512",
     }
 
 

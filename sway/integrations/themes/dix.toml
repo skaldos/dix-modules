@@ -32,5 +32,7 @@ indicator = "#FF6A00"
 child_border = "#FFB000"
 
 [background]
-type = "solid_color"
-color = "#10080E"
+type = "image"
+file = "wallpapers/dix.png"
+mode = "fit"
+fallback_color = "#10080E"

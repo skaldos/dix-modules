@@ -41,11 +41,20 @@ def test_installer_copies_example_themes_once_and_preserves_user_bytes(tmp_path)
     assert (theme_dir / "roba.toml").read_bytes() == (
         ROOT / "sway/integrations/themes/roba.toml"
     ).read_bytes()
+    assert (theme_dir / "wallpapers/dix.png").read_bytes() == (
+        ROOT / "sway/integrations/themes/wallpapers/dix.png"
+    ).read_bytes()
+    assert (theme_dir / "wallpapers/roba.png").read_bytes() == (
+        ROOT / "sway/integrations/themes/wallpapers/roba.png"
+    ).read_bytes()
 
-    custom = b"# user-owned\n"
-    (theme_dir / "dix.toml").write_bytes(custom)
+    custom_theme = b"# user-owned\n"
+    custom_wallpaper = b"user-owned wallpaper\n"
+    (theme_dir / "dix.toml").write_bytes(custom_theme)
+    (theme_dir / "wallpapers/dix.png").write_bytes(custom_wallpaper)
     second = subprocess.run(
         [str(INSTALL)], env=environment, text=True, capture_output=True, check=False
     )
     assert second.returncode == 0, second.stderr
-    assert (theme_dir / "dix.toml").read_bytes() == custom
+    assert (theme_dir / "dix.toml").read_bytes() == custom_theme
+    assert (theme_dir / "wallpapers/dix.png").read_bytes() == custom_wallpaper

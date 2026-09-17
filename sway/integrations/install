@@ -25,13 +25,23 @@ fi
     exit 1
 }
 
-mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN" "$SKALDOS_SWAY_STATE_ROOT" "$SKALDOS_SWAY_THEME_DIR"
+mkdir -p \
+    "$DIX_LAUNCHERS" \
+    "$DIX_BIN" \
+    "$SKALDOS_SWAY_STATE_ROOT" \
+    "$SKALDOS_SWAY_THEME_DIR/wallpapers"
 
 for theme in dix roba; do
     source_theme="$integration_root/themes/$theme.toml"
     target_theme="$SKALDOS_SWAY_THEME_DIR/$theme.toml"
     if [ ! -e "$target_theme" ] && [ ! -L "$target_theme" ]; then
         cp "$source_theme" "$target_theme"
+    fi
+
+    source_wallpaper="$integration_root/themes/wallpapers/$theme.png"
+    target_wallpaper="$SKALDOS_SWAY_THEME_DIR/wallpapers/$theme.png"
+    if [ ! -e "$target_wallpaper" ] && [ ! -L "$target_wallpaper" ]; then
+        cp "$source_wallpaper" "$target_wallpaper"
     fi
 done
 
