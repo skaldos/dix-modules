@@ -14,6 +14,7 @@ export DIX_BIN="${DIX_BIN:-$HOME/.local/bin}"
 # Persistent Sway configuration is separate from ephemeral and projected runtime state.
 export SKALDOS_SWAY_CONFIG_ROOT="${SKALDOS_SWAY_CONFIG_ROOT:-${XDG_CONFIG_HOME:-$HOME/.config}/skaldos/sway}"
 export SKALDOS_SWAY_THEME_DIR="${SKALDOS_SWAY_THEME_DIR:-$SKALDOS_SWAY_CONFIG_ROOT/themes}"
+export SKALDOS_SWAY_THEMED_GROUP_DIR="${SKALDOS_SWAY_THEMED_GROUP_DIR:-$SKALDOS_SWAY_CONFIG_ROOT/themed-groups}"
 
 # Volatile ROBA sockets prefer the per-user XDG runtime directory. The fallback remains
 # user-owned and works on systems without XDG_RUNTIME_DIR.

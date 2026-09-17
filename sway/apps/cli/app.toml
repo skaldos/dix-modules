@@ -6,5 +6,7 @@ use = "dix/cli/typer"
 use = "skaldos/sway/groups"
 [apps.themes]
 use = "skaldos/sway/themes"
+[apps.themed_groups]
+use = "skaldos/sway/themed_groups"
 [functions.main]
 description = "Run the external Skaldos Sway management CLI."

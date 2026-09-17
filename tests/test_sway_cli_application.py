@@ -67,7 +67,38 @@ def _themes(calls):
     )
 
 
-def test_cli_runtime_projects_group_and_theme_targets(load_runtime, api):
+def _themed_groups(calls):
+    def list_(themed_group_dir: str = "") -> dict[str, str]:
+        """List persistent group-to-theme assignments."""
+        calls.append(("list", themed_group_dir))
+        return {"work": "dix"}
+
+    def load(
+        themed_group_dir: str = "", theme_dir: str = ""
+    ) -> dict[str, object]:
+        """Reconstruct declared themed groups."""
+        calls.append(("load", themed_group_dir, theme_dir))
+        return {"managed_groups": ["work"]}
+
+    def select(
+        group: str,
+        themed_group_dir: str = "",
+        theme_dir: str = "",
+        active_theme_file: str = "",
+    ) -> dict[str, object]:
+        """Select a group and apply its assigned theme."""
+        calls.append(
+            ("select", group, themed_group_dir, theme_dir, active_theme_file)
+        )
+        return {"group": group}
+
+    return _api(
+        "skaldos/sway/themed_groups",
+        {"list": list_, "load": load, "select": select},
+    )
+
+
+def test_cli_runtime_projects_group_theme_and_themed_group_targets(load_runtime, api):
     Runtime = load_runtime("sway/apps/cli/runtime.py")
     captured = {}
 
@@ -77,12 +108,18 @@ def test_cli_runtime_projects_group_and_theme_targets(load_runtime, api):
 
     empty = _api("skaldos/sway/groups", {})
     themes = _themes([])
+    themed_groups = _themed_groups([])
     runtime = Runtime(
-        context=None, config={}, typer=api(invoke=invoke), groups=empty, themes=themes
+        context=None,
+        config={},
+        typer=api(invoke=invoke),
+        groups=empty,
+        themes=themes,
+        themed_groups=themed_groups,
     )
 
     assert runtime.main(["theme", "list"]) == 0
-    assert set(captured["targets"]) == {"group", "theme"}
+    assert set(captured["targets"]) == {"group", "theme", "themed_group"}
     assert {value.id for value in captured["targets"]["theme"].functions()} == {
         "create",
         "list",
@@ -90,6 +127,11 @@ def test_cli_runtime_projects_group_and_theme_targets(load_runtime, api):
         "show",
         "apply",
         "current",
+    }
+    assert {value.id for value in captured["targets"]["themed_group"].functions()} == {
+        "list",
+        "load",
+        "select",
     }
 
 
@@ -139,3 +181,49 @@ def test_theme_help_exposes_all_commands_and_named_paths(load_runtime, capsys):
     assert "--theme" in apply_help
     assert "--theme_dir" in apply_help
     assert "--active_theme_file" in apply_help
+
+
+def test_themed_group_projection_keeps_function_and_option_underscores(
+    load_runtime, capsys
+):
+    TyperRuntime = load_runtime("../dix/modules/dix/cli/compositions/typer/runtime.py")
+    calls = []
+    runtime = TyperRuntime(context=None, config={})
+    themed_groups = _themed_groups(calls)
+
+    result = runtime.invoke(
+        name="skaldos-sway",
+        targets={"themed_group": themed_groups},
+        argv=[
+            "themed_group",
+            "select",
+            "--group",
+            "work",
+            "--themed_group_dir",
+            "/definitions",
+            "--theme_dir",
+            "/themes",
+            "--active_theme_file",
+            "/state/active-theme",
+        ],
+    )
+
+    assert result == 0, capsys.readouterr().err
+    assert calls == [
+        (
+            "select",
+            "work",
+            "/definitions",
+            "/themes",
+            "/state/active-theme",
+        )
+    ]
+
+    assert runtime.invoke(
+        name="skaldos-sway",
+        targets={"themed_group": themed_groups},
+        argv=["themed_group", "load", "--help"],
+    ) == 0
+    help_text = capsys.readouterr().out
+    assert "--themed_group_dir" in help_text
+    assert "--theme_dir" in help_text

@@ -19,6 +19,7 @@ def test_installer_copies_example_themes_once_and_preserves_user_bytes(tmp_path)
     (source / "examples/launchers").mkdir(parents=True)
     env_file = tmp_path / "dix.env"
     theme_dir = tmp_path / "config/skaldos/sway/themes"
+    themed_group_dir = tmp_path / "config/skaldos/sway/themed-groups"
     state_root = tmp_path / "state/skaldos/sway"
     env_file.write_text(
         f'export DIX_SOURCE_ROOT="{source}"\n'
@@ -28,6 +29,7 @@ def test_installer_copies_example_themes_once_and_preserves_user_bytes(tmp_path)
         f'export DIX_BIN="{tmp_path / "bin"}"\n'
         f'export SKALDOS_SWAY_STATE_ROOT="{state_root}"\n'
         f'export SKALDOS_SWAY_THEME_DIR="{theme_dir}"\n'
+        f'export SKALDOS_SWAY_THEMED_GROUP_DIR="{themed_group_dir}"\n'
     )
     environment = {**os.environ, "HOME": str(home), "DIX_ENV": str(env_file)}
 
@@ -41,6 +43,7 @@ def test_installer_copies_example_themes_once_and_preserves_user_bytes(tmp_path)
     assert (theme_dir / "roba.toml").read_bytes() == (
         ROOT / "sway/integrations/themes/roba.toml"
     ).read_bytes()
+    assert themed_group_dir.is_dir()
     assert (theme_dir / "wallpapers/dix.png").read_bytes() == (
         ROOT / "sway/integrations/themes/wallpapers/dix.png"
     ).read_bytes()

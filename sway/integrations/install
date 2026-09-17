@@ -29,6 +29,7 @@ mkdir -p \
     "$DIX_LAUNCHERS" \
     "$DIX_BIN" \
     "$SKALDOS_SWAY_STATE_ROOT" \
+    "$SKALDOS_SWAY_THEMED_GROUP_DIR" \
     "$SKALDOS_SWAY_THEME_DIR/wallpapers"
 
 for theme in dix roba; do

@@ -126,10 +126,10 @@ ${EDITOR:-vi} "$HOME/.dix/env"
 Die Defaults verwenden passend `XDG_RUNTIME_DIR`, `XDG_STATE_HOME` und `XDG_DATA_HOME`. Fuer einen
 eigenen Baum wie `~/.dix` werden nur hier Werte ueberschrieben, nicht in Sway.
 `SKALDOS_SWAY_GROUP_STATE_FILE`, `SKALDOS_SWAY_ACTIVE_MEMBERS_FILE`,
-`SKALDOS_SWAY_NAVIGATION_TARGET_FILE`, `SKALDOS_SWAY_THEME_DIR` und
-`SKALDOS_SWAY_ACTIVE_THEME_FILE` bleiben getrennte Grenzen. Theme-TOMLs sind persistente
-Nutzerkonfiguration; `active-theme` ist nur eine ersetzbare Projektion der zuletzt durch diese
-Application erfolgreich angewendeten ID.
+`SKALDOS_SWAY_NAVIGATION_TARGET_FILE`, `SKALDOS_SWAY_THEME_DIR`,
+`SKALDOS_SWAY_THEMED_GROUP_DIR` und `SKALDOS_SWAY_ACTIVE_THEME_FILE` bleiben getrennte Grenzen.
+Theme- und Themed-Group-TOMLs sind persistente Nutzerkonfiguration; `active-theme` ist nur eine
+ersetzbare Projektion der zuletzt durch diese Application erfolgreich angewendeten ID.
 
 `groups.json` ist lokaler Nutzerzustand. Die Projektionsdateien sind ersetzbare Ausgaben und
 duerfen nicht in ungueltige Werte editiert werden.
@@ -276,6 +276,47 @@ fallback_color = "#10080E"
 Relative Bilder werden gegen die Theme-Datei aufgeloest. `theme current` meldet nur die zuletzt
 durch diese Application erfolgreich angewendete ID. Der Befehl inspiziert Sway nicht live; ein
 nach einem Sway-Neustart vorhandener Marker beweist kein erneutes Apply in der neuen Session.
+
+### Persistente Themed Groups
+
+Eine Themed Group ist eine explizite persistente Zuordnung zwischen einem bestehenden Gruppennamen
+und einem vollstaendigen Theme. Unter `SKALDOS_SWAY_THEMED_GROUP_DIR`, standardmaessig
+`$SKALDOS_SWAY_CONFIG_ROOT/themed-groups`, wird pro Zuordnung eine TOML angelegt:
+
+```toml
+# ~/.config/skaldos/sway/themed-groups/dix-dev.toml
+group = "DIX development"
+theme = "dix"
+```
+
+Der Dateiname ohne Endung ist eine Definition-ID und muss `[a-z0-9][a-z0-9_-]*` entsprechen. Er
+ist nicht der Gruppenname: Eine normalisierte, nicht leere Gruppe wie `DIX development` darf
+bewusst davon abweichen. Eine benannte Option `--themed_group_dir` ueberschreibt die Composition-
+Konfiguration, diese ueberschreibt `SKALDOS_SWAY_THEMED_GROUP_DIR`. Die Theme-Suche folgt getrennt
+`--theme_dir`, der Composition-Konfiguration und `SKALDOS_SWAY_THEME_DIR`.
+
+Die Zuordnungen werden inspiziert, explizit gebootstrapt und danach ausgewaehlt:
+
+```sh
+skaldos-sway themed_group list
+skaldos-sway themed_group load
+skaldos-sway themed_group select --group "DIX development"
+```
+
+`list` validiert den vollstaendigen Zuordnungskatalog, veraendert aber weder Groups noch Themes,
+ROBA oder Sway. `load` validiert zuerst jede Zuordnung und jedes referenzierte Theme. Erst nach
+diesem Preflight deaktiviert es eine aktive aktuell deklarierte Group, leert jede bereits
+existierende deklarierte Group und erzeugt jede fehlende deklarierte Group. Das Leeren verwirft
+bewusst alle alten Memberbindungen aus Sway-`con_id`s. Groups ausserhalb des aktuellen Katalogs
+bleiben unangetastet, einschliesslich fremder Groups und Groups, deren alte Definition entfernt
+wurde; ohne persistente Ownership-Registry sind sie nicht sicher unterscheidbar.
+
+Die Group-Mutationen nach dem Preflight sind nicht transaktional. Schlaegt eine davon fehl, wird
+nach Behebung der Ursache `load` erneut ausgefuehrt. `select` prueft sein Theme vor, selektiert dann
+die Group und wendet danach das Theme an. Scheitert das Theme-IPC nach der Auswahl, bleibt die Group
+aktiv; es gibt keinen anwendungsuebergreifenden Rollback. Dieser Slice ergaenzt keine Workspace-
+Automatisierung, keinen Wofi-Adapter und keinen neuen Low-Latency-Launcher; diese Integrationen
+bleiben getrennt.
 
 ## 9. Navigation direkt testen
 

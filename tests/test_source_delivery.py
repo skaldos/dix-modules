@@ -155,6 +155,7 @@ def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_pat
             '"$SKALDOS_SWAY_ROOT" "$DIX_ROBA_RUNTIME_ROOT" "$DIX_ROBA_LOGS_ROOT" '
             '"$SKALDOS_SWAY_GROUP_STATE_FILE" "$DIX_LAUNCHERS" '
             '"$SKALDOS_SWAY_CONFIG_ROOT" "$SKALDOS_SWAY_THEME_DIR" '
+            '"$SKALDOS_SWAY_THEMED_GROUP_DIR" '
             '"$SKALDOS_SWAY_ACTIVE_THEME_FILE"'
     )
     result = subprocess.run(
@@ -182,6 +183,7 @@ def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_pat
         str(home / ".local" / "share" / "dix" / "launchers"),
         str(home / ".config" / "skaldos" / "sway"),
         str(home / ".config" / "skaldos" / "sway" / "themes"),
+        str(home / ".config" / "skaldos" / "sway" / "themed-groups"),
         str(state / "skaldos" / "sway" / "active-theme"),
     ]
 
@@ -198,6 +200,7 @@ def test_installer_builds_both_typer_launchers_and_installs_the_full_cli() -> No
         "$DIX_BIN/skaldos-sway",
         "$DIX_BIN/skaldos-sway-wofi-theme",
         "$SKALDOS_SWAY_THEME_DIR",
+        "$SKALDOS_SWAY_THEMED_GROUP_DIR",
         "$integration_root/themes/$theme.toml",
         "$integration_root/themes/wallpapers/$theme.png",
     ):
@@ -261,6 +264,7 @@ def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) 
         f'export SKALDOS_SWAY_NAVIGATION_TARGET_FILE="{state / "navigation-target"}"\n'
         f'export SKALDOS_SWAY_CONFIG_ROOT="{dix_root / "config" / "skaldos" / "sway"}"\n'
         f'export SKALDOS_SWAY_THEME_DIR="{dix_root / "config" / "skaldos" / "sway" / "themes"}"\n'
+        f'export SKALDOS_SWAY_THEMED_GROUP_DIR="{dix_root / "config" / "skaldos" / "sway" / "themed-groups"}"\n'
         f'export SKALDOS_SWAY_ACTIVE_THEME_FILE="{state / "active-theme"}"\n'
     )
     env = {**os.environ, "HOME": str(home), "DIX_ENV": str(env_file)}
@@ -278,10 +282,11 @@ def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) 
     assert (launchers / "skaldos-sway.py").is_file()
     assert (dix_root / "config/skaldos/sway/themes/dix.toml").is_file()
     assert (dix_root / "config/skaldos/sway/themes/roba.toml").is_file()
+    assert (dix_root / "config/skaldos/sway/themed-groups").is_dir()
     assert (user_bin / "skaldos-sway-wofi-theme").is_file()
     for command, markers in (
         ("dix-roba", ("managed",)),
-        ("skaldos-sway", ("group", "theme")),
+        ("skaldos-sway", ("group", "theme", "themed_group")),
     ):
         result = subprocess.run(
             [str(user_bin / command), "--help"],
