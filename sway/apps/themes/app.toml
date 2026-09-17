@@ -1,0 +1,15 @@
+[app]
+id = "themes"
+
+[compositions.theme_files]
+use = "skaldos/sway/theme_files"
+[compositions.theme_ipc]
+use = "skaldos/sway/theme_ipc"
+[compositions.active_theme]
+use = "skaldos/sway/active_theme"
+
+[functions.create]
+[functions.list]
+[functions.show]
+[functions.apply]
+[functions.current]
