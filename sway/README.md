@@ -41,6 +41,8 @@ The system deliberately keeps different state under different owners:
 | ROBA | Ephemeral shared coordination: group names and active group name. |
 | Group application | Private JSON mapping of group names to Sway `con_id` values. |
 | Navigation projections | One line of active live member IDs and one `basic`/`group` route value. |
+| Theme catalog | Complete user-owned TOML definitions below the configured theme directory. |
+| Active theme projection | ID last applied successfully by this application; not live Sway state. |
 | User | Process lifecycle, local paths, filesystem permissions, and keybindings. |
 
 ROBA **persists nothing**. The private JSON and the two projection files are ordinary local files
@@ -121,8 +123,11 @@ ${EDITOR:-vi} "$HOME/.dix/env"
 
 The defaults use `XDG_RUNTIME_DIR`, `XDG_STATE_HOME`, and `XDG_DATA_HOME` where appropriate.
 Override values in this file for a custom tree such as `~/.dix`; do not duplicate them in Sway.
-`SKALDOS_SWAY_GROUP_STATE_FILE`, `SKALDOS_SWAY_ACTIVE_MEMBERS_FILE`, and
-`SKALDOS_SWAY_NAVIGATION_TARGET_FILE` remain separate boundaries.
+`SKALDOS_SWAY_GROUP_STATE_FILE`, `SKALDOS_SWAY_ACTIVE_MEMBERS_FILE`,
+`SKALDOS_SWAY_NAVIGATION_TARGET_FILE`, `SKALDOS_SWAY_THEME_DIR`, and
+`SKALDOS_SWAY_ACTIVE_THEME_FILE` remain separate boundaries. Theme TOMLs are persistent user
+configuration; `active-theme` is only a replaceable projection of the ID last applied
+successfully by this application.
 
 Treat `groups.json` as local user state. The projection files are replaceable outputs and must not
 be edited into malformed values.
@@ -143,6 +148,9 @@ skaldos-sway --help
 The resulting `dix-roba`, full Typer-based `skaldos-sway`, direct `skaldos-sway-json`,
 low-latency `skaldos-sway-nav`, and Wofi commands all source `~/.dix/env`. Their Python launchers
 live together below `DIX_LAUNCHERS`.
+
+The installer also copies the complete `dix.toml` and `roba.toml` examples into
+`SKALDOS_SWAY_THEME_DIR` when they do not exist. Re-running it never overwrites either target.
 
 ## 5. Configure ROBA, start it, and create `skaldos-sway`
 
@@ -228,7 +236,39 @@ skaldos-sway-json deactivate
 `create`, `add`, `remove`, `select`, and `deactivate` are explicit mutations. `list-lines`,
 `memberships-lines`, and `current` are line-oriented chooser/read outputs.
 
-## 8. Test navigation directly
+## 8. Manage complete themes
+
+The full Typer application exposes the separately composed theme catalog and Sway IPC functions:
+
+```sh
+skaldos-sway theme list
+skaldos-sway theme show --theme dix
+skaldos-sway theme apply --theme dix
+skaldos-sway theme current
+skaldos-sway theme create --theme personal
+```
+
+All parameters are named options. Override the persistent catalog or the active projection for one
+call with `--theme_dir /absolute/themes` and
+`--active_theme_file /absolute/state/active-theme`. Central defaults remain
+`SKALDOS_SWAY_THEME_DIR` and `SKALDOS_SWAY_ACTIVE_THEME_FILE` in `~/.dix/env`.
+
+Every theme is complete: all effective Sway client color classes are required. A theme may omit
+the output background, use one solid color, or use an image for `output *`:
+
+```toml
+[background]
+type = "image"
+file = "wallpapers/example.png"
+mode = "fill"
+fallback_color = "#10080E"
+```
+
+Relative images resolve against the theme file. `theme current` reports only the ID last applied
+successfully by this application. It does not inspect Sway live, and a marker surviving a Sway
+restart does not prove that the theme was reapplied in the new session.
+
+## 9. Test navigation directly
 
 An explicit target bypasses the route file without changing it:
 
@@ -246,7 +286,7 @@ skaldos-sway-nav right
 Navigation emits one compact JSON result. A group target requires a valid active-member projection.
 The direct process intentionally imports no Typer, Click, ROBA, HTTPX, or Pydantic.
 
-## 9. Optional Wofi commands
+## 10. Optional Wofi commands
 
 The installer provides three direct commands:
 
@@ -271,7 +311,7 @@ Override `SKALDOS_SWAY_MANAGEMENT`, `SKALDOS_SWAY_WOFI`, or `SKALDOS_SWAY_WOFI_N
 intentionally own the replacement command. These variables are shell command boundaries, not a
 DIX API.
 
-## 10. Add the Sway bindings
+## 11. Add the Sway bindings
 
 The complete maintained fragment is
 [`integrations/sway/config`](integrations/sway/config). Copy it into the Sway configuration and

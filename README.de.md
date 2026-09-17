@@ -55,6 +55,8 @@ Das Modul liefert:
 - private dateiverantwortete Fenstermitgliedschaft;
 - schmale atomare Route- und Active-Member-Projektionen fuer Navigation;
 - native richtungsbasierte und topology-aware Gruppennavigation;
+- vollstaendige persistente Sway-Themes mit getrennt komponierbaren Datei-, IPC- und
+  Active-Marker-Faehigkeiten;
 - einen dependency-armen direkten Navigationseinstieg;
 - optionale Wofi-Adapter und ein Sway-Konfigurationsfragment.
 

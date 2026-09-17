@@ -42,6 +42,8 @@ Das System haelt unterschiedliche Zustaende bewusst unter unterschiedlicher Owne
 | ROBA | Ephemere geteilte Koordination: Gruppennamen und Name der aktiven Gruppe. |
 | Group-Application | Privates JSON-Mapping von Gruppennamen auf Sway-`con_id`-Werte. |
 | Navigationsprojektionen | Eine Zeile aktiver lebender IDs und ein Routingwert `basic`/`group`. |
+| Theme-Katalog | Vollstaendige nutzereigene TOML-Definitionen im konfigurierten Theme-Ordner. |
+| Aktive Theme-Projektion | Zuletzt durch diese Application erfolgreich angewendete ID; kein Live-Sway-State. |
 | Nutzer | Prozess-Lifecycle, lokale Pfade, Dateirechte und Keybindings. |
 
 ROBA **persistiert nichts**. Das private JSON und die beiden Projektionsdateien sind normale lokale
@@ -123,8 +125,11 @@ ${EDITOR:-vi} "$HOME/.dix/env"
 
 Die Defaults verwenden passend `XDG_RUNTIME_DIR`, `XDG_STATE_HOME` und `XDG_DATA_HOME`. Fuer einen
 eigenen Baum wie `~/.dix` werden nur hier Werte ueberschrieben, nicht in Sway.
-`SKALDOS_SWAY_GROUP_STATE_FILE`, `SKALDOS_SWAY_ACTIVE_MEMBERS_FILE` und
-`SKALDOS_SWAY_NAVIGATION_TARGET_FILE` bleiben getrennte Grenzen.
+`SKALDOS_SWAY_GROUP_STATE_FILE`, `SKALDOS_SWAY_ACTIVE_MEMBERS_FILE`,
+`SKALDOS_SWAY_NAVIGATION_TARGET_FILE`, `SKALDOS_SWAY_THEME_DIR` und
+`SKALDOS_SWAY_ACTIVE_THEME_FILE` bleiben getrennte Grenzen. Theme-TOMLs sind persistente
+Nutzerkonfiguration; `active-theme` ist nur eine ersetzbare Projektion der zuletzt durch diese
+Application erfolgreich angewendeten ID.
 
 `groups.json` ist lokaler Nutzerzustand. Die Projektionsdateien sind ersetzbare Ausgaben und
 duerfen nicht in ungueltige Werte editiert werden.
@@ -145,6 +150,10 @@ skaldos-sway --help
 Die resultierenden Befehle `dix-roba`, das vollstaendige Typer-basierte `skaldos-sway`, das direkte
 `skaldos-sway-json`, das latenzarme `skaldos-sway-nav` und die Wofi-Helfer laden alle
 `~/.dix/env`. Ihre Python-Launcher liegen gemeinsam unter `DIX_LAUNCHERS`.
+
+Der Installer kopiert ausserdem die vollstaendigen Beispiele `dix.toml` und `roba.toml` nach
+`SKALDOS_SWAY_THEME_DIR`, falls sie dort noch fehlen. Ein erneuter Lauf ueberschreibt keines der
+beiden Ziele.
 
 ## 5. ROBA konfigurieren, starten und `skaldos-sway` erzeugen
 
@@ -234,7 +243,40 @@ skaldos-sway-json deactivate
 `create`, `add`, `remove`, `select` und `deactivate` sind explizite Mutationen. `list-lines`,
 `memberships-lines` und `current` sind zeilenorientierte Chooser-/Leseausgaben.
 
-## 8. Navigation direkt testen
+## 8. Vollstaendige Themes verwalten
+
+Die vollstaendige Typer-Application exponiert den getrennt komponierten Theme-Katalog und die
+Sway-IPC-Funktionen:
+
+```sh
+skaldos-sway theme list
+skaldos-sway theme show --theme dix
+skaldos-sway theme apply --theme dix
+skaldos-sway theme current
+skaldos-sway theme create --theme personal
+```
+
+Alle Parameter sind benannte Optionen. Fuer einen Aufruf koennen der persistente Katalog und die
+aktive Projektion mit `--theme_dir /absoluter/pfad/themes` und
+`--active_theme_file /absoluter/pfad/state/active-theme` ueberschrieben werden. Die zentralen
+Defaults bleiben `SKALDOS_SWAY_THEME_DIR` und `SKALDOS_SWAY_ACTIVE_THEME_FILE` in `~/.dix/env`.
+
+Jedes Theme ist vollstaendig: Alle wirksamen Sway-Client-Farbklassen sind Pflicht. Ein Theme kann
+den Output-Hintergrund auslassen, eine Vollfarbe nutzen oder ein Bild fuer `output *` setzen:
+
+```toml
+[background]
+type = "image"
+file = "wallpapers/example.png"
+mode = "fill"
+fallback_color = "#10080E"
+```
+
+Relative Bilder werden gegen die Theme-Datei aufgeloest. `theme current` meldet nur die zuletzt
+durch diese Application erfolgreich angewendete ID. Der Befehl inspiziert Sway nicht live; ein
+nach einem Sway-Neustart vorhandener Marker beweist kein erneutes Apply in der neuen Session.
+
+## 9. Navigation direkt testen
 
 Ein explizites Target umgeht die Routingdatei, ohne sie zu veraendern:
 
@@ -253,7 +295,7 @@ Die Navigation schreibt genau ein kompaktes JSON-Ergebnis. Das Group-Target beno
 Active-Member-Projektion. Der direkte Prozess importiert bewusst weder Typer, Click, ROBA, HTTPX
 noch Pydantic.
 
-## 9. Optionale Wofi-Befehle
+## 10. Optionale Wofi-Befehle
 
 Der Installer stellt drei direkte Befehle bereit:
 
@@ -278,7 +320,7 @@ verwendet `New group name`.
 wenn der Ersatzbefehl bewusst selbst verantwortet wird. Diese Variablen sind Shell-Command-
 Grenzen und keine DIX-API.
 
-## 10. Sway-Bindings hinzufuegen
+## 11. Sway-Bindings hinzufuegen
 
 Das vollstaendige gepflegte Fragment liegt unter
 [`integrations/sway/config`](integrations/sway/config). Es in die Sway-Konfiguration kopieren und

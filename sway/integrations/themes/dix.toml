@@ -1,0 +1,36 @@
+[clients.focused]
+border = "#D85A96"
+background = "#4A1735"
+text = "#FFF4E8"
+indicator = "#FF2E88"
+child_border = "#B52A68"
+
+[clients.focused_inactive]
+border = "#743250"
+background = "#2E1826"
+text = "#E8CFDA"
+indicator = "#92516E"
+child_border = "#5C263F"
+
+[clients.focused_tab_title]
+border = "#8A3A5D"
+background = "#351C2C"
+text = "#F5DDE8"
+
+[clients.unfocused]
+border = "#402231"
+background = "#171014"
+text = "#BBA6AF"
+indicator = "#603248"
+child_border = "#2D1923"
+
+[clients.urgent]
+border = "#FFB000"
+background = "#5B2200"
+text = "#FFF7E0"
+indicator = "#FF6A00"
+child_border = "#FFB000"
+
+[background]
+type = "solid_color"
+color = "#10080E"

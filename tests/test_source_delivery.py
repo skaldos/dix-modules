@@ -152,7 +152,9 @@ def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_pat
     command = (
             '. "$1"; printf "%s\\n" "$DIX_ROOT" "$DIX_SOURCE_ROOT" '
             '"$SKALDOS_SWAY_ROOT" "$DIX_ROBA_RUNTIME_ROOT" "$DIX_ROBA_LOGS_ROOT" '
-            '"$SKALDOS_SWAY_GROUP_STATE_FILE" "$DIX_LAUNCHERS"'
+            '"$SKALDOS_SWAY_GROUP_STATE_FILE" "$DIX_LAUNCHERS" '
+            '"$SKALDOS_SWAY_CONFIG_ROOT" "$SKALDOS_SWAY_THEME_DIR" '
+            '"$SKALDOS_SWAY_ACTIVE_THEME_FILE"'
     )
     result = subprocess.run(
         [
@@ -177,6 +179,9 @@ def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_pat
         str(state / "dix" / "roba" / "logs"),
         str(state / "skaldos" / "sway" / "groups.json"),
         str(home / ".local" / "share" / "dix" / "launchers"),
+        str(home / ".config" / "skaldos" / "sway"),
+        str(home / ".config" / "skaldos" / "sway" / "themes"),
+        str(state / "skaldos" / "sway" / "active-theme"),
     ]
 
 
@@ -190,8 +195,28 @@ def test_installer_builds_both_typer_launchers_and_installs_the_full_cli() -> No
         "$DIX_LAUNCHERS/skaldos-sway.py",
         "$DIX_BIN/dix-roba",
         "$DIX_BIN/skaldos-sway",
+        "$SKALDOS_SWAY_THEME_DIR",
+        "$integration_root/themes/$theme.toml",
     ):
         assert value in installer
+
+
+def test_example_themes_are_complete_and_load_through_generic_catalog(
+    load_runtime, tmp_path, monkeypatch
+) -> None:
+    monkeypatch.delenv("SKALDOS_SWAY_THEME_DIR", raising=False)
+    Runtime = load_runtime("sway/compositions/theme_files/runtime.py")
+    runtime = Runtime(context=None, config={"theme_dir": str(INTEGRATIONS / "themes")})
+
+    assert runtime.list() == ["dix", "roba"]
+    assert runtime.load("dix")["background"] == {
+        "type": "solid_color",
+        "color": "#10080E",
+    }
+    assert runtime.load("roba")["background"] == {
+        "type": "solid_color",
+        "color": "#071512",
+    }
 
 
 def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) -> None:
@@ -227,6 +252,9 @@ def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) 
         f'export SKALDOS_SWAY_GROUP_STATE_FILE="{state / "groups.json"}"\n'
         f'export SKALDOS_SWAY_ACTIVE_MEMBERS_FILE="{state / "active-members"}"\n'
         f'export SKALDOS_SWAY_NAVIGATION_TARGET_FILE="{state / "navigation-target"}"\n'
+        f'export SKALDOS_SWAY_CONFIG_ROOT="{dix_root / "config" / "skaldos" / "sway"}"\n'
+        f'export SKALDOS_SWAY_THEME_DIR="{dix_root / "config" / "skaldos" / "sway" / "themes"}"\n'
+        f'export SKALDOS_SWAY_ACTIVE_THEME_FILE="{state / "active-theme"}"\n'
     )
     env = {**os.environ, "HOME": str(home), "DIX_ENV": str(env_file)}
 
@@ -241,6 +269,8 @@ def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) 
     assert installed.returncode == 0, installed.stderr
     assert (launchers / "dix-roba.py").is_file()
     assert (launchers / "skaldos-sway.py").is_file()
+    assert (dix_root / "config/skaldos/sway/themes/dix.toml").is_file()
+    assert (dix_root / "config/skaldos/sway/themes/roba.toml").is_file()
     for command, marker in (("dix-roba", "managed"), ("skaldos-sway", "group")):
         result = subprocess.run(
             [str(user_bin / command), "--help"],

@@ -25,7 +25,15 @@ fi
     exit 1
 }
 
-mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN" "$SKALDOS_SWAY_STATE_ROOT"
+mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN" "$SKALDOS_SWAY_STATE_ROOT" "$SKALDOS_SWAY_THEME_DIR"
+
+for theme in dix roba; do
+    source_theme="$integration_root/themes/$theme.toml"
+    target_theme="$SKALDOS_SWAY_THEME_DIR/$theme.toml"
+    if [ ! -e "$target_theme" ] && [ ! -L "$target_theme" ]; then
+        cp "$source_theme" "$target_theme"
+    fi
+done
 
 "$DIX_VENV/bin/python" -m dix.bootstrap build \
     "$DIX_SOURCE_ROOT/examples/launchers/dix_roba.toml" \

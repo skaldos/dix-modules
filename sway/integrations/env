@@ -11,6 +11,10 @@ export DIX_VENV="${DIX_VENV:-$DIX_SOURCE_ROOT/.venv}"
 export DIX_LAUNCHERS="${DIX_LAUNCHERS:-${XDG_DATA_HOME:-$HOME/.local/share}/dix/launchers}"
 export DIX_BIN="${DIX_BIN:-$HOME/.local/bin}"
 
+# Persistent Sway configuration is separate from ephemeral and projected runtime state.
+export SKALDOS_SWAY_CONFIG_ROOT="${SKALDOS_SWAY_CONFIG_ROOT:-${XDG_CONFIG_HOME:-$HOME/.config}/skaldos/sway}"
+export SKALDOS_SWAY_THEME_DIR="${SKALDOS_SWAY_THEME_DIR:-$SKALDOS_SWAY_CONFIG_ROOT/themes}"
+
 # Volatile ROBA sockets prefer the per-user XDG runtime directory. The fallback remains
 # user-owned and works on systems without XDG_RUNTIME_DIR.
 if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
@@ -28,3 +32,4 @@ export SKALDOS_SWAY_STATE_ROOT="${SKALDOS_SWAY_STATE_ROOT:-${XDG_STATE_HOME:-$HO
 export SKALDOS_SWAY_GROUP_STATE_FILE="${SKALDOS_SWAY_GROUP_STATE_FILE:-$SKALDOS_SWAY_STATE_ROOT/groups.json}"
 export SKALDOS_SWAY_ACTIVE_MEMBERS_FILE="${SKALDOS_SWAY_ACTIVE_MEMBERS_FILE:-$SKALDOS_SWAY_STATE_ROOT/active-members}"
 export SKALDOS_SWAY_NAVIGATION_TARGET_FILE="${SKALDOS_SWAY_NAVIGATION_TARGET_FILE:-$SKALDOS_SWAY_STATE_ROOT/navigation-target}"
+export SKALDOS_SWAY_ACTIVE_THEME_FILE="${SKALDOS_SWAY_ACTIVE_THEME_FILE:-$SKALDOS_SWAY_STATE_ROOT/active-theme}"

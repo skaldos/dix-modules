@@ -53,6 +53,8 @@ The module provides:
 - private file-owned window membership;
 - narrow atomic route and active-member projections for navigation;
 - native-direction, topology-aware group navigation;
+- complete persistent Sway themes with separately composable file, IPC, and active-marker
+  capabilities;
 - a dependency-light direct navigation entry;
 - optional Wofi adapters and a Sway configuration fragment.
 
