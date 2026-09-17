@@ -11,3 +11,5 @@ description = "Focus one Sway container by ID."
 description = "Return ordered IDs of live Sway leaves."
 [functions.navigation_topology]
 description = "Return the minimal normalized Sway navigation topology."
+[functions.command]
+description = "Execute one validated higher-level Sway command through the shared transport."

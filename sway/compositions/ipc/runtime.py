@@ -52,6 +52,11 @@ class Runtime:
         _validate_topology(topology)
         return topology
 
+    def command(self, value: str) -> None:
+        if not isinstance(value, str) or not value or any(char in value for char in "\x00\r\n"):
+            raise SwayIpcError("Sway command must be a non-empty single-line string")
+        self._command(value)
+
     def _command(self, value: str) -> None:
         try:
             replies = i3ipc.Connection().command(value)
