@@ -88,6 +88,15 @@ exec "\$SKALDOS_SWAY_ROOT/integrations/wofi/$action" "\$@"
 EOF
 done
 
+cat >"$DIX_BIN/skaldos-sway-wofi-theme" <<'EOF'
+#!/bin/sh
+set -eu
+env_file=${DIX_ENV:-$HOME/.dix/env}
+. "$env_file"
+export SKALDOS_SWAY_THEME_MANAGEMENT="$DIX_BIN/skaldos-sway"
+exec "$SKALDOS_SWAY_ROOT/integrations/wofi/theme" "$@"
+EOF
+
 chmod 0755 \
     "$DIX_BIN/dix-roba" \
     "$DIX_BIN/skaldos-sway" \
@@ -95,7 +104,8 @@ chmod 0755 \
     "$DIX_BIN/skaldos-sway-json" \
     "$DIX_BIN/skaldos-sway-wofi-select" \
     "$DIX_BIN/skaldos-sway-wofi-add" \
-    "$DIX_BIN/skaldos-sway-wofi-remove"
+    "$DIX_BIN/skaldos-sway-wofi-remove" \
+    "$DIX_BIN/skaldos-sway-wofi-theme"
 
 printf 'installed launchers in %s\n' "$DIX_LAUNCHERS"
 printf 'installed commands in %s\n' "$DIX_BIN"

@@ -47,6 +47,9 @@ def test_installer_copies_example_themes_once_and_preserves_user_bytes(tmp_path)
     assert (theme_dir / "wallpapers/roba.png").read_bytes() == (
         ROOT / "sway/integrations/themes/wallpapers/roba.png"
     ).read_bytes()
+    theme_chooser = tmp_path / "bin/skaldos-sway-wofi-theme"
+    assert theme_chooser.is_file()
+    assert 'SKALDOS_SWAY_THEME_MANAGEMENT="$DIX_BIN/skaldos-sway"' in theme_chooser.read_text()
 
     custom_theme = b"# user-owned\n"
     custom_wallpaper = b"user-owned wallpaper\n"

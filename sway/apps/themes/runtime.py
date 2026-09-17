@@ -37,6 +37,9 @@ class Runtime:
             raise TypeError("theme_files.list must return a list of strings")
         return list(value)
 
+    def list_lines(self, theme_dir: str = "") -> str:
+        return "\n".join(self.list(theme_dir))
+
     def show(self, theme: str, theme_dir: str = "") -> dict[str, object]:
         value = self.theme_files.require("load")(theme, theme_dir)
         return dict(_mapping(value, "theme_files.load"))

@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+manage=${SKALDOS_SWAY_THEME_MANAGEMENT:-skaldos-sway}
+choose_theme() {
+  if [ -n "${SKALDOS_SWAY_WOFI:-}" ]; then
+    sh -c "$SKALDOS_SWAY_WOFI"
+  else
+    wofi --dmenu --no-custom-entry --prompt 'Sway theme'
+  fi
+}
+themes=$($manage theme list_lines)
+[ -n "$themes" ] || exit 0
+choice=$(printf '%s\n' "$themes" | choose_theme) || exit 0
+[ -n "$choice" ] || exit 0
+valid=false
+while IFS= read -r theme; do
+  if [ "$choice" = "$theme" ]; then
+    valid=true
+  fi
+done <<EOF
+$themes
+EOF
+if [ "$valid" != true ]; then
+  printf 'invalid Wofi selection\n' >&2
+  exit 1
+fi
+exec "$manage" theme apply --theme "$choice"

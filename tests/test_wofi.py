@@ -102,6 +102,117 @@ def test_unframed_choice_fails_without_mutation(tmp_path):
     assert "invalid Wofi selection" in result.stderr
 
 
+def _theme_tools(tmp_path, *, themes="dix\nroba\n", choice="dix", menu_exit=0):
+    log = tmp_path / "theme-log"
+    manage = tmp_path / "theme-manage"
+    menu = tmp_path / "theme-menu"
+    manage.write_text(
+        f'''#!/bin/sh
+printf '%s\n' "$*" >> {log}
+if [ "$*" = "theme list_lines" ]; then printf '{themes}'; fi
+'''
+    )
+    menu.write_text(
+        f'''#!/bin/sh
+cat >/dev/null
+printf '%s\n' '{choice}'
+exit {menu_exit}
+'''
+    )
+    manage.chmod(0o755)
+    menu.chmod(0o755)
+    return log, manage, menu
+
+
+def test_theme_chooser_applies_catalog_selection(tmp_path):
+    log, manage, menu = _theme_tools(tmp_path, choice="roba")
+    result = subprocess.run(
+        [str(ROOT / "theme")],
+        env={
+            **os.environ,
+            "SKALDOS_SWAY_THEME_MANAGEMENT": str(manage),
+            "SKALDOS_SWAY_WOFI": str(menu),
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert log.read_text() == "theme list_lines\ntheme apply --theme roba\n"
+
+
+def test_theme_chooser_rejects_value_outside_catalog(tmp_path):
+    log, manage, menu = _theme_tools(tmp_path, choice="unknown")
+    result = subprocess.run(
+        [str(ROOT / "theme")],
+        env={
+            **os.environ,
+            "SKALDOS_SWAY_THEME_MANAGEMENT": str(manage),
+            "SKALDOS_SWAY_WOFI": str(menu),
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert log.read_text() == "theme list_lines\n"
+    assert "invalid Wofi selection" in result.stderr
+
+
+@pytest.mark.parametrize(("themes", "menu_exit"), (("", 0), ("dix\n", 1)))
+def test_theme_chooser_empty_catalog_or_cancel_is_clean(tmp_path, themes, menu_exit):
+    log, manage, menu = _theme_tools(tmp_path, themes=themes, menu_exit=menu_exit)
+    result = subprocess.run(
+        [str(ROOT / "theme")],
+        env={
+            **os.environ,
+            "SKALDOS_SWAY_THEME_MANAGEMENT": str(manage),
+            "SKALDOS_SWAY_WOFI": str(menu),
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert log.read_text() == "theme list_lines\n"
+
+
+def test_default_theme_wofi_commits_initial_entry(tmp_path):
+    log, manage, _menu = _theme_tools(tmp_path)
+    arguments = tmp_path / "theme-arguments"
+    wofi = tmp_path / "wofi"
+    wofi.write_text(
+        f'''#!/bin/sh
+printf '%s\n' "$@" > {arguments}
+sed -n '1p'
+'''
+    )
+    wofi.chmod(0o755)
+    result = subprocess.run(
+        [str(ROOT / "theme")],
+        env={
+            **os.environ,
+            "PATH": f"{tmp_path}:{os.environ['PATH']}",
+            "SKALDOS_SWAY_THEME_MANAGEMENT": str(manage),
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert log.read_text() == "theme list_lines\ntheme apply --theme dix\n"
+    assert arguments.read_text().splitlines() == [
+        "--dmenu",
+        "--no-custom-entry",
+        "--prompt",
+        "Sway theme",
+    ]
+
+
 @pytest.mark.parametrize(
     ("adapter", "prompt", "expected_command"),
     (
@@ -156,7 +267,7 @@ sed -n '/^  /{{p;q;}}' {entries}
 
 
 def test_shipped_wofi_ui_is_english():
-    scripts = {name: (ROOT / name).read_text() for name in ("select", "add", "remove")}
+    scripts = {name: (ROOT / name).read_text() for name in ("select", "add", "remove", "theme")}
     combined = "\n".join(scripts.values())
 
     for value in ("Keine Gruppe", "Neue Gruppe", "Zu Gruppe", "Aus Gruppe"):
@@ -170,3 +281,4 @@ def test_shipped_wofi_ui_is_english():
     assert "--prompt 'New group name'" in scripts["add"]
     assert "--prompt 'Add window to group'" in scripts["add"]
     assert "--prompt 'Remove window from group'" in scripts["remove"]
+    assert "--prompt 'Sway theme'" in scripts["theme"]

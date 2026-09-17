@@ -111,11 +111,13 @@ def test_projection_methods_delegate_without_crossing_boundaries(load_runtime, a
 
     assert app.create("new", "/themes") == str(tmp_path / "new.toml")
     assert app.list("/themes") == ["dix", "roba"]
+    assert app.list_lines("/themes") == "dix\nroba"
     shown = app.show("dix", "/themes")
     shown["id"] = "changed"
     assert app.current("/marker") == "dix"
     assert events == [
         ("create", ("new", "/themes")),
+        ("list", ("/themes",)),
         ("list", ("/themes",)),
         ("load", ("dix", "/themes")),
         ("active.get", ("/marker",)),

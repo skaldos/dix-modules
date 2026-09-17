@@ -243,6 +243,7 @@ The full Typer application exposes the separately composed theme catalog and Swa
 
 ```sh
 skaldos-sway theme list
+skaldos-sway theme list_lines
 skaldos-sway theme show --theme dix
 skaldos-sway theme apply --theme dix
 skaldos-sway theme current
@@ -289,28 +290,33 @@ The direct process intentionally imports no Typer, Click, ROBA, HTTPX, or Pydant
 
 ## 10. Optional Wofi commands
 
-The installer provides three direct commands:
+The installer provides four direct commands:
 
 ```sh
 skaldos-sway-wofi-select
 skaldos-sway-wofi-add
 skaldos-sway-wofi-remove
+skaldos-sway-wofi-theme
 ```
 
-Their source adapters remain under `integrations/wofi/select`, `integrations/wofi/add`, and
-`integrations/wofi/remove`.
+Their source adapters remain under `integrations/wofi/select`, `integrations/wofi/add`,
+`integrations/wofi/remove`, and `integrations/wofi/theme`.
 
 The existing-entry menus invoke Wofi with `--no-custom-entry`. Pressing Enter on the initially
 highlighted row therefore commits that row without requiring a cursor movement. Only the separate
 "new group" dialog accepts free text.
 
+The theme chooser reads the line-oriented `theme list_lines` application function and applies the
+selected catalog entry through `theme apply`. It performs no independent filesystem discovery and
+does not offer free theme-name input.
+
 The action rows are `[No active group]` and `[+ New group]`. The add and remove prompts are
 `Add window to group` and `Remove window from group`; free group-name input uses
 `New group name`.
 
-Override `SKALDOS_SWAY_MANAGEMENT`, `SKALDOS_SWAY_WOFI`, or `SKALDOS_SWAY_WOFI_NAME` only when you
-intentionally own the replacement command. These variables are shell command boundaries, not a
-DIX API.
+Override `SKALDOS_SWAY_MANAGEMENT`, `SKALDOS_SWAY_THEME_MANAGEMENT`, `SKALDOS_SWAY_WOFI`, or
+`SKALDOS_SWAY_WOFI_NAME` only when you intentionally own the replacement command. These variables
+are shell command boundaries, not a DIX API.
 
 ## 11. Add the Sway bindings
 
@@ -330,6 +336,7 @@ bindsym $mod+l exec --no-startup-id $skaldos_bin/skaldos-sway-nav right
 bindsym $mod+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-select
 bindsym $mod+Shift+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-add
 bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-remove
+bindsym $mod+t exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-theme
 ```
 
 Sway receives no DIX-specific environment. Every command loads the current values from

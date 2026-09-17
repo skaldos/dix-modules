@@ -32,6 +32,11 @@ def _themes(calls):
         calls.append(("list", theme_dir))
         return ["dix", "roba"]
 
+    def list_lines(theme_dir: str = "") -> str:
+        """List one Sway theme per line."""
+        calls.append(("list_lines", theme_dir))
+        return "dix\nroba"
+
     def show(theme: str, theme_dir: str = "") -> dict[str, object]:
         """Show one Sway theme."""
         calls.append(("show", theme, theme_dir))
@@ -51,7 +56,14 @@ def _themes(calls):
 
     return _api(
         "skaldos/sway/themes",
-        {"create": create, "list": list_, "show": show, "apply": apply, "current": current},
+        {
+            "create": create,
+            "list": list_,
+            "list_lines": list_lines,
+            "show": show,
+            "apply": apply,
+            "current": current,
+        },
     )
 
 
@@ -74,6 +86,7 @@ def test_cli_runtime_projects_group_and_theme_targets(load_runtime, api):
     assert {value.id for value in captured["targets"]["theme"].functions()} == {
         "create",
         "list",
+        "list_lines",
         "show",
         "apply",
         "current",
@@ -111,8 +124,13 @@ def test_theme_help_exposes_all_commands_and_named_paths(load_runtime, capsys):
 
     assert runtime.invoke(name="skaldos-sway", targets={"theme": themes}, argv=["theme", "--help"]) == 0
     help_text = capsys.readouterr().out
-    for command in ("create", "list", "show", "apply", "current"):
+    for command in ("create", "list", "list_lines", "show", "apply", "current"):
         assert command in help_text
+
+    assert runtime.invoke(
+        name="skaldos-sway", targets={"theme": themes}, argv=["theme", "list_lines"]
+    ) == 0
+    assert capsys.readouterr().out == "dix\nroba\n"
 
     assert runtime.invoke(
         name="skaldos-sway", targets={"theme": themes}, argv=["theme", "apply", "--help"]

@@ -128,6 +128,7 @@ def test_sway_fragment_only_addresses_installed_commands() -> None:
     config = (INTEGRATIONS / "sway" / "config").read_text()
     for value in (
         "$skaldos_bin/skaldos-sway-nav",
+        "$skaldos_bin/skaldos-sway-wofi-theme",
         "$skaldos_bin/skaldos-sway-wofi-select",
         "$skaldos_bin/skaldos-sway-wofi-add",
         "$skaldos_bin/skaldos-sway-wofi-remove",
@@ -195,6 +196,7 @@ def test_installer_builds_both_typer_launchers_and_installs_the_full_cli() -> No
         "$DIX_LAUNCHERS/skaldos-sway.py",
         "$DIX_BIN/dix-roba",
         "$DIX_BIN/skaldos-sway",
+        "$DIX_BIN/skaldos-sway-wofi-theme",
         "$SKALDOS_SWAY_THEME_DIR",
         "$integration_root/themes/$theme.toml",
         "$integration_root/themes/wallpapers/$theme.png",
@@ -276,6 +278,7 @@ def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) 
     assert (launchers / "skaldos-sway.py").is_file()
     assert (dix_root / "config/skaldos/sway/themes/dix.toml").is_file()
     assert (dix_root / "config/skaldos/sway/themes/roba.toml").is_file()
+    assert (user_bin / "skaldos-sway-wofi-theme").is_file()
     for command, markers in (
         ("dix-roba", ("managed",)),
         ("skaldos-sway", ("group", "theme")),
