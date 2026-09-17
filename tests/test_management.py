@@ -89,7 +89,14 @@ def test_cli_projects_complete_group_surface(load_runtime, tmp_path):
         config_base_dir=tmp_path,
         owner_scope_id="x",
     )
-    assert Runtime(context=c, config={}, typer=Typer(), groups=api(), themes=api()).main([]) == 0
+    assert Runtime(
+        context=c,
+        config={},
+        typer=Typer(),
+        groups=api(),
+        themes=api(),
+        themed_groups=api(),
+    ).main([]) == 0
     assert {x.id for x in captured["targets"]["group"].functions()} == {
         "create",
         "add",
