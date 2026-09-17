@@ -271,7 +271,10 @@ def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) 
     assert (launchers / "skaldos-sway.py").is_file()
     assert (dix_root / "config/skaldos/sway/themes/dix.toml").is_file()
     assert (dix_root / "config/skaldos/sway/themes/roba.toml").is_file()
-    for command, marker in (("dix-roba", "managed"), ("skaldos-sway", "group")):
+    for command, markers in (
+        ("dix-roba", ("managed",)),
+        ("skaldos-sway", ("group", "theme")),
+    ):
         result = subprocess.run(
             [str(user_bin / command), "--help"],
             env=env,
@@ -280,4 +283,4 @@ def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) 
             check=False,
         )
         assert result.returncode == 0, result.stderr
-        assert marker in result.stdout
+        assert all(marker in result.stdout for marker in markers)
