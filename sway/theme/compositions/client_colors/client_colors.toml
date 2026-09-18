@@ -1,0 +1,16 @@
+name = "SwayClientColors"
+
+[fields.border]
+type = "string"
+
+[fields.background]
+type = "string"
+
+[fields.text]
+type = "string"
+
+[fields.indicator]
+type = "string"
+
+[fields.child_border]
+type = "string"

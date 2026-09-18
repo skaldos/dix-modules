@@ -1,0 +1,10 @@
+[strand]
+id = "sway_client_colors"
+
+[input]
+type = "model"
+model = "client_colors.toml"
+
+[output]
+type = "model"
+model = "client_colors.toml"

@@ -1,0 +1,12 @@
+[composition]
+id = "client_colors"
+
+[compositions.strand]
+use = "dix/norn/strand"
+config = { spec = "strand.toml" }
+
+[compositions.color]
+use = "skaldos/sway/theme/color"
+
+[functions.execute]
+description = "Validate all five colors of one Sway client color set."

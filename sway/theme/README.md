@@ -8,3 +8,10 @@ Sway IPC, application, CLI, state, or persistence dependency.
 `skaldos/sway/theme/color.execute(value)` accepts exactly Sway-style `#RRGGBB` and `#RRGGBBAA`
 hexadecimal colors. DIX Norn owns the structural string boundary; the Color composition owns the
 color-format rule and its domain error.
+
+## Client colors
+
+`skaldos/sway/theme/client_colors.execute(value)` accepts one flat mapping with exactly
+`border`, `background`, `text`, `indicator`, and `child_border`. The model boundary owns the
+mapping structure. Every field is independently processed by the locally composed Color strand,
+and the result is returned as a new native dictionary.
