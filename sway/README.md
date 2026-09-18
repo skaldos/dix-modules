@@ -24,7 +24,9 @@ skaldos/sway/nav/cli          # management CLI
 
 skaldos/sway/theme/color         # atomic Sway hexadecimal color strand
 skaldos/sway/theme/client_colors # flat five-color model strand
-skaldos/sway/theme/client_theme  # tolerant Knot plus four public Sway effects
+skaldos/sway/theme/focused_tab_title_colors # exact three-color model strand
+skaldos/sway/theme/background    # strict image/color variant strand
+skaldos/sway/theme/client_theme  # tolerant Knot plus six public Sway effects
 skaldos/sway/theme/theme         # complete TOML file application
 skaldos/sway/theme/cli           # DIX/Typer Theme CLI
 ```
@@ -124,20 +126,29 @@ skaldos/sway/theme/color.execute(value)
 skaldos/sway/theme/client_colors.execute(value)
   flat model boundary -> five locally aliased color calls -> flat model boundary
 
+skaldos/sway/theme/focused_tab_title_colors.execute(value)
+  exact border/background/text model -> three color calls -> exact model
+
+skaldos/sway/theme/background.execute(value)
+  exact image or color variant -> canonical background mapping
+
 skaldos/sway/theme/client_theme.execute(value)
-  known present fields -> client_colors -> public set_* handler -> field result
+  known present fields -> field strand -> public set_* handler -> field result
 ```
 
 Client colors require exactly `border`, `background`, `text`, `indicator`, and `child_border`.
-The four direct client-theme handlers apply complete focused, focused-inactive, unfocused, or
-urgent color sets. The tolerant Knot binds `client_colors` and those handlers from its immediate
-owner during graph construction; `client_theme.execute` passes only the input value. It skips
-missing known fields and ignores unknown fields.
+`focused_tab_title` instead requires exactly `border`, `background`, and `text`. Background is
+either an image with an absolute file, one of `stretch`, `fill`, `fit`, `center`, or `tile`, and a
+`#RRGGBB` fallback, or exactly one `#RRGGBB` color. The tolerant Knot binds these strands and all
+six handlers from its immediate owner during graph construction. It skips missing known fields and
+ignores unknown fields.
 
-The Theme application reads a complete TOML document before the first effect and delegates its
-unchanged root mapping to that Knot. Current client fields can therefore coexist with future
-`focused_tab_title` and `background` tables, which remain intentionally ignored until their own
-contracts exist. Apply a file through the separate management CLI:
+The Theme application reads a complete TOML document before the first effect. A relative image
+file is materialized against the Theme TOML directory before delegation; no wallpaper existence
+is claimed. The Knot applies `focused`, `focused_inactive`, `focused_tab_title`, `unfocused`,
+`urgent`, and `background` in that order. Background always targets `output *` and emits either an
+image command or `output * bg #RRGGBB solid_color`. Other root fields remain ignored. Apply a file
+through the separate management CLI:
 
 ```sh
 dix-sway-theme-cli theme apply --file /path/to/theme.toml

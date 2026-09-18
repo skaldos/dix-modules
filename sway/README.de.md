@@ -24,7 +24,9 @@ skaldos/sway/nav/cli          # Management-CLI
 
 skaldos/sway/theme/color         # atomarer Sway-Hexfarben-Strand
 skaldos/sway/theme/client_colors # flacher Fuenf-Farben-Modell-Strand
-skaldos/sway/theme/client_theme  # toleranter Knot plus vier oeffentliche Sway-Wirkungen
+skaldos/sway/theme/focused_tab_title_colors # exakter Drei-Farben-Modell-Strand
+skaldos/sway/theme/background    # strikter Bild-/Farbvarianten-Strand
+skaldos/sway/theme/client_theme  # toleranter Knot plus sechs oeffentliche Sway-Wirkungen
 skaldos/sway/theme/theme         # Application fuer vollstaendige TOML-Dateien
 skaldos/sway/theme/cli           # DIX-/Typer-Theme-CLI
 ```
@@ -124,21 +126,30 @@ skaldos/sway/theme/color.execute(value)
 skaldos/sway/theme/client_colors.execute(value)
   flache Modellgrenze -> fuenf lokal aliasierte Color-Aufrufe -> flache Modellgrenze
 
+skaldos/sway/theme/focused_tab_title_colors.execute(value)
+  exaktes border/background/text-Modell -> drei Color-Aufrufe -> exaktes Modell
+
+skaldos/sway/theme/background.execute(value)
+  exakte Bild- oder Farbvariante -> kanonisches Background-Mapping
+
 skaldos/sway/theme/client_theme.execute(value)
-  vorhandene bekannte Felder -> client_colors -> oeffentlicher set_*-Handler -> Feldresultat
+  vorhandene bekannte Felder -> Feld-Strand -> oeffentlicher set_*-Handler -> Feldresultat
 ```
 
 Client Colors verlangt exakt `border`, `background`, `text`, `indicator` und `child_border`.
-Die vier direkten Client-Theme-Handler wenden vollstaendige Farbsaetze fuer focused,
-focused-inactive, unfocused oder urgent an. Der tolerante Knot bindet `client_colors` und diese
-Handler beim Graphaufbau aus seinem unmittelbaren Owner; `client_theme.execute` uebergibt nur den
-Eingabewert. Knot ueberspringt fehlende bekannte und ignoriert unbekannte Felder.
+`focused_tab_title` verlangt stattdessen exakt `border`, `background` und `text`. Background ist
+entweder ein Bild mit absolutem Pfad, einem der Modi `stretch`, `fill`, `fit`, `center` oder `tile`
+und einer `#RRGGBB`-Fallbackfarbe oder exakt eine `#RRGGBB`-Farbe. Der tolerante Knot bindet diese
+Strands und alle sechs Handler beim Graphaufbau aus seinem unmittelbaren Owner. Er ueberspringt
+fehlende bekannte und ignoriert unbekannte Felder.
 
-Die Theme-Application liest ein vollstaendiges TOML-Dokument vor der ersten Wirkung und uebergibt
-dessen unveraendertes Root-Mapping an diesen Knot. Die aktuellen Clientfelder koennen deshalb
-neben zukuenftigen Tabellen `focused_tab_title` und `background` stehen; diese bleiben bis zu
-ihren eigenen Contracts bewusst wirkungslos. Eine Datei wird ueber die getrennte Management-CLI
-angewendet:
+Die Theme-Application liest ein vollstaendiges TOML-Dokument vor der ersten Wirkung. Einen
+relativen Bildpfad materialisiert sie vor der Delegation gegen das Verzeichnis der Theme-TOML;
+eine Wallpaper-Existenz wird nicht behauptet. Der Knot wendet `focused`, `focused_inactive`,
+`focused_tab_title`, `unfocused`, `urgent` und `background` in dieser Reihenfolge an. Background
+zielt immer auf `output *` und erzeugt entweder ein Bildkommando oder
+`output * bg #RRGGBB solid_color`. Andere Root-Felder bleiben ignoriert. Eine Datei wird ueber die
+getrennte Management-CLI angewendet:
 
 ```sh
 dix-sway-theme-cli theme apply --file /pfad/zum/theme.toml

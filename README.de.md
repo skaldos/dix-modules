@@ -2,17 +2,17 @@
 
 Externe, explizit komponierte Module fuer [DIX](https://github.com/skaldos/dix).
 
-Der Branch `sway` ist ein fokussierter Architekturbranch. Er liefert aktuell nur zwei getrennt
-ladbare Sway-Module:
+Der `sway`-Baum liefert aktuell drei getrennt ladbare Sway-Module:
 
 ```text
 sway/core  -> policyfreies Sway-IPC
 sway/nav   -> Navigationsalgorithmen, Runtime-Binding, Applications und Delivery
+sway/theme -> modellierte Theme-Strands, Knot-Application und CLI-Delivery
 ```
 
-Die frueheren Group-, Theme-, ROBA-, Wofi- und Profile-Experimente sind bewusst nicht enthalten.
-Ihre Historie bleibt auf `main` und kann spaeter als getrennte Module zurueckkehren, ohne den alten
-Monolithen wiederherzustellen.
+Die frueheren Group-, ROBA-, Wofi- und Profile-Experimente sind bewusst nicht enthalten. Ihre
+Historie kann spaeter als getrennte Module zurueckkehren, ohne den alten Monolithen
+wiederherzustellen.
 
 Einstieg: [deutsche Sway-Anleitung](sway/README.de.md) oder
 [englische Sway-Anleitung](sway/README.md).

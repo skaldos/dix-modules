@@ -38,6 +38,26 @@ class Runtime:
             raise SwayThemeApplicationError(f"Theme file is not a regular file: {path}")
         with path.open("rb") as stream:
             document = tomllib.load(stream)
-        result = self.client_theme.require("execute")(document)
+        prepared = _materialize_background_file(document, theme_directory=path.resolve().parent)
+        result = self.client_theme.require("execute")(prepared)
         if not isinstance(result, dict):
             raise TypeError("client Theme Knot must return a dictionary")
+
+
+def _materialize_background_file(
+    document: dict[str, object],
+    *,
+    theme_directory: Path,
+) -> dict[str, object]:
+    background = document.get("background")
+    if not isinstance(background, dict) or background.get("type") != "image":
+        return document
+    file = background.get("file")
+    if not isinstance(file, str) or not file or Path(file).is_absolute():
+        return document
+
+    prepared = dict(document)
+    prepared_background = dict(background)
+    prepared_background["file"] = str((theme_directory / file).resolve())
+    prepared["background"] = prepared_background
+    return prepared

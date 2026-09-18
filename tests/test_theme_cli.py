@@ -76,7 +76,10 @@ fallback_color = "#000000"
     assert cli(["theme", "apply", "--file", str(theme)]) == 0
     captured = capsys.readouterr()
     assert captured.out == captured.err == ""
-    assert Connection.commands == ["client.focused #010101 #020202 #030303 #040404 #050505"]
+    assert Connection.commands == [
+        "client.focused #010101 #020202 #030303 #040404 #050505",
+        f"output * bg {tmp_path / 'ignored.png'} fit #000000",
+    ]
 
 
 def test_cli_help_exposes_only_theme_apply(cli, capsys: pytest.CaptureFixture[str]) -> None:

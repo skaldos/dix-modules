@@ -35,6 +35,8 @@ def test_bilingual_sway_guides_describe_optional_theme_strands():
             "skaldos/sway/theme/color",
             "skaldos/sway/theme/client_colors",
             "skaldos/sway/theme/client_theme",
+            "skaldos/sway/theme/focused_tab_title_colors",
+            "skaldos/sway/theme/background",
             "dix/norn/strand",
             "dix/norn/knot",
             "#RRGGBB",
@@ -49,7 +51,10 @@ def test_bilingual_sway_guides_describe_optional_theme_strands():
         assert "skaldos/sway/theme/color" in value
         assert "skaldos/sway/theme/client_colors" in value
         assert "skaldos/sway/theme/client_theme" in value
+        assert "skaldos/sway/theme/focused_tab_title_colors" in value
+        assert "skaldos/sway/theme/background" in value
         assert "dix/norn/knot" in value
         assert "dix-sway-theme-cli" in value
         assert "theme apply --file" in value
         assert "focused_tab_title" in value and "background" in value
+        assert "output *" in value and "solid_color" in value

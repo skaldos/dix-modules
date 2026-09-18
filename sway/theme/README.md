@@ -17,16 +17,30 @@ color-format rule and its domain error.
 mapping structure. Every field is independently processed by the locally composed Color strand,
 and the result is returned as a new native dictionary.
 
+## Focused tab title colors
+
+`skaldos/sway/theme/focused_tab_title_colors.execute(value)` accepts exactly `border`,
+`background`, and `text`. Each value passes through the Color strand and may use `#RRGGBB` or
+`#RRGGBBAA`.
+
+## Background
+
+`skaldos/sway/theme/background.execute(value)` accepts exactly one of two variants: an image with
+an absolute `file`, `mode` (`stretch`, `fill`, `fit`, `center`, or `tile`), and mandatory
+`#RRGGBB` `fallback_color`; or a color with exactly one `#RRGGBB` `color`. The target is fixed to
+`output *`. The direct handler emits either the image command or
+`output * bg #RRGGBB solid_color`. It does not test wallpaper existence or decode images.
+
 ## Client theme Knot
 
-`skaldos/sway/theme/client_theme` exposes four safe client-color effects for focused,
-focused-inactive, unfocused, and urgent clients. Each accepts one complete client-color mapping and
+`skaldos/sway/theme/client_theme` exposes six safe effects for focused, focused-inactive,
+focused-tab-title, unfocused, urgent, and background values. Each validates its complete input and
 uses the shared `skaldos/sway/core/ipc.command` boundary exactly once.
 
 Its `execute(value)` function is a tolerant `dix/norn/knot`: known present fields are processed in
-the declared order through `client_colors.execute` and then passed to their public handler. Missing
+the declared order through their field Strand and then passed to their public handler. Missing
 known fields are skipped and unknown fields are ignored. An empty mapping therefore has no effect
-and returns an empty mapping. Knot resolves the `client_colors` dependency and public handlers
+and returns an empty mapping. Knot resolves the local Strand dependencies and public handlers
 from its immediate `client_theme` owner while the graph is built; the wrapper passes only the
 input value. The direct handlers remain independently composable and validate their complete input
 before issuing a Sway command.
@@ -34,11 +48,12 @@ before issuing a Sway command.
 ## Full Theme TOML application
 
 `skaldos/sway/theme/theme.apply(file)` expands `~`, requires a regular readable file, and parses
-the complete TOML document before the first Sway effect. It passes the unchanged root mapping
-exactly once to `client_theme.execute`. The currently known fields are `focused`,
-`focused_inactive`, `unfocused`, and `urgent`; unknown root fields such as `focused_tab_title` and
-`background` are intentionally ignored by the current Knot. A document without known fields is a
-successful no-op.
+the complete TOML document before the first Sway effect. A relative image file is materialized
+against the Theme TOML directory before the root mapping is passed exactly once to
+`client_theme.execute`; absolute image paths and color backgrounds remain unchanged. The known
+fields run in the order `focused`, `focused_inactive`, `focused_tab_title`, `unfocused`, `urgent`,
+and `background`. Other root fields are ignored. A document without known fields is a successful
+no-op.
 
 The application does not provide a Theme catalog, persistence, fallback parsing, prevalidation of
 all effects, or rollback. A late color or IPC error remains visible and earlier commands may

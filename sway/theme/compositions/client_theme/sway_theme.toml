@@ -20,3 +20,7 @@ handler = "set_unfocused"
 [fields.urgent]
 strand = "client_colors"
 handler = "set_urgent"
+
+[fields.background]
+strand = "background"
+handler = "set_background"

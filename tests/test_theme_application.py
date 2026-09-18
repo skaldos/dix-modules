@@ -109,7 +109,12 @@ def test_apply_delegates_the_complete_root_mapping_exactly_once(tmp_path: Path) 
     runtime = Runtime(context=object(), config={}, client_theme=FakeApi(lambda value: calls.append(value) or {}))  # type: ignore[arg-type]
 
     assert runtime.apply(str(path)) is None
-    assert calls == [_full_theme()]
+    expected = _full_theme()
+    expected["background"] = {
+        **expected["background"],  # type: ignore[dict-item]
+        "file": str((tmp_path / "wallpapers/example.png").resolve()),
+    }
+    assert calls == [expected]
 
 
 def test_apply_passes_the_parser_root_object_without_copying(
@@ -119,6 +124,10 @@ def test_apply_passes_the_parser_root_object_without_copying(
     path = tmp_path / "theme.toml"
     path.write_text("")
     document = _full_theme()
+    document["background"] = {
+        "type": "color",
+        "color": "#000000",
+    }
     calls: list[object] = []
     from sway.theme.apps.theme import runtime as theme_runtime
 
@@ -206,7 +215,7 @@ def test_apply_requires_a_dictionary_knot_result(tmp_path: Path) -> None:
         runtime.apply(str(path))
 
 
-def test_real_graph_applies_four_known_fields_and_ignores_future_fields(
+def test_real_graph_applies_six_known_fields_and_ignores_future_fields(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -218,7 +227,14 @@ def test_real_graph_applies_four_known_fields_and_ignores_future_fields(
     assert application.api.require("apply")(str(path)) is None
     assert RecordingConnection.commands == [
         f"client.{name} " + " ".join(theme[name].values())  # type: ignore[union-attr]
-        for name in ("focused", "focused_inactive", "unfocused", "urgent")
+        for name in ("focused", "focused_inactive")
+    ] + [
+        "client.focused_tab_title " + " ".join(theme["focused_tab_title"].values()),  # type: ignore[union-attr]
+    ] + [
+        f"client.{name} " + " ".join(theme[name].values())  # type: ignore[union-attr]
+        for name in ("unfocused", "urgent")
+    ] + [
+        f"output * bg {tmp_path / 'wallpapers/example.png'} fit #000000",
     ]
 
 
@@ -228,7 +244,7 @@ def test_real_graph_noops_without_known_fields(
 ) -> None:
     application = _application(tmp_path, monkeypatch)
     path = tmp_path / "future.toml"
-    path.write_text('[background]\ntype = "solid"\ncolor = "#000000"\n')
+    path.write_text('[future]\ntype = "solid"\ncolor = "#000000"\n')
     assert application.api.require("apply")(str(path)) is None
     assert RecordingConnection.commands == []
 
@@ -246,7 +262,7 @@ def test_real_graph_preserves_partial_effect_on_late_failure(
     with pytest.raises(Exception) as captured:
         application.api.require("apply")(str(path))
     assert type(captured.value).__name__ == "SwayColorError"
-    assert len(RecordingConnection.commands) == 3
+    assert len(RecordingConnection.commands) == 4
 
 
 def test_real_graph_preserves_partial_effect_on_late_ipc_failure(
@@ -256,12 +272,12 @@ def test_real_graph_preserves_partial_effect_on_late_ipc_failure(
     application = _application(tmp_path, monkeypatch)
     path = tmp_path / "late-ipc-error.toml"
     path.write_text(_toml(_full_theme()))
-    RecordingConnection.fail_at = 4
+    RecordingConnection.fail_at = 6
 
     with pytest.raises(Exception) as captured:
         application.api.require("apply")(str(path))
     assert type(captured.value).__name__ == "SwayIpcError"
-    assert len(RecordingConnection.commands) == 4
+    assert len(RecordingConnection.commands) == 6
 
 
 def test_real_graph_parse_failure_happens_before_ipc(
@@ -276,3 +292,106 @@ def test_real_graph_parse_failure_happens_before_ipc(
         application.api.require("apply")(str(path))
     assert type(captured.value).__name__ == "TOMLDecodeError"
     assert RecordingConnection.commands == []
+
+
+def test_apply_materializes_only_relative_image_path_before_delegation(
+    tmp_path: Path,
+) -> None:
+    from sway.theme.apps.theme.runtime import Runtime
+
+    theme_directory = tmp_path / "themes"
+    theme_directory.mkdir()
+    path = theme_directory / "theme.toml"
+    path.write_text(
+        '[background]\ntype = "image"\nfile = "../wallpapers/missing.png"\n'
+        'mode = "fill"\nfallback_color = "#010203"\n'
+    )
+    calls: list[object] = []
+    runtime = Runtime(
+        context=object(),
+        config={},
+        client_theme=FakeApi(lambda value: calls.append(value) or {}),
+    )  # type: ignore[arg-type]
+
+    assert runtime.apply(str(path)) is None
+    assert calls == [
+        {
+            "background": {
+                "type": "image",
+                "file": str((tmp_path / "wallpapers/missing.png").resolve()),
+                "mode": "fill",
+                "fallback_color": "#010203",
+            }
+        }
+    ]
+    assert not (tmp_path / "wallpapers/missing.png").exists()
+
+
+@pytest.mark.parametrize(
+    "background",
+    [
+        {
+            "type": "image",
+            "file": "/absolute/wallpaper.png",
+            "mode": "fit",
+            "fallback_color": "#000000",
+        },
+        {"type": "color", "color": "#112233"},
+        {"type": "image", "file": "", "mode": "fit", "fallback_color": "#000000"},
+        {"type": "image", "file": 1, "mode": "fit", "fallback_color": "#000000"},
+    ],
+)
+def test_apply_leaves_non_relative_background_values_unchanged(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    background: dict[str, object],
+) -> None:
+    path = tmp_path / "theme.toml"
+    path.write_text("")
+    document = {"background": background}
+    calls: list[object] = []
+    from sway.theme.apps.theme import runtime as theme_runtime
+
+    monkeypatch.setattr(theme_runtime.tomllib, "load", lambda _stream: document)
+    runtime = theme_runtime.Runtime(
+        context=object(),
+        config={},
+        client_theme=FakeApi(lambda value: calls.append(value) or {}),
+    )  # type: ignore[arg-type]
+
+    assert runtime.apply(str(path)) is None
+    assert calls == [document]
+    assert calls[0] is document
+
+
+def test_real_graph_applies_color_background(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application = _application(tmp_path, monkeypatch)
+    path = tmp_path / "color.toml"
+    path.write_text('[background]\ntype = "color"\ncolor = "#123456"\n')
+
+    assert application.api.require("apply")(str(path)) is None
+    assert RecordingConnection.commands == ["output * bg #123456 solid_color"]
+
+
+def test_real_graph_preserves_five_effects_on_late_background_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application = _application(tmp_path, monkeypatch)
+    theme = _full_theme()
+    theme["background"] = {
+        "type": "image",
+        "file": "wallpaper.png",
+        "mode": "fit",
+        "fallback_color": "#000000ff",
+    }
+    path = tmp_path / "late-background-error.toml"
+    path.write_text(_toml(theme))
+
+    with pytest.raises(Exception) as captured:
+        application.api.require("apply")(str(path))
+    assert type(captured.value).__name__ == "SwayBackgroundError"
+    assert len(RecordingConnection.commands) == 5

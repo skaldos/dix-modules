@@ -103,6 +103,24 @@ def test_background_strand_normalizes_color_variant(tmp_path: Path) -> None:
         (
             {
                 "type": "image",
+                "file": "",
+                "mode": "fit",
+                "fallback_color": "#000000",
+            },
+            "absolute path",
+        ),
+        (
+            {
+                "type": "image",
+                "file": 1,
+                "mode": "fit",
+                "fallback_color": "#000000",
+            },
+            "absolute path",
+        ),
+        (
+            {
+                "type": "image",
                 "file": "relative.png",
                 "mode": "fit",
                 "fallback_color": "#000000",
@@ -114,6 +132,15 @@ def test_background_strand_normalizes_color_variant(tmp_path: Path) -> None:
                 "type": "image",
                 "file": "/wall.png",
                 "mode": "scale",
+                "fallback_color": "#000000",
+            },
+            "mode must be one of",
+        ),
+        (
+            {
+                "type": "image",
+                "file": "/wall.png",
+                "mode": 1,
                 "fallback_color": "#000000",
             },
             "mode must be one of",

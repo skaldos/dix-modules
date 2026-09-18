@@ -29,6 +29,8 @@ for relative in ("sway/README.md", "sway/README.de.md"):
         "skaldos/sway/theme/color",
         "skaldos/sway/theme/client_colors",
         "skaldos/sway/theme/client_theme",
+        "skaldos/sway/theme/focused_tab_title_colors",
+        "skaldos/sway/theme/background",
         "dix/norn/strand",
         "dix/norn/knot",
         "dix-sway-theme-cli",

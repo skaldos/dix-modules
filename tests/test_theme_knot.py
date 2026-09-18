@@ -173,21 +173,29 @@ def test_client_theme_knot_executes_in_model_order_and_ignores_other_fields(
     focused = _colors(1)
     focused_tab_title = _focused_tab_title_colors(10)
     urgent = _colors(20)
+    background = {"type": "color", "color": "#202122"}
 
     result = instance.api.require("execute")(
         {
             "ignored": {"anything": True},
             "urgent": urgent,
+            "background": background,
             "focused_tab_title": focused_tab_title,
             "focused": focused,
         }
     )
 
-    assert result == {"focused": None, "focused_tab_title": None, "urgent": None}
+    assert result == {
+        "focused": None,
+        "focused_tab_title": None,
+        "urgent": None,
+        "background": None,
+    }
     assert RecordingConnection.commands == [
         "client.focused " + " ".join(focused.values()),
         "client.focused_tab_title " + " ".join(focused_tab_title.values()),
         "client.urgent " + " ".join(urgent.values()),
+        "output * bg #202122 solid_color",
     ]
     RecordingConnection.commands = []
     assert instance.api.require("execute")({}) == {}

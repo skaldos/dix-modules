@@ -5,4 +5,4 @@ id = "theme"
 use = "skaldos/sway/theme/client_theme"
 
 [functions.apply]
-description = "Load one complete Theme TOML and apply its known Sway client fields."
+description = "Load one complete Theme TOML and apply its known Sway Theme fields."
