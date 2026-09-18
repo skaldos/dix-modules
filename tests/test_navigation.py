@@ -136,6 +136,73 @@ def test_navigation_basic_and_group(load_runtime, api, tmp_path):
     assert result["matched"] is True and result["focused_id"] == 30 and result["stale_ids"] == [99]
 
 
+@pytest.mark.parametrize("direction", ["left", "right", "up", "down"])
+def test_nav_application_dispatches_both_strategies(load_runtime, api, direction):
+    calls = []
+
+    def basic():
+        calls.append(("basic", direction, None))
+        return {"direction": direction, "kind": "basic"}
+
+    def windows(window_ids):
+        calls.append(("windows-list", direction, list(window_ids)))
+        return {"direction": direction, "kind": "windows-list", "window_ids": window_ids}
+
+    runtime = load_runtime("sway/apps/nav/runtime.py")(
+        context=None,
+        config={},
+        basic_nav=api(**{direction: basic}),
+        windows_list_nav=api(**{direction: windows}),
+    )
+    assert getattr(runtime, direction)() == {"direction": direction, "kind": "basic"}
+    assert getattr(runtime, direction)("basic", []) == {
+        "direction": direction,
+        "kind": "basic",
+    }
+    assert getattr(runtime, direction)("windows-list", [32, 392]) == {
+        "direction": direction,
+        "kind": "windows-list",
+        "window_ids": [32, 392],
+    }
+    assert getattr(runtime, direction)("windows-list") == {
+        "direction": direction,
+        "kind": "windows-list",
+        "window_ids": [],
+    }
+    assert calls == [
+        ("basic", direction, None),
+        ("basic", direction, None),
+        ("windows-list", direction, [32, 392]),
+        ("windows-list", direction, []),
+    ]
+
+
+def test_nav_application_is_strict_without_fallback(load_runtime, api):
+    basic_calls = []
+    runtime = load_runtime("sway/apps/nav/runtime.py")(
+        context=None,
+        config={},
+        basic_nav=api(right=lambda: basic_calls.append("right") or {}),
+        windows_list_nav=api(right=lambda _ids: {}),
+    )
+    with pytest.raises(ValueError, match="does not accept"):
+        runtime.right("basic", [32])
+    with pytest.raises(ValueError, match="unsupported navigation strategy"):
+        runtime.right("unknown")
+    with pytest.raises(TypeError, match="list or None"):
+        runtime.right("basic", ())
+    assert basic_calls == []
+
+    invalid = load_runtime("sway/apps/nav/runtime.py")(
+        context=None,
+        config={},
+        basic_nav=api(right=list),
+        windows_list_nav=api(right=lambda _ids: {}),
+    )
+    with pytest.raises(TypeError, match="dictionary"):
+        invalid.right()
+
+
 def test_navigation_entry_is_stateless_and_lazy(tmp_path, monkeypatch, capsys):
     import importlib.util
 

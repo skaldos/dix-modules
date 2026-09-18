@@ -60,6 +60,7 @@ def test_stateless_navigation_compositions_run_in_real_dix_graph(tmp_path, monke
     registry = create_core_component_registry()
     modules = registry.require("module", ModuleComponent)
     compositions = registry.require("composition", CompositionComponent)
+    applications = registry.require("application", ApplicationComponent)
     for module_id in ("dix/state", "dix/cli", "dix/roba"):
         modules.load_module(first_party_module_path(module_id), module_id=module_id)
     modules.load_module(Path(__file__).parents[1] / "sway", module_id="skaldos/sway")
@@ -86,6 +87,18 @@ def test_stateless_navigation_compositions_run_in_real_dix_graph(tmp_path, monke
     assert result["matched"] is True
     assert result["focused_id"] == 32
     assert result["visited_ids"] == [34, 32]
+
+    NavigatingConnection.focused = 34
+    nav = applications.create_instance(
+        ApplicationInstanceSpec("nav", "skaldos/sway/nav", {}, tmp_path),
+        owner_scope_id="navigation-proof",
+    )
+    assert nav.api.require("right")("basic")["focused_id"] == 32
+    NavigatingConnection.focused = 34
+    routed = nav.api.require("right")("windows-list", [32, 392])
+    assert routed["matched"] is True
+    assert routed["focused_id"] == 32
+    applications.destroy_instance("navigation-proof", "nav")
 
     compositions.destroy_instance("navigation-proof", "window-list")
     compositions.destroy_instance("navigation-proof", "basic")
