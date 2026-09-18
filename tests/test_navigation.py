@@ -54,6 +54,41 @@ def test_basic_navigation_enforces_ipc_boundaries(load_runtime, api):
         invalid_return.left()
 
 
+def test_window_list_navigation_empty_input_is_a_native_noop(load_runtime, api):
+    runtime = load_runtime("sway/compositions/windows_list_nav/runtime.py")(
+        context=None,
+        config={},
+        basic_nav=api(
+            left=lambda: (_ for _ in ()).throw(AssertionError("must not navigate")),
+        ),
+        ipc=api(
+            focused_con_id=lambda: 34,
+            live_con_ids=lambda: (_ for _ in ()).throw(AssertionError("must stay lazy")),
+        ),
+    )
+    assert runtime.left() == {
+        "direction": "left",
+        "origin_id": 34,
+        "focused_id": 34,
+        "matched": False,
+        "restored": True,
+        "visited_ids": [34],
+        "stale_ids": [],
+    }
+
+
+@pytest.mark.parametrize("window_ids", [True, (1,), [True], [0], [-1], [1, 1]])
+def test_window_list_navigation_rejects_invalid_ids(load_runtime, api, window_ids):
+    runtime = load_runtime("sway/compositions/windows_list_nav/runtime.py")(
+        context=None,
+        config={},
+        basic_nav=api(),
+        ipc=api(focused_con_id=lambda: 34),
+    )
+    with pytest.raises((TypeError, ValueError)):
+        runtime.right(window_ids)
+
+
 def test_navigation_basic_and_group(load_runtime, api, tmp_path):
     current = [10]
     sequence = iter([20, 30])
@@ -76,7 +111,7 @@ def test_navigation_basic_and_group(load_runtime, api, tmp_path):
         ],
     )
     Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
-    Group = load_runtime("sway/apps/navigation_group/runtime.py")
+    WindowList = load_runtime("sway/compositions/windows_list_nav/runtime.py")
     c = ApplicationRuntimeContext(
         instance_id="x",
         application_id="x",
@@ -90,14 +125,13 @@ def test_navigation_basic_and_group(load_runtime, api, tmp_path):
     assert basic.right()["focused_id"] == 20
     current[0] = 10
     sequence = iter([20, 30])
-    group = Group(
+    window_list = WindowList(
         context=c,
         config={},
-        basic=api(**{x: getattr(basic, x) for x in ("left", "right", "up", "down")}),
-        active_members=api(get=lambda: [30, 99]),
+        basic_nav=api(**{x: getattr(basic, x) for x in ("left", "right", "up", "down")}),
         ipc=ipc,
     )
-    result = group.right()
+    result = window_list.right([30, 99])
     assert result["matched"] is True and result["focused_id"] == 30 and result["stale_ids"] == [99]
 
 
@@ -172,7 +206,7 @@ def test_group_navigation_restores_origin_when_no_target(load_runtime, api, tmp_
         ],
     )
     Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
-    Group = load_runtime("sway/apps/navigation_group/runtime.py")
+    WindowList = load_runtime("sway/compositions/windows_list_nav/runtime.py")
     context = ApplicationRuntimeContext(
         instance_id="x",
         application_id="x",
@@ -183,14 +217,13 @@ def test_group_navigation_restores_origin_when_no_target(load_runtime, api, tmp_
         owner_scope_id="x",
     )
     basic = Basic(context=context, config={}, ipc=ipc)
-    group = Group(
+    window_list = WindowList(
         context=context,
         config={},
-        basic=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
-        active_members=api(get=lambda: [30]),
+        basic_nav=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
         ipc=ipc,
     )
-    result = group.right()
+    result = window_list.right([30])
     assert result["matched"] is False and result["restored"] is True
     assert result["focused_id"] == 10 and restored == [10]
 
@@ -223,17 +256,16 @@ def test_group_navigation_resolves_hidden_leaf_in_entered_branch(load_runtime, a
         ],
     )
     Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
-    Group = load_runtime("sway/apps/navigation_group/runtime.py")
+    WindowList = load_runtime("sway/compositions/windows_list_nav/runtime.py")
     context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
     basic = Basic(context=context, config={}, ipc=ipc)
-    group = Group(
+    window_list = WindowList(
         context=context,
         config={},
-        basic=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
-        active_members=api(get=lambda: [30, 40]),
+        basic_nav=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
         ipc=ipc,
     )
-    result = group.left()
+    result = window_list.left([30, 40])
     assert result["matched"] is True and result["focused_id"] == 30
     assert result["visited_ids"] == [10, 20, 30]
     assert direct == [30]
@@ -253,17 +285,16 @@ def test_group_navigation_direct_hit_does_not_read_topology(load_runtime, api, t
         navigation_topology=lambda: (_ for _ in ()).throw(AssertionError("must stay lazy")),
     )
     Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
-    Group = load_runtime("sway/apps/navigation_group/runtime.py")
+    WindowList = load_runtime("sway/compositions/windows_list_nav/runtime.py")
     context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
     basic = Basic(context=context, config={}, ipc=ipc)
-    group = Group(
+    window_list = WindowList(
         context=context,
         config={},
-        basic=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
-        active_members=api(get=lambda: [20]),
+        basic_nav=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
         ipc=ipc,
     )
-    assert group.right()["focused_id"] == 20
+    assert window_list.right([20])["focused_id"] == 20
 
 
 def test_group_navigation_reports_failed_direct_focus(load_runtime, api, tmp_path):
@@ -287,15 +318,14 @@ def test_group_navigation_reports_failed_direct_focus(load_runtime, api, tmp_pat
         ],
     )
     Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
-    Group = load_runtime("sway/apps/navigation_group/runtime.py")
+    WindowList = load_runtime("sway/compositions/windows_list_nav/runtime.py")
     context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
     basic = Basic(context=context, config={}, ipc=ipc)
-    group = Group(
+    window_list = WindowList(
         context=context,
         config={},
-        basic=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
-        active_members=api(get=lambda: [30]),
+        basic_nav=api(**{name: getattr(basic, name) for name in ("left", "right", "up", "down")}),
         ipc=ipc,
     )
     with pytest.raises(RuntimeError, match="direct focus failed"):
-        group.left()
+        window_list.left([30])

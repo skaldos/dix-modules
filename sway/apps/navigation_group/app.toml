@@ -1,11 +1,12 @@
 [app]
 id = "navigation_group"
-[apps.basic]
-use = "skaldos/sway/navigation_basic"
+
+[compositions.windows_list_nav]
+use = "skaldos/sway/windows_list_nav"
+
 [compositions.active_members]
 use = "skaldos/sway/active_members"
-[compositions.ipc]
-use = "skaldos/sway/ipc"
+
 [functions.left]
 [functions.right]
 [functions.up]
