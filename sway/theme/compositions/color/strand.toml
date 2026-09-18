@@ -1,0 +1,8 @@
+[strand]
+id = "sway_color"
+
+[input]
+type = "string"
+
+[output]
+type = "string"

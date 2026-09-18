@@ -1,0 +1,9 @@
+[composition]
+id = "color"
+
+[compositions.strand]
+use = "dix/norn/strand"
+config = { spec = "strand.toml" }
+
+[functions.execute]
+description = "Validate and return one Sway hexadecimal color."
