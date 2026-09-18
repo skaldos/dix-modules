@@ -320,21 +320,19 @@ bleiben getrennt.
 
 ## 9. Navigation direkt testen
 
-Ein explizites Target umgeht die Routingdatei, ohne sie zu veraendern:
+Der latenzarme Befehl ist zustandslos. Die Strategie steht explizit hinter der Richtung:
 
 ```sh
-skaldos-sway-nav --target basic right
-skaldos-sway-nav --target group left
+skaldos-sway-nav right basic
+skaldos-sway-nav left windows-list 23 3542 1
+skaldos-sway-nav up windows-list
 ```
 
-Ohne `--target` liest der Einstieg `navigation-target`; fehlt die Datei, ist der Default `basic`:
-
-```sh
-skaldos-sway-nav right
-```
-
-Die Navigation schreibt genau ein kompaktes JSON-Ergebnis. Das Group-Target benoetigt eine gueltige
-Active-Member-Projektion. Der direkte Prozess importiert bewusst weder Typer, Click, ROBA, HTTPX
+`windows-list` erhaelt positive eindeutige Sway-Window-`con_id`-Werte. Eine leere Liste ist ein
+erfolgreicher No-op. Jeder Erfolg schreibt einen kompakten JSON-Envelope mit `requested`,
+`executed`, `fallback` und `result`. Nach gueltiger Richtung versuchen kaputte Strategieargumente
+oder ein scheiterndes `windows-list` exakt einen nativen `basic`-Fallback. Der direkte Prozess liest
+keine Group-Projektion oder Routingdatei und importiert bewusst weder Typer, Click, ROBA, HTTPX
 noch Pydantic.
 
 ## 10. Optionale Wofi-Befehle
@@ -377,10 +375,10 @@ Das vollstaendige gepflegte Fragment liegt unter
 set $skaldos_home /home/YOU
 set $skaldos_bin $skaldos_home/.local/bin
 
-bindsym $mod+h exec --no-startup-id $skaldos_bin/skaldos-sway-nav left
-bindsym $mod+j exec --no-startup-id $skaldos_bin/skaldos-sway-nav down
-bindsym $mod+k exec --no-startup-id $skaldos_bin/skaldos-sway-nav up
-bindsym $mod+l exec --no-startup-id $skaldos_bin/skaldos-sway-nav right
+bindsym $mod+h exec --no-startup-id $skaldos_bin/skaldos-sway-nav left basic
+bindsym $mod+j exec --no-startup-id $skaldos_bin/skaldos-sway-nav down basic
+bindsym $mod+k exec --no-startup-id $skaldos_bin/skaldos-sway-nav up basic
+bindsym $mod+l exec --no-startup-id $skaldos_bin/skaldos-sway-nav right basic
 
 bindsym $mod+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-select
 bindsym $mod+Shift+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-add
@@ -397,7 +395,7 @@ Basic-Smoke-Test ausfuehren:
 ```sh
 swaymsg reload
 skaldos-sway-json list-lines
-skaldos-sway-nav --target basic right
+skaldos-sway-nav right basic
 ```
 
 Der letzte Befehl verschiebt den Fokus. Sobald eine Gruppe lebende Mitglieder hat, kann sie
@@ -460,12 +458,12 @@ Daemon-Status allein reicht nicht. Den Befehl
 Context, keinen zweiten erzeugen; Manager-Socket-Pfad pruefen und sicherstellen, dass jeder Befehl
 dieselbe Daemon-Konfiguration verwendet.
 
-### Navigation meldet eine fehlende oder ungueltige Projektion
+### Navigation faellt auf Basic zurueck
 
-Die drei `SKALDOS_SWAY_*_FILE`-Werte im aufrufenden Prozess pruefen. `navigation-target` muss exakt
-`basic\n` oder `group\n` sein; `active-members` muss eine newline-terminierte, space-separierte
-Zeile positiver IDs sein. Beide durch `skaldos-sway-json select <gruppe>` neu erzeugen. Korrupte
-Dateien nicht durch Raten eines anderen Formats reparieren.
+Den einzeiligen Primaerfehler auf stderr lesen. Der direkte Befehl liest die alten Projektionen
+`navigation-target` und `active-members` nicht. Entweder `basic` explizit uebergeben oder nach
+`windows-list` ausschliesslich positive eindeutige Window-`con_id`-Werte angeben. Ein erfolgreicher
+Fallback steht im JSON-Envelope als `executed="basic"` und `fallback=true`.
 
 ### Sway oder i3ipc kann keine Verbindung herstellen
 

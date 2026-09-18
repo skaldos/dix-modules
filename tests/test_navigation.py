@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -135,17 +136,10 @@ def test_navigation_basic_and_group(load_runtime, api, tmp_path):
     assert result["matched"] is True and result["focused_id"] == 30 and result["stale_ids"] == [99]
 
 
-def test_navigation_entry_is_route_first_lazy(tmp_path, monkeypatch):
+def test_navigation_entry_is_stateless_and_lazy(tmp_path, monkeypatch, capsys):
     import importlib.util
 
     root = Path(__file__).parents[1] / "sway"
-    route = tmp_path / "route"
-    members = tmp_path / "members"
-    route.write_text("basic\n")
-    members.write_text("99\n")
-    monkeypatch.setenv("SKALDOS_SWAY_NAVIGATION_TARGET_FILE", str(route))
-    monkeypatch.setenv("SKALDOS_SWAY_ACTIVE_MEMBERS_FILE", str(members))
-
     class Node:
         id = 34
 
@@ -174,11 +168,15 @@ def test_navigation_entry_is_route_first_lazy(tmp_path, monkeypatch):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     before = set(sys.modules)
-    assert mod.main(["left"], root) == 0
+    assert mod.main(["left", "basic"], root) == 0
+    value = json.loads(capsys.readouterr().out)
+    assert value["requested"] == value["executed"] == "basic"
+    assert value["fallback"] is False
     loaded = set(sys.modules) - before
     assert not any("group_navigation" in name or "active_members" in name for name in loaded)
-    route.write_text("invalid\n")
-    assert mod.main(["left"], root) == 1
+    assert mod.main(["left"], root) == 0
+    value = json.loads(capsys.readouterr().out)
+    assert value["requested"] == "missing" and value["fallback"] is True
 
 
 def test_group_navigation_restores_origin_when_no_target(load_runtime, api, tmp_path):

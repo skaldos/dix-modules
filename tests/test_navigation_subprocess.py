@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parents[1]
 
 
@@ -14,90 +16,152 @@ def fake(tmp_path):
     path = tmp_path / "fake"
     path.mkdir(exist_ok=True)
     (path / "i3ipc.py").write_text(
-        """\ncurrent=34\ncommands=[]\nclass N:\n def __init__(self,id,nodes=(),focus=()):\n  self.id=id;self.nodes=list(nodes);self.floating_nodes=[];self.focus=list(focus)\nclass T(N):\n def __init__(self):\n  self.hidden=N(392);self.visible=N(32);self.origin=N(34)\n  self.left=N(100,[self.visible,self.hidden],[392,32])\n  self.right=N(200,[self.origin],[34])\n  super().__init__(1,[self.left,self.right],[100,200])\n def find_focused(self):return N(current)\n def leaves(self):return [self.visible,self.hidden,self.origin]\nclass R:success=True;error=None\nclass Connection:\n def get_tree(self):return T()\n def command(self,value):\n  global current\n  commands.append(value)\n  if "con_id=" in value: current=int(value.split("con_id=",1)[1].split("]",1)[0])\n  elif "focus" in value: current=32\n  return [R()]\n"""
+        '''
+import os
+current=int(os.environ.get("FAKE_SWAY_CURRENT", "34"))
+commands=[]
+failures=int(os.environ.get("FAKE_SWAY_FAILURES", "0"))
+class N:
+ def __init__(self,id,nodes=(),focus=()):
+  self.id=id;self.nodes=list(nodes);self.floating_nodes=[];self.focus=list(focus)
+class T(N):
+ def __init__(self):
+  self.hidden=N(392);self.visible=N(32);self.origin=N(34)
+  self.left=N(100,[self.visible,self.hidden],[392,32])
+  self.right=N(200,[self.origin],[34])
+  super().__init__(1,[self.left,self.right],[100,200])
+ def find_focused(self):return N(current)
+ def leaves(self):return [self.visible,self.hidden,self.origin]
+class R:success=True;error=None
+class Connection:
+ def get_tree(self):return T()
+ def command(self,value):
+  global current,failures
+  commands.append(value)
+  if failures:
+   failures-=1
+   raise RuntimeError("synthetic Sway failure")
+  if "con_id=" in value: current=int(value.split("con_id=",1)[1].split("]",1)[0])
+  elif "focus" in value: current=32
+  return [R()]
+'''
     )
     return path
 
 
-def invoke(tmp_path, target=None, route="basic\n", direction="right", members="32\n"):
-    if route is not None:
-        (tmp_path / "route").write_text(route)
-    (tmp_path / "members").write_text(members)
-    f = fake(tmp_path)
-    cmd = [
+def invoke(tmp_path, *arguments, failures=0, root=None):
+    fake_path = fake(tmp_path)
+    old_route = tmp_path / "must-not-read-route"
+    old_members = tmp_path / "must-not-read-members"
+    command = [
         sys.executable,
         str(ROOT / "tests/probes/navigation_probe.py"),
-        str(ROOT / "sway"),
-        direction,
-    ] + ([] if target is None else [target])
+        str(root or ROOT / "sway"),
+        *arguments,
+    ]
     result = subprocess.run(
-        cmd,
+        command,
         text=True,
         capture_output=True,
         env={
             **os.environ,
-            "PYTHONPATH": str(f),
-            "SKALDOS_SWAY_NAVIGATION_TARGET_FILE": str(tmp_path / "route"),
-            "SKALDOS_SWAY_ACTIVE_MEMBERS_FILE": str(tmp_path / "members"),
+            "PYTHONPATH": str(fake_path),
+            "FAKE_SWAY_FAILURES": str(failures),
+            "SKALDOS_SWAY_NAVIGATION_TARGET_FILE": str(old_route),
+            "SKALDOS_SWAY_ACTIVE_MEMBERS_FILE": str(old_members),
         },
     )
     assert result.returncode == 0, result.stderr
-    return json.loads(result.stdout)
+    value = json.loads(result.stdout)
+    assert not old_route.exists() and not old_members.exists()
+    return value
 
 
-def test_basic_closure_excludes_group_and_heavy_modules(tmp_path):
-    value = invoke(tmp_path, route=None)
-    assert value["code"] == 0 and value["loaded"] == []
-    assert json.loads(value["stdout"])["changed"] is True
-    assert value["commands"] == ["focus right"]
-
-
-def test_group_closure_excludes_heavy_modules_and_override_is_not_persisted(tmp_path):
-    value = invoke(tmp_path, "group")
-    assert value["code"] == 0
-    assert value["loaded"] == ["skaldos_sway_active_members", "skaldos_sway_group_navigation"]
-    assert (tmp_path / "route").read_text() == "basic\n"
-
-
-def test_group_subprocess_resolves_hidden_stack_member(tmp_path):
-    value = invoke(tmp_path, "group", members="392\n")
-    assert value["code"] == 0
-    result = json.loads(value["stdout"])
-    assert result["focused_id"] == 392 and result["matched"] is True
-    assert value["commands"] == ["focus right", "[con_id=392] focus"]
-
-
-def test_invalid_route_is_runtime_error_without_target_closure(tmp_path):
-    value = invoke(tmp_path, route="wat\n")
-    assert value["code"] == 1 and value["loaded"] == [] and "runtime error" in value["stderr"]
-
-
-import pytest
+def envelope(value):
+    return json.loads(value["stdout"])
 
 
 @pytest.mark.parametrize("direction", ["left", "right", "up", "down"])
-def test_all_directions_share_argparse_surface(tmp_path, direction):
-    value = invoke(tmp_path, direction=direction)
-    assert value["code"] == 0
+def test_basic_strategy_is_stateless_and_framework_free(tmp_path, direction):
+    value = invoke(tmp_path, direction, "basic")
+    assert value["code"] == 0 and value["loaded"] == [] and value["stderr"] == ""
+    assert envelope(value) == {
+        "executed": "basic",
+        "fallback": False,
+        "requested": "basic",
+        "result": {
+            "changed": True,
+            "direction": direction,
+            "focused_id": 32,
+            "origin_id": 34,
+        },
+    }
     assert value["commands"] == [f"focus {direction}"]
 
 
-def test_both_overrides_leave_route_byte_identical(tmp_path):
-    route = tmp_path / "route"
-    invoke(tmp_path, target="basic", route="group\n")
-    assert route.read_bytes() == b"group\n"
-    invoke(tmp_path, target="group", route="basic\n")
-    assert route.read_bytes() == b"basic\n"
+def test_windows_list_strategy_and_empty_noop(tmp_path):
+    value = invoke(tmp_path, "right", "windows-list", "392")
+    result = envelope(value)
+    assert result["requested"] == result["executed"] == "windows-list"
+    assert result["fallback"] is False
+    assert result["result"]["focused_id"] == 392
+    assert value["commands"] == ["focus right", "[con_id=392] focus"]
+
+    empty = invoke(tmp_path, "up", "windows-list")
+    assert envelope(empty)["result"]["visited_ids"] == [34]
+    assert empty["commands"] == [] and envelope(empty)["fallback"] is False
 
 
-def test_argument_error_has_distinct_exit_code(tmp_path):
-    fake_path = fake(tmp_path)
-    result = subprocess.run(
-        [sys.executable, str(ROOT / "examples/launchers/skaldos_sway_navigation.py"), "sideways"],
-        text=True,
-        capture_output=True,
-        check=False,
-        env={**os.environ, "PYTHONPATH": str(fake_path)},
+@pytest.mark.parametrize(
+    "arguments,requested",
+    [
+        (("left",), "missing"),
+        (("left", "unknown"), "unknown"),
+        (("left", "basic", "9"), "basic"),
+        (("left", "windows-list", "x"), "windows-list"),
+        (("left", "windows-list", "1", "1"), "windows-list"),
+    ],
+)
+def test_route_and_parameter_errors_fallback_once(tmp_path, arguments, requested):
+    value = invoke(tmp_path, *arguments)
+    result = envelope(value)
+    assert value["code"] == 0 and "primary error:" in value["stderr"]
+    assert result["requested"] == requested
+    assert result["executed"] == "basic" and result["fallback"] is True
+    assert value["commands"] == ["focus left"]
+
+
+def test_windows_list_build_failure_falls_back(tmp_path):
+    root = tmp_path / "sway"
+    (root / "compositions/ipc").mkdir(parents=True)
+    (root / "compositions/basic_nav").mkdir(parents=True)
+    (root / "navigation_entry.py").write_bytes(
+        (ROOT / "sway/navigation_entry.py").read_bytes()
     )
-    assert result.returncode == 2
-    assert "invalid choice" in result.stderr
+    for path in ("compositions/ipc/runtime.py", "compositions/basic_nav/runtime.py"):
+        source = ROOT / "sway" / path
+        (root / path).write_bytes(source.read_bytes())
+    value = invoke(tmp_path, "right", "windows-list", "32", root=root)
+    assert value["code"] == 0 and envelope(value)["fallback"] is True
+    assert "windows_list_nav/runtime.py" in value["stderr"]
+    assert value["commands"] == ["focus right"]
+
+
+def test_window_loop_error_falls_back_from_current_focus(tmp_path):
+    value = invoke(tmp_path, "right", "windows-list", "392", failures=1)
+    assert value["code"] == 0 and envelope(value)["fallback"] is True
+    assert value["commands"] == ["focus right", "focus right"]
+
+
+def test_double_failure_has_no_success_json(tmp_path):
+    value = invoke(tmp_path, "right", "windows-list", "392", failures=2)
+    assert value["code"] == 1 and value["stdout"] == ""
+    assert "primary error:" in value["stderr"] and "fallback error:" in value["stderr"]
+    assert value["commands"] == ["focus right", "focus right"]
+
+
+@pytest.mark.parametrize("arguments", [(), ("sideways",), ("sideways", "basic")])
+def test_missing_or_invalid_direction_is_hard_failure(tmp_path, arguments):
+    value = invoke(tmp_path, *arguments)
+    assert value["code"] == 2 and value["stdout"] == ""
+    assert "argument error:" in value["stderr"] and value["commands"] == []

@@ -158,17 +158,23 @@ def test_documented_wrapper_path_runs_real_dix_roba_and_fake_sway() -> None:
             "FAKE_SWAY_FOCUSED": "34",
             "FAKE_SWAY_DIRECTION_TARGET": "32",
         }
-        basic = json.loads(_run([NAV, "--target", "basic", "right"], navigation_env).stdout)
+        basic = json.loads(_run([NAV, "right", "basic"], navigation_env).stdout)
         assert basic == {
-            "changed": True,
-            "direction": "right",
-            "focused_id": 32,
-            "origin_id": 34,
+            "executed": "basic",
+            "fallback": False,
+            "requested": "basic",
+            "result": {
+                "changed": True,
+                "direction": "right",
+                "focused_id": 32,
+                "origin_id": 34,
+            },
         }
-        group = json.loads(_run([NAV, "--target", "group", "right"], navigation_env).stdout)
-        assert group["matched"] is True
-        assert group["focused_id"] == 392
-        assert group["visited_ids"] == [34, 32, 392]
+        windows = json.loads(_run([NAV, "right", "windows-list", "392"], navigation_env).stdout)
+        assert windows["requested"] == windows["executed"] == "windows-list"
+        assert windows["result"]["matched"] is True
+        assert windows["result"]["focused_id"] == 392
+        assert windows["result"]["visited_ids"] == [34, 32, 392]
 
         assert json.loads(_run([MANAGE, "remove", "work"], window_env).stdout) is True
         assert (state / "active-members").read_bytes() == b"\n"

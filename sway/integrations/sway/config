@@ -3,10 +3,10 @@ set $skaldos_home /home/YOU
 set $skaldos_bin $skaldos_home/.local/bin
 
 # Fixed bindings: no Sway mode and no runtime rebinding.
-bindsym $mod+h exec --no-startup-id $skaldos_bin/skaldos-sway-nav left
-bindsym $mod+j exec --no-startup-id $skaldos_bin/skaldos-sway-nav down
-bindsym $mod+k exec --no-startup-id $skaldos_bin/skaldos-sway-nav up
-bindsym $mod+l exec --no-startup-id $skaldos_bin/skaldos-sway-nav right
+bindsym $mod+h exec --no-startup-id $skaldos_bin/skaldos-sway-nav left basic
+bindsym $mod+j exec --no-startup-id $skaldos_bin/skaldos-sway-nav down basic
+bindsym $mod+k exec --no-startup-id $skaldos_bin/skaldos-sway-nav up basic
+bindsym $mod+l exec --no-startup-id $skaldos_bin/skaldos-sway-nav right basic
 
 # Choose keys appropriate for the local configuration.
 bindsym $mod+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-select

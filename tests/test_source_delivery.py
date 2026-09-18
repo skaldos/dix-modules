@@ -59,13 +59,13 @@ def test_sway_owns_one_exact_dependency() -> None:
 def test_wrappers_load_one_central_environment_and_forward_arguments(tmp_path: Path) -> None:
     home, user_bin, launcher_root = _layout(tmp_path)
 
-    nav = _run(home, user_bin / "skaldos-sway-nav", "--target", "group", "left")
+    nav = _run(home, user_bin / "skaldos-sway-nav", "left", "windows-list", "23")
     assert nav.returncode == 0, nav.stderr
     assert nav.stdout.splitlines() == [
         f"arg={launcher_root / 'skaldos-sway-nav.py'}",
-        "arg=--target",
-        "arg=group",
         "arg=left",
+        "arg=windows-list",
+        "arg=23",
     ]
 
     management = _run(
