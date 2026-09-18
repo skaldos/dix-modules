@@ -23,6 +23,7 @@ def test_sway_is_an_umbrella_with_two_explicit_module_roots():
 
     assert {value.id for value in nav.composition_definitions} == {
         "skaldos/sway/nav/basic_nav",
+        "skaldos/sway/nav/binding",
         "skaldos/sway/nav/windows_list_nav",
     }
     assert [value.id for value in nav.application_definitions] == [

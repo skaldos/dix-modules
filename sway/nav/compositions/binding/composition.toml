@@ -1,0 +1,11 @@
+[composition]
+id = "binding"
+
+[compositions.ipc]
+use = "skaldos/sway/core/ipc"
+
+[functions.set_basic_nav]
+description = "Bind native basic navigation to the Sway runtime route."
+
+[functions.set_windows_list_nav]
+description = "Bind explicit window-list navigation to the Sway runtime route."
