@@ -15,7 +15,7 @@ for relative in ("sway/README.md", "sway/README.de.md"):
     value = (ROOT / relative).read_text()
     for required in (
         "dix-sway-nav",
-        "skaldos-sway-nav",
+        "dix-sway-nav-cli",
         "$$dix_sway_nav",
         "--ids",
         "sway/nav/integrations/install",

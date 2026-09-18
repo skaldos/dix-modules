@@ -29,7 +29,7 @@ fachliche Aufbereitung von `$dix_sway_nav`.
 Zwei Commands werden bewusst getrennt ausgeliefert:
 
 - `dix-sway-nav`: abhaengigkeitsarmer, zustandsloser Keybinding-Hotpath;
-- `skaldos-sway-nav`: normale DIX-/Typer-CLI fuer Management und Tests.
+- `dix-sway-nav-cli`: normale DIX-/Typer-CLI fuer Management und Tests.
 
 Beide lesen weder Group-Dateien noch ROBA oder Navigationsstate. Die aktive Low-Latency-Route liegt
 als genau eine Runtime-Variable in Sway selbst.
@@ -81,9 +81,9 @@ Die wiederholbare Installation erzeugt:
 
 ```text
 $DIX_BIN/dix-sway-nav
-$DIX_BIN/skaldos-sway-nav
+$DIX_BIN/dix-sway-nav-cli
 $DIX_LAUNCHERS/dix-sway-nav.py
-$DIX_LAUNCHERS/skaldos-sway-nav.py
+$DIX_LAUNCHERS/dix-sway-nav-cli.py
 ```
 
 ## Sway-Konfiguration
@@ -105,11 +105,11 @@ beim Laden der Konfiguration.
 ## Management-CLI
 
 ```sh
-skaldos-sway-nav basic set
-skaldos-sway-nav basic left
+dix-sway-nav-cli basic set
+dix-sway-nav-cli basic left
 
-skaldos-sway-nav windows-list set --ids 23 --ids 42
-skaldos-sway-nav windows-list right --ids 23 --ids 42
+dix-sway-nav-cli windows-list set --ids 23 --ids 42
+dix-sway-nav-cli windows-list right --ids 23 --ids 42
 ```
 
 `set` aendert die einzelne Sway-Runtime-Route. Richtungscommands fuehren die gewaehlte Strategie

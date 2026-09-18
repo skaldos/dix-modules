@@ -10,7 +10,7 @@ def test_bilingual_guides_describe_both_navigation_surfaces():
         value = (ROOT / relative).read_text()
         for required in (
             "dix-sway-nav",
-            "skaldos-sway-nav",
+            "dix-sway-nav-cli",
             "skaldos/sway/core/ipc",
             "skaldos/sway/nav/binding",
             "$$dix_sway_nav",

@@ -36,13 +36,13 @@ def test_navigation_delivery_files_have_inspectable_ownership():
     executables = (
         integration / "install",
         integration / "bin/dix-sway-nav",
-        integration / "bin/skaldos-sway-nav",
+        integration / "bin/dix-sway-nav-cli",
         integration / "launchers/dix-sway-nav.py",
     )
     for path in executables:
         assert path.is_file() and os.access(path, os.X_OK)
 
-    template = (integration / "launchers/skaldos-sway-nav.toml").read_text()
+    template = (integration / "launchers/dix-sway-nav-cli.toml").read_text()
     assert 'application = "skaldos/sway/nav/cli"' in template
     assert 'id = "dix/cli"' in template
     assert 'id = "skaldos/sway/core"' in template

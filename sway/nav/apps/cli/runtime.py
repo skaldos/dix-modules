@@ -27,7 +27,7 @@ class Runtime:
 
     def main(self, argv: Sequence[str]) -> int:
         result = self.typer.require("invoke")(
-            name="skaldos-sway-nav",
+            name="dix-sway-nav-cli",
             targets={"basic": self.basic, "windows-list": self.windows_list},
             argv=argv,
         )

@@ -53,7 +53,7 @@ def _execute_with_runtime(
     basic: object,
 ) -> dict[str, object]:
     window_ids = _route_arguments(strategy, arguments)
-    nav_mod = _runtime(module_root / "apps/nav/runtime.py", "skaldos_sway_nav")
+    nav_mod = _runtime(module_root / "apps/nav/runtime.py", "dix_sway_nav")
     nav = nav_mod.Runtime(
         context=None,
         config={},

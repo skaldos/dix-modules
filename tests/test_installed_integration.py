@@ -72,25 +72,36 @@ def run(
 
 def test_installer_delivers_both_commands_and_is_repeatable(tmp_path):
     env_file, env = environment(tmp_path)
+    launchers = tmp_path / "launchers"
+    binaries = tmp_path / "bin"
+    launchers.mkdir()
+    binaries.mkdir()
+    for stale in (
+        launchers / "skaldos-sway-nav.py",
+        launchers / "skaldos-sway-nav.toml",
+        binaries / "skaldos-sway-nav",
+    ):
+        stale.write_text("stale")
 
     first = run([str(INSTALL)], env)
     second = run([str(INSTALL)], env)
     assert first.returncode == second.returncode == 0, first.stderr + second.stderr
 
-    launchers = tmp_path / "launchers"
-    binaries = tmp_path / "bin"
-    for name in ("dix-sway-nav", "skaldos-sway-nav"):
+    for name in ("dix-sway-nav", "dix-sway-nav-cli"):
         assert (binaries / name).is_file()
         assert os.access(binaries / name, os.X_OK)
         assert (launchers / f"{name}.py").is_file()
+    assert not (binaries / "skaldos-sway-nav").exists()
+    assert not (launchers / "skaldos-sway-nav.py").exists()
+    assert not (launchers / "skaldos-sway-nav.toml").exists()
 
-    spec = (launchers / "skaldos-sway-nav.toml").read_text()
+    spec = (launchers / "dix-sway-nav-cli.toml").read_text()
     assert "@DIX_CLI_MODULE@" not in spec
     assert str(DIX / "modules/dix/cli") in spec
     assert str(ROOT / "sway/core") in spec
     assert str(ROOT / "sway/nav") in spec
 
-    help_result = run([str(binaries / "skaldos-sway-nav"), "--help"], env)
+    help_result = run([str(binaries / "dix-sway-nav-cli"), "--help"], env)
     assert help_result.returncode == 0, help_result.stderr
     assert "basic" in help_result.stdout and "windows-list" in help_result.stdout
     assert env_file.is_file()
@@ -122,7 +133,7 @@ def test_installed_commands_execute_against_fake_sway(tmp_path):
 
     managed = run(
         [
-            str(binaries / "skaldos-sway-nav"),
+            str(binaries / "dix-sway-nav-cli"),
             "windows-list",
             "set",
             "--ids",

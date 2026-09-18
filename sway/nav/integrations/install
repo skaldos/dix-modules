@@ -44,11 +44,11 @@ mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN"
 
 cp "$integration_root/launchers/dix-sway-nav.py" "$DIX_LAUNCHERS/dix-sway-nav.py"
 cp "$integration_root/bin/dix-sway-nav" "$DIX_BIN/dix-sway-nav"
-cp "$integration_root/bin/skaldos-sway-nav" "$DIX_BIN/skaldos-sway-nav"
+cp "$integration_root/bin/dix-sway-nav-cli" "$DIX_BIN/dix-sway-nav-cli"
 
-launcher_spec="$DIX_LAUNCHERS/skaldos-sway-nav.toml"
+launcher_spec="$DIX_LAUNCHERS/dix-sway-nav-cli.toml"
 "$DIX_VENV/bin/python" - \
-    "$integration_root/launchers/skaldos-sway-nav.toml" \
+    "$integration_root/launchers/dix-sway-nav-cli.toml" \
     "$launcher_spec" \
     "$DIX_SOURCE_ROOT/modules/dix/cli" \
     "$SKALDOS_SWAY_ROOT/core" \
@@ -72,14 +72,19 @@ PY
 
 "$DIX_VENV/bin/python" -m dix.bootstrap build \
     "$launcher_spec" \
-    --output "$DIX_LAUNCHERS/skaldos-sway-nav.py" \
+    --output "$DIX_LAUNCHERS/dix-sway-nav-cli.py" \
     --replace
+
+rm -f \
+    "$DIX_LAUNCHERS/skaldos-sway-nav.py" \
+    "$DIX_LAUNCHERS/skaldos-sway-nav.toml" \
+    "$DIX_BIN/skaldos-sway-nav"
 
 chmod 0755 \
     "$DIX_LAUNCHERS/dix-sway-nav.py" \
-    "$DIX_LAUNCHERS/skaldos-sway-nav.py" \
+    "$DIX_LAUNCHERS/dix-sway-nav-cli.py" \
     "$DIX_BIN/dix-sway-nav" \
-    "$DIX_BIN/skaldos-sway-nav"
+    "$DIX_BIN/dix-sway-nav-cli"
 
 printf 'installed Sway navigation launchers in %s\n' "$DIX_LAUNCHERS"
 printf 'installed Sway navigation commands in %s\n' "$DIX_BIN"

@@ -29,7 +29,7 @@ rendering of `$dix_sway_nav`.
 Two commands are intentionally delivered:
 
 - `dix-sway-nav`: dependency-light, state-free keybinding hot path;
-- `skaldos-sway-nav`: normal DIX/Typer management and test CLI.
+- `dix-sway-nav-cli`: normal DIX/Typer management and test CLI.
 
 Neither command reads group files, ROBA or navigation state. The active low-latency route is held
 by Sway itself as one runtime variable.
@@ -81,9 +81,9 @@ The installer is repeatable and produces:
 
 ```text
 $DIX_BIN/dix-sway-nav
-$DIX_BIN/skaldos-sway-nav
+$DIX_BIN/dix-sway-nav-cli
 $DIX_LAUNCHERS/dix-sway-nav.py
-$DIX_LAUNCHERS/skaldos-sway-nav.py
+$DIX_LAUNCHERS/dix-sway-nav-cli.py
 ```
 
 ## Sway configuration
@@ -105,11 +105,11 @@ configuration is loaded.
 ## Management CLI
 
 ```sh
-skaldos-sway-nav basic set
-skaldos-sway-nav basic left
+dix-sway-nav-cli basic set
+dix-sway-nav-cli basic left
 
-skaldos-sway-nav windows-list set --ids 23 --ids 42
-skaldos-sway-nav windows-list right --ids 23 --ids 42
+dix-sway-nav-cli windows-list set --ids 23 --ids 42
+dix-sway-nav-cli windows-list right --ids 23 --ids 42
 ```
 
 `set` changes the single Sway runtime route. Direction commands execute their strategy directly

@@ -240,7 +240,7 @@ def test_navigation_entry_is_stateless_and_lazy(tmp_path, monkeypatch, capsys):
     assert value["requested"] == value["executed"] == "basic"
     assert value["fallback"] is False
     loaded = set(sys.modules) - before
-    assert "skaldos_sway_nav" in loaded
+    assert "dix_sway_nav" in loaded
     assert not any("group_navigation" in name or "active_members" in name for name in loaded)
     assert mod.main(["left"], root) == 0
     value = json.loads(capsys.readouterr().out)
