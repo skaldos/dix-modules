@@ -11,6 +11,7 @@ ROOT = Path(__file__).parents[1]
 
 
 def _load_theme_dependencies(modules: ModuleComponent) -> None:
+    modules.load_module(first_party_module_path("dix/cli"), module_id="dix/cli")
     modules.load_module(ROOT / "sway/core", module_id="skaldos/sway/core")
     modules.load_module(first_party_module_path("dix/norn"), module_id="dix/norn")
 
@@ -49,7 +50,10 @@ def _client_colors(tmp_path: Path):
 def test_color_strand_runs_in_real_composed_graph(tmp_path: Path) -> None:
     loaded, instance = _color(tmp_path)
 
-    assert tuple(loaded.applications) == ("skaldos/sway/theme/theme",)
+    assert tuple(loaded.applications) == (
+        "skaldos/sway/theme/cli",
+        "skaldos/sway/theme/theme",
+    )
     assert set(loaded.compositions) == {
         "skaldos/sway/theme/client_colors",
         "skaldos/sway/theme/client_theme",

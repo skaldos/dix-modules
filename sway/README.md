@@ -25,6 +25,8 @@ skaldos/sway/nav/cli          # management CLI
 skaldos/sway/theme/color         # atomic Sway hexadecimal color strand
 skaldos/sway/theme/client_colors # flat five-color model strand
 skaldos/sway/theme/client_theme  # tolerant Knot plus four public Sway effects
+skaldos/sway/theme/theme         # complete TOML file application
+skaldos/sway/theme/cli           # DIX/Typer Theme CLI
 ```
 
 `ipc.command` remains the generic low-level Sway boundary. `nav/binding` owns the domain-specific
@@ -62,6 +64,7 @@ The installer creates `~/.dix/env` from the provided template when it does not e
 
 ```sh
 ~/.dix/src/dix/modules/skaldos/sway/nav/integrations/install
+~/.dix/src/dix/modules/skaldos/sway/theme/integrations/install
 ```
 
 To use different locations, create or edit `~/.dix/env` before installation. Relevant values are:
@@ -88,6 +91,8 @@ $DIX_BIN/dix-sway-nav
 $DIX_BIN/dix-sway-nav-cli
 $DIX_LAUNCHERS/dix-sway-nav.py
 $DIX_LAUNCHERS/dix-sway-nav-cli.py
+$DIX_BIN/dix-sway-theme-cli
+$DIX_LAUNCHERS/dix-sway-theme-cli.py
 ```
 
 ## Sway configuration
@@ -128,6 +133,18 @@ The four direct client-theme handlers apply complete focused, focused-inactive, 
 urgent color sets. The tolerant Knot binds `client_colors` and those handlers from its immediate
 owner during graph construction; `client_theme.execute` passes only the input value. It skips
 missing known fields and ignores unknown fields.
+
+The Theme application reads a complete TOML document before the first effect and delegates its
+unchanged root mapping to that Knot. Current client fields can therefore coexist with future
+`focused_tab_title` and `background` tables, which remain intentionally ignored until their own
+contracts exist. Apply a file through the separate management CLI:
+
+```sh
+dix-sway-theme-cli theme apply --file /path/to/theme.toml
+```
+
+The dedicated Theme installer installs only this command and its generated launcher. It neither
+copies Themes nor wallpapers and reuses the same central `DIX_ENV` file.
 
 ## Management CLI
 

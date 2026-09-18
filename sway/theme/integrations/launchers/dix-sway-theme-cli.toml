@@ -1,0 +1,22 @@
+# Installer template. Quoted @...@ values are materialized from ~/.dix/env before build.
+[launcher]
+name = "dix-sway-theme-cli"
+adapter = "python_cli"
+application = "skaldos/sway/theme/cli"
+function = "main"
+
+[[modules]]
+id = "dix/cli"
+source = "@DIX_CLI_MODULE@"
+
+[[modules]]
+id = "dix/norn"
+source = "@DIX_NORN_MODULE@"
+
+[[modules]]
+id = "skaldos/sway/core"
+source = "@SKALDOS_SWAY_CORE@"
+
+[[modules]]
+id = "skaldos/sway/theme"
+source = "@SKALDOS_SWAY_THEME@"

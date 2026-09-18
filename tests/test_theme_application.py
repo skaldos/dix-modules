@@ -90,6 +90,7 @@ def _application(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     registry = create_core_component_registry()
     modules = registry.require("module", ModuleComponent)
     applications = registry.require("application", ApplicationComponent)
+    modules.load_module(first_party_module_path("dix/cli"), module_id="dix/cli")
     modules.load_module(ROOT / "sway/core", module_id="skaldos/sway/core")
     modules.load_module(first_party_module_path("dix/norn"), module_id="dix/norn")
     modules.load_module(ROOT / "sway/theme", module_id="skaldos/sway/theme")

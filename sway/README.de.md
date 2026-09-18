@@ -25,6 +25,8 @@ skaldos/sway/nav/cli          # Management-CLI
 skaldos/sway/theme/color         # atomarer Sway-Hexfarben-Strand
 skaldos/sway/theme/client_colors # flacher Fuenf-Farben-Modell-Strand
 skaldos/sway/theme/client_theme  # toleranter Knot plus vier oeffentliche Sway-Wirkungen
+skaldos/sway/theme/theme         # Application fuer vollstaendige TOML-Dateien
+skaldos/sway/theme/cli           # DIX-/Typer-Theme-CLI
 ```
 
 `ipc.command` bleibt die generische technische Sway-Grenze. Erst `nav/binding` besitzt die
@@ -62,6 +64,7 @@ Fehlt `~/.dix/env`, erzeugt der Installer sie aus der mitgelieferten Vorlage:
 
 ```sh
 ~/.dix/src/dix/modules/skaldos/sway/nav/integrations/install
+~/.dix/src/dix/modules/skaldos/sway/theme/integrations/install
 ```
 
 Fuer eigene Ablagen wird `~/.dix/env` vor der Installation angelegt oder bearbeitet:
@@ -88,6 +91,8 @@ $DIX_BIN/dix-sway-nav
 $DIX_BIN/dix-sway-nav-cli
 $DIX_LAUNCHERS/dix-sway-nav.py
 $DIX_LAUNCHERS/dix-sway-nav-cli.py
+$DIX_BIN/dix-sway-theme-cli
+$DIX_LAUNCHERS/dix-sway-theme-cli.py
 ```
 
 ## Sway-Konfiguration
@@ -128,6 +133,19 @@ Die vier direkten Client-Theme-Handler wenden vollstaendige Farbsaetze fuer focu
 focused-inactive, unfocused oder urgent an. Der tolerante Knot bindet `client_colors` und diese
 Handler beim Graphaufbau aus seinem unmittelbaren Owner; `client_theme.execute` uebergibt nur den
 Eingabewert. Knot ueberspringt fehlende bekannte und ignoriert unbekannte Felder.
+
+Die Theme-Application liest ein vollstaendiges TOML-Dokument vor der ersten Wirkung und uebergibt
+dessen unveraendertes Root-Mapping an diesen Knot. Die aktuellen Clientfelder koennen deshalb
+neben zukuenftigen Tabellen `focused_tab_title` und `background` stehen; diese bleiben bis zu
+ihren eigenen Contracts bewusst wirkungslos. Eine Datei wird ueber die getrennte Management-CLI
+angewendet:
+
+```sh
+dix-sway-theme-cli theme apply --file /pfad/zum/theme.toml
+```
+
+Der dedizierte Theme-Installer installiert nur diesen Command und seinen generierten Launcher. Er
+kopiert weder Themes noch Wallpaper und verwendet dieselbe zentrale `DIX_ENV`-Datei.
 
 ## Management-CLI
 

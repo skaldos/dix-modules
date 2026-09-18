@@ -1,7 +1,8 @@
 # Sway theme value strands
 
-This module contains small Sway theme value transformations and one explicitly effectful client
-theme boundary. It deliberately has no application, CLI, state, ROBA, or persistence dependency.
+This module contains small Sway theme value transformations, one explicitly effectful client
+theme boundary, and a narrow file-driven application. It has no state, ROBA, catalog, or
+persistence dependency.
 
 ## Color
 
@@ -29,3 +30,34 @@ and returns an empty mapping. Knot resolves the `client_colors` dependency and p
 from its immediate `client_theme` owner while the graph is built; the wrapper passes only the
 input value. The direct handlers remain independently composable and validate their complete input
 before issuing a Sway command.
+
+## Full Theme TOML application
+
+`skaldos/sway/theme/theme.apply(file)` expands `~`, requires a regular readable file, and parses
+the complete TOML document before the first Sway effect. It passes the unchanged root mapping
+exactly once to `client_theme.execute`. The currently known fields are `focused`,
+`focused_inactive`, `unfocused`, and `urgent`; unknown root fields such as `focused_tab_title` and
+`background` are intentionally ignored by the current Knot. A document without known fields is a
+successful no-op.
+
+The application does not provide a Theme catalog, persistence, fallback parsing, prevalidation of
+all effects, or rollback. A late color or IPC error remains visible and earlier commands may
+already have taken effect.
+
+## CLI and installation
+
+The separate DIX/Typer application exposes exactly:
+
+```sh
+dix-sway-theme-cli theme apply --file /path/to/theme.toml
+```
+
+Install only this Theme command and its generated launcher with:
+
+```sh
+sway/theme/integrations/install
+```
+
+The installer reads `${DIX_ENV:-$HOME/.dix/env}`, creates that central environment file only when
+it is absent, and never installs Themes or wallpapers. The environment must define
+`DIX_SOURCE_ROOT`, `DIX_VENV`, `DIX_LAUNCHERS`, `DIX_BIN`, and `SKALDOS_SWAY_ROOT`.

@@ -1,0 +1,11 @@
+[app]
+id = "cli"
+
+[compositions.typer]
+use = "dix/cli/typer"
+
+[apps.theme]
+use = "skaldos/sway/theme/theme"
+
+[functions.main]
+description = "Run the Skaldos Sway Theme CLI."

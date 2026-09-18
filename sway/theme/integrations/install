@@ -1,0 +1,81 @@
+#!/bin/sh
+set -eu
+
+integration_root=$(CDPATH= cd "$(dirname "$0")" && pwd -P)
+env_file=${DIX_ENV:-$HOME/.dix/env}
+
+if [ ! -e "$env_file" ]; then
+    mkdir -p "$(dirname "$env_file")"
+    cp "$integration_root/env" "$env_file"
+    printf 'created %s\n' "$env_file"
+fi
+
+[ -r "$env_file" ] || {
+    printf 'DIX environment file is not readable: %s\n' "$env_file" >&2
+    exit 1
+}
+. "$env_file"
+
+for variable in DIX_SOURCE_ROOT DIX_VENV DIX_LAUNCHERS DIX_BIN SKALDOS_SWAY_ROOT; do
+    eval "value=\${$variable:-}"
+    [ -n "$value" ] || {
+        printf 'DIX environment value is missing: %s\n' "$variable" >&2
+        exit 1
+    }
+done
+
+[ -x "$DIX_VENV/bin/python" ] || {
+    printf 'DIX environment Python is not executable: %s\n' "$DIX_VENV/bin/python" >&2
+    exit 1
+}
+
+for module in \
+    "$DIX_SOURCE_ROOT/modules/dix/cli" \
+    "$DIX_SOURCE_ROOT/modules/dix/norn" \
+    "$SKALDOS_SWAY_ROOT/core" \
+    "$SKALDOS_SWAY_ROOT/theme"
+do
+    [ -d "$module" ] || {
+        printf 'DIX module root is not a directory: %s\n' "$module" >&2
+        exit 1
+    }
+done
+
+mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN"
+
+launcher_spec="$DIX_LAUNCHERS/dix-sway-theme-cli.toml"
+"$DIX_VENV/bin/python" - \
+    "$integration_root/launchers/dix-sway-theme-cli.toml" \
+    "$launcher_spec" \
+    "$DIX_SOURCE_ROOT/modules/dix/cli" \
+    "$DIX_SOURCE_ROOT/modules/dix/norn" \
+    "$SKALDOS_SWAY_ROOT/core" \
+    "$SKALDOS_SWAY_ROOT/theme" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+source, target, cli, norn, core, theme = map(Path, sys.argv[1:])
+value = source.read_text()
+for marker, path in {
+    '"@DIX_CLI_MODULE@"': cli,
+    '"@DIX_NORN_MODULE@"': norn,
+    '"@SKALDOS_SWAY_CORE@"': core,
+    '"@SKALDOS_SWAY_THEME@"': theme,
+}.items():
+    value = value.replace(marker, json.dumps(str(path.resolve())))
+target.write_text(value)
+PY
+
+"$DIX_VENV/bin/python" -m dix.bootstrap build \
+    "$launcher_spec" \
+    --output "$DIX_LAUNCHERS/dix-sway-theme-cli.py" \
+    --replace
+
+cp "$integration_root/bin/dix-sway-theme-cli" "$DIX_BIN/dix-sway-theme-cli"
+chmod 0755 "$DIX_LAUNCHERS/dix-sway-theme-cli.py" "$DIX_BIN/dix-sway-theme-cli"
+
+printf 'installed Sway Theme launcher in %s\n' "$DIX_LAUNCHERS"
+printf 'installed Sway Theme command in %s\n' "$DIX_BIN"
