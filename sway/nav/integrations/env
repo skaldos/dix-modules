@@ -1,0 +1,10 @@
+# Central environment for locally installed DIX integrations.
+# Copy this file to ~/.dix/env and override only values that differ locally.
+
+export DIX_ROOT="${DIX_ROOT:-$HOME/.dix}"
+export DIX_SOURCE_ROOT="${DIX_SOURCE_ROOT:-$DIX_ROOT/src/dix}"
+export SKALDOS_SWAY_ROOT="${SKALDOS_SWAY_ROOT:-$DIX_SOURCE_ROOT/modules/skaldos/sway}"
+
+export DIX_VENV="${DIX_VENV:-$DIX_SOURCE_ROOT/.venv}"
+export DIX_LAUNCHERS="${DIX_LAUNCHERS:-${XDG_DATA_HOME:-$HOME/.local/share}/dix/launchers}"
+export DIX_BIN="${DIX_BIN:-$HOME/.local/bin}"

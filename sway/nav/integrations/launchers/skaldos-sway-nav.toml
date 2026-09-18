@@ -1,0 +1,18 @@
+# Installer template. Quoted @...@ values are materialized from ~/.dix/env before build.
+[launcher]
+name = "skaldos-sway-nav"
+adapter = "python_cli"
+application = "skaldos/sway/nav/cli"
+function = "main"
+
+[[modules]]
+id = "dix/cli"
+source = "@DIX_CLI_MODULE@"
+
+[[modules]]
+id = "skaldos/sway/core"
+source = "@SKALDOS_SWAY_CORE@"
+
+[[modules]]
+id = "skaldos/sway/nav"
+source = "@SKALDOS_SWAY_NAV@"
