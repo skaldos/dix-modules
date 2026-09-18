@@ -27,6 +27,8 @@ class N:
 class T(N):
  def __init__(self):
   self.hidden=N(392);self.visible=N(32);self.origin=N(34)
+  if os.environ.get("FAKE_SWAY_FLAT") == "1":
+   super().__init__(1,[self.visible,self.hidden,self.origin],[34,32,392]);return
   self.left=N(100,[self.visible,self.hidden],[392,32])
   self.right=N(200,[self.origin],[34])
   super().__init__(1,[self.left,self.right],[100,200])
@@ -42,14 +44,15 @@ class Connection:
    failures-=1
    raise RuntimeError("synthetic Sway failure")
   if "con_id=" in value: current=int(value.split("con_id=",1)[1].split("]",1)[0])
-  elif "focus" in value: current=32
+  elif "focus" in value:
+   current=34 if os.environ.get("FAKE_SWAY_TOGGLE") == "1" and current==32 else 32
   return [R()]
 '''
     )
     return path
 
 
-def invoke(tmp_path, *arguments, failures=0, root=None):
+def invoke(tmp_path, *arguments, failures=0, root=None, extra_env=None):
     fake_path = fake(tmp_path)
     old_route = tmp_path / "must-not-read-route"
     old_members = tmp_path / "must-not-read-members"
@@ -69,6 +72,7 @@ def invoke(tmp_path, *arguments, failures=0, root=None):
             "FAKE_SWAY_FAILURES": str(failures),
             "SKALDOS_SWAY_NAVIGATION_TARGET_FILE": str(old_route),
             "SKALDOS_SWAY_ACTIVE_MEMBERS_FILE": str(old_members),
+            **(extra_env or {}),
         },
     )
     assert result.returncode == 0, result.stderr
@@ -151,6 +155,20 @@ def test_window_loop_error_falls_back_from_current_focus(tmp_path):
     value = invoke(tmp_path, "right", "windows-list", "392", failures=1)
     assert value["code"] == 0 and envelope(value)["fallback"] is True
     assert value["commands"] == ["focus right", "focus right"]
+
+
+def test_windows_list_regular_no_match_restores_origin(tmp_path):
+    value = invoke(
+        tmp_path,
+        "right",
+        "windows-list",
+        "392",
+        extra_env={"FAKE_SWAY_FLAT": "1", "FAKE_SWAY_TOGGLE": "1"},
+    )
+    result = envelope(value)["result"]
+    assert result["matched"] is False and result["restored"] is True
+    assert result["focused_id"] == 34 and result["visited_ids"] == [34, 32]
+    assert value["commands"] == ["focus right", "focus right", "[con_id=34] focus"]
 
 
 def test_double_failure_has_no_success_json(tmp_path):

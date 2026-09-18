@@ -6,8 +6,14 @@ from pathlib import Path
 from typing import ClassVar
 
 import i3ipc
-from dix.core import ApplicationComponent, ModuleComponent, create_core_component_registry
+from dix.core import (
+    ApplicationComponent,
+    CompositionComponent,
+    ModuleComponent,
+    create_core_component_registry,
+)
 from dix.core.application import ApplicationInstanceSpec
+from dix.core.composition import CompositionInstanceSpec
 from dix.modules import first_party_module_path
 from roba import stop_daemon
 
@@ -37,6 +43,55 @@ class Connection:
 
     def command(self, value):
         return [Reply()]
+
+
+def test_stateless_navigation_compositions_run_in_real_dix_graph(tmp_path, monkeypatch):
+    class NavigatingConnection(Connection):
+        focused = 34
+
+        def command(self, value):
+            if value == "focus right":
+                type(self).focused = 32
+            elif value.startswith("[con_id="):
+                type(self).focused = int(value.split("=", 1)[1].split("]", 1)[0])
+            return [Reply()]
+
+    monkeypatch.setattr(i3ipc, "Connection", NavigatingConnection)
+    registry = create_core_component_registry()
+    modules = registry.require("module", ModuleComponent)
+    compositions = registry.require("composition", CompositionComponent)
+    for module_id in ("dix/state", "dix/cli", "dix/roba"):
+        modules.load_module(first_party_module_path(module_id), module_id=module_id)
+    modules.load_module(Path(__file__).parents[1] / "sway", module_id="skaldos/sway")
+
+    basic = compositions.create_instance(
+        CompositionInstanceSpec("basic", "skaldos/sway/basic_nav", {}, tmp_path),
+        owner_scope_id="navigation-proof",
+    )
+    assert basic.api.require("right")() == {
+        "direction": "right",
+        "origin_id": 34,
+        "focused_id": 32,
+        "changed": True,
+    }
+
+    NavigatingConnection.focused = 34
+    window_list = compositions.create_instance(
+        CompositionInstanceSpec(
+            "window-list", "skaldos/sway/windows_list_nav", {}, tmp_path
+        ),
+        owner_scope_id="navigation-proof",
+    )
+    result = window_list.api.require("right")([32, 392])
+    assert result["matched"] is True
+    assert result["focused_id"] == 32
+    assert result["visited_ids"] == [34, 32]
+
+    compositions.destroy_instance("navigation-proof", "window-list")
+    compositions.destroy_instance("navigation-proof", "basic")
+    modules.unload_module("skaldos/sway")
+    for module_id in ("dix/roba", "dix/cli", "dix/state"):
+        modules.unload_module(module_id)
 
 
 def test_external_provider_real_dix_roba_graph(tmp_path, monkeypatch):
