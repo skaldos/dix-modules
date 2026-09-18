@@ -26,3 +26,20 @@ def test_root_readmes_mark_the_branch_as_focused():
         value = (ROOT / relative).read_text()
         assert "sway/core" in value and "sway/nav" in value
         assert "Apache-2.0" in value
+
+
+def test_bilingual_sway_guides_describe_optional_theme_strands():
+    for relative in ("sway/README.md", "sway/README.de.md"):
+        value = (ROOT / relative).read_text()
+        for required in (
+            "skaldos/sway/theme/color",
+            "skaldos/sway/theme/client_colors",
+            "dix/norn/strand",
+            "#RRGGBB",
+        ):
+            assert required in value
+
+    for relative in ("sway/theme/README.md", "sway/theme/README.de.md"):
+        value = (ROOT / relative).read_text()
+        assert "skaldos/sway/theme/color" in value
+        assert "skaldos/sway/theme/client_colors" in value

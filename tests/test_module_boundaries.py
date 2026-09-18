@@ -8,12 +8,13 @@ ROOT = Path(__file__).parents[1]
 SWAY = ROOT / "sway"
 
 
-def test_sway_is_an_umbrella_with_two_explicit_module_roots():
+def test_sway_is_an_umbrella_with_three_explicit_module_roots():
     assert not (SWAY / "apps").exists()
     assert not (SWAY / "compositions").exists()
 
     core = inspect_module(SWAY / "core", module_id="skaldos/sway/core")
     nav = inspect_module(SWAY / "nav", module_id="skaldos/sway/nav")
+    theme = inspect_module(SWAY / "theme", module_id="skaldos/sway/theme")
 
     assert core.id == "skaldos/sway/core"
     assert [value.id for value in core.composition_definitions] == [
@@ -32,6 +33,24 @@ def test_sway_is_an_umbrella_with_two_explicit_module_roots():
         "skaldos/sway/nav/nav",
         "skaldos/sway/nav/windows_list",
     }
+
+    assert {value.id for value in theme.composition_definitions} == {
+        "skaldos/sway/theme/client_colors",
+        "skaldos/sway/theme/color",
+    }
+    assert theme.application_definitions == ()
+
+
+def test_theme_module_has_no_forbidden_runtime_dependencies():
+    product = "\n".join(
+        path.read_text()
+        for path in (SWAY / "theme").rglob("*")
+        if path.is_file() and path.suffix in {".py", ".toml"}
+    ).lower()
+    for forbidden in ("roba", "pydantic", "typer", "click", "httpx", "i3ipc"):
+        assert forbidden not in product
+    assert not (SWAY / "theme/apps").exists()
+    assert not (SWAY / "theme/integrations").exists()
 
 
 def test_replacement_branch_has_no_removed_feature_sources():

@@ -21,6 +21,9 @@ skaldos/sway/nav/nav          # strikte programmatische Strategie-Fassade
 skaldos/sway/nav/basic        # Typer-Target
 skaldos/sway/nav/windows_list # Typer-Target
 skaldos/sway/nav/cli          # Management-CLI
+
+skaldos/sway/theme/color         # atomarer Sway-Hexfarben-Strand
+skaldos/sway/theme/client_colors # flacher Fuenf-Farben-Modell-Strand
 ```
 
 `ipc.command` bleibt die generische technische Sway-Grenze. Erst `nav/binding` besitzt die
@@ -101,6 +104,24 @@ bindsym $mod+l exec --no-startup-id $dix_bin/dix-sway-nav right $$dix_sway_nav
 
 Das doppelte Dollarzeichen ist zwingend: Sway expandiert die Route beim Tastendruck statt bereits
 beim Laden der Konfiguration.
+
+## Optionale Theme-Wertstrands
+
+`sway/theme` ist eine dritte, unabhaengig ladbare Modulwurzel. Sie komponiert die optionale
+Strukturgrenze `dix/norn/strand` und haengt weder von Sway IPC, Navigation, State, ROBA,
+Applications noch einer CLI ab.
+
+```text
+skaldos/sway/theme/color.execute(value)
+  String-Grenze -> Fachvalidierung als #RRGGBB oder #RRGGBBAA -> String-Grenze
+
+skaldos/sway/theme/client_colors.execute(value)
+  flache Modellgrenze -> fuenf lokal aliasierte Color-Aufrufe -> flache Modellgrenze
+```
+
+Client Colors verlangt exakt `border`, `background`, `text`, `indicator` und `child_border`.
+Diese Compositions transformieren und validieren nur Werte; das Anwenden eines Themes in Sway
+bleibt ausserhalb dieses Moduls.
 
 ## Management-CLI
 

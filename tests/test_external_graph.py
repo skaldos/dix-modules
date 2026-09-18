@@ -103,3 +103,57 @@ def test_stateless_navigation_compositions_run_in_real_dix_graph(tmp_path, monke
     modules.unload_module("skaldos/sway/nav")
     modules.unload_module("skaldos/sway/core")
     modules.unload_module("dix/cli")
+
+
+def test_two_local_aliases_can_mount_the_same_strand_provider(tmp_path):
+    consumer = tmp_path / "consumer"
+    composition = consumer / "compositions/aliases"
+    composition.mkdir(parents=True)
+    (composition / "composition.toml").write_text(
+        """
+[composition]
+id = "aliases"
+
+[compositions.first]
+use = "skaldos/sway/theme/color"
+
+[compositions.second]
+use = "skaldos/sway/theme/color"
+
+[functions.execute]
+description = "Process two colors through separately aliased providers."
+"""
+    )
+    (composition / "runtime.py").write_text(
+        """
+from collections.abc import Mapping
+
+class Runtime:
+    def __init__(self, *, context: object, config: Mapping[str, object], first, second):
+        self.first = first
+        self.second = second
+
+    def execute(self, first: object, second: object) -> tuple[object, object]:
+        return (
+            self.first.require("execute")(first),
+            self.second.require("execute")(second),
+        )
+"""
+    )
+
+    registry = create_core_component_registry()
+    modules = registry.require("module", ModuleComponent)
+    compositions = registry.require("composition", CompositionComponent)
+    modules.load_module(first_party_module_path("dix/norn"), module_id="dix/norn")
+    modules.load_module(Path(__file__).parents[1] / "sway/theme", module_id="skaldos/sway/theme")
+    modules.load_module(consumer, module_id="test/consumer")
+    instance = compositions.create_instance(
+        CompositionInstanceSpec("aliases", "test/consumer/aliases", {}, tmp_path),
+        owner_scope_id="alias-proof",
+    )
+
+    assert instance.api.require("execute")("#112233", "#AABBCCDD") == (
+        "#112233",
+        "#AABBCCDD",
+    )
+    assert instance.runtime.first is not instance.runtime.second

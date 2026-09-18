@@ -21,6 +21,9 @@ skaldos/sway/nav/nav          # strict programmatic strategy facade
 skaldos/sway/nav/basic        # Typer target
 skaldos/sway/nav/windows_list # Typer target
 skaldos/sway/nav/cli          # management CLI
+
+skaldos/sway/theme/color         # atomic Sway hexadecimal color strand
+skaldos/sway/theme/client_colors # flat five-color model strand
 ```
 
 `ipc.command` remains the generic low-level Sway boundary. `nav/binding` owns the domain-specific
@@ -101,6 +104,24 @@ bindsym $mod+l exec --no-startup-id $dix_bin/dix-sway-nav right $$dix_sway_nav
 
 The doubled dollar sign is essential: Sway expands the route when the binding runs, not while the
 configuration is loaded.
+
+## Optional theme value strands
+
+`sway/theme` is a third, independently loadable module root. It composes the optional
+`dix/norn/strand` structural boundary and does not depend on Sway IPC, navigation, state, ROBA,
+applications, or a CLI.
+
+```text
+skaldos/sway/theme/color.execute(value)
+  string boundary -> #RRGGBB or #RRGGBBAA domain validation -> string boundary
+
+skaldos/sway/theme/client_colors.execute(value)
+  flat model boundary -> five locally aliased color calls -> flat model boundary
+```
+
+Client colors require exactly `border`, `background`, `text`, `indicator`, and `child_border`.
+These compositions only transform and validate values; applying a theme to Sway remains outside
+this module.
 
 ## Management CLI
 

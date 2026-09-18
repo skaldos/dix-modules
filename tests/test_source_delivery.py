@@ -6,13 +6,13 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 
 
-def test_focused_source_tree_contains_only_core_and_navigation_modules():
+def test_focused_source_tree_contains_explicit_core_navigation_and_theme_modules():
     sway = ROOT / "sway"
     assert sorted(
         path.name
         for path in sway.iterdir()
         if path.is_dir() and not path.name.startswith("__")
-    ) == ["core", "nav"]
+    ) == ["core", "nav", "theme"]
     assert not (sway / "apps").exists()
     assert not (sway / "compositions").exists()
 
@@ -47,3 +47,22 @@ def test_navigation_delivery_files_have_inspectable_ownership():
     assert 'id = "dix/cli"' in template
     assert 'id = "skaldos/sway/core"' in template
     assert 'id = "skaldos/sway/nav"' in template
+
+
+def test_theme_source_delivery_is_composition_only():
+    theme = ROOT / "sway/theme"
+    assert {
+        path.relative_to(theme).as_posix()
+        for path in theme.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    } == {
+        "README.de.md",
+        "README.md",
+        "compositions/client_colors/client_colors.toml",
+        "compositions/client_colors/composition.toml",
+        "compositions/client_colors/runtime.py",
+        "compositions/client_colors/strand.toml",
+        "compositions/color/composition.toml",
+        "compositions/color/runtime.py",
+        "compositions/color/strand.toml",
+    }
