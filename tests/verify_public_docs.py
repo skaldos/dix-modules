@@ -28,7 +28,9 @@ for relative in ("sway/README.md", "sway/README.de.md"):
         "sway/nav/integrations/install",
         "skaldos/sway/theme/color",
         "skaldos/sway/theme/client_colors",
+        "skaldos/sway/theme/client_theme",
         "dix/norn/strand",
+        "dix/norn/knot",
     ):
         if required not in value:
             raise SystemExit(f"{relative} misses {required!r}")

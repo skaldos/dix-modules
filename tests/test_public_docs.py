@@ -34,7 +34,9 @@ def test_bilingual_sway_guides_describe_optional_theme_strands():
         for required in (
             "skaldos/sway/theme/color",
             "skaldos/sway/theme/client_colors",
+            "skaldos/sway/theme/client_theme",
             "dix/norn/strand",
+            "dix/norn/knot",
             "#RRGGBB",
         ):
             assert required in value
@@ -43,3 +45,5 @@ def test_bilingual_sway_guides_describe_optional_theme_strands():
         value = (ROOT / relative).read_text()
         assert "skaldos/sway/theme/color" in value
         assert "skaldos/sway/theme/client_colors" in value
+        assert "skaldos/sway/theme/client_theme" in value
+        assert "dix/norn/knot" in value

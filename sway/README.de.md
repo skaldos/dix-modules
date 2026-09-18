@@ -24,6 +24,7 @@ skaldos/sway/nav/cli          # Management-CLI
 
 skaldos/sway/theme/color         # atomarer Sway-Hexfarben-Strand
 skaldos/sway/theme/client_colors # flacher Fuenf-Farben-Modell-Strand
+skaldos/sway/theme/client_theme  # toleranter Knot plus vier oeffentliche Sway-Wirkungen
 ```
 
 `ipc.command` bleibt die generische technische Sway-Grenze. Erst `nav/binding` besitzt die
@@ -105,11 +106,11 @@ bindsym $mod+l exec --no-startup-id $dix_bin/dix-sway-nav right $$dix_sway_nav
 Das doppelte Dollarzeichen ist zwingend: Sway expandiert die Route beim Tastendruck statt bereits
 beim Laden der Konfiguration.
 
-## Optionale Theme-Wertstrands
+## Optionale Theme-Strands und Client-Wirkung
 
-`sway/theme` ist eine dritte, unabhaengig ladbare Modulwurzel. Sie komponiert die optionale
-Strukturgrenze `dix/norn/strand` und haengt weder von Sway IPC, Navigation, State, ROBA,
-Applications noch einer CLI ab.
+`sway/theme` ist eine dritte, unabhaengig ladbare Modulwurzel. Sie komponiert `dix/norn/strand` und
+`dix/norn/knot`. Fuer Client-Wirkungen haengt sie an der schmalen Sway-Core-IPC-Grenze, aber nicht
+an Navigation, State, ROBA, Applications oder einer CLI.
 
 ```text
 skaldos/sway/theme/color.execute(value)
@@ -117,11 +118,15 @@ skaldos/sway/theme/color.execute(value)
 
 skaldos/sway/theme/client_colors.execute(value)
   flache Modellgrenze -> fuenf lokal aliasierte Color-Aufrufe -> flache Modellgrenze
+
+skaldos/sway/theme/client_theme.execute(value)
+  vorhandene bekannte Felder -> client_colors -> oeffentlicher set_*-Handler -> Feldresultat
 ```
 
 Client Colors verlangt exakt `border`, `background`, `text`, `indicator` und `child_border`.
-Diese Compositions transformieren und validieren nur Werte; das Anwenden eines Themes in Sway
-bleibt ausserhalb dieses Moduls.
+Die vier direkten Client-Theme-Handler wenden vollstaendige Farbsaetze fuer focused,
+focused-inactive, unfocused oder urgent an. Der tolerante Knot ueberspringt fehlende bekannte und
+ignoriert unbekannte Felder.
 
 ## Management-CLI
 

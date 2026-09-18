@@ -1,7 +1,8 @@
 # Sway-Theme-Wertstrands
 
-Dieses Modul enthaelt kleine zustandslose Transformationen fuer Sway-Theme-Werte. Es besitzt
-bewusst keine Abhaengigkeit zu Sway IPC, Application, CLI, State oder Persistenz.
+Dieses Modul enthaelt kleine Sway-Theme-Werttransformationen und genau eine explizit wirkende
+Client-Theme-Grenze. Es besitzt bewusst keine Abhaengigkeit zu Application, CLI, State, ROBA oder
+Persistenz.
 
 ## Color
 
@@ -16,6 +17,15 @@ verantwortet die Farbformatregel und ihren Fachfehler.
 Mapping-Struktur. Jedes Feld wird unabhaengig durch den lokal komponierten Color-Strand
 verarbeitet; das Ergebnis ist ein neues natives Dictionary.
 
+## Client-Theme-Knot
+
 `skaldos/sway/theme/client_theme` exponiert vier sichere Client-Color-Wirkungen fuer fokussierte,
 fokussiert-inaktive, nicht fokussierte und dringende Clients. Jede akzeptiert ein vollstaendiges
-Client-Colors-Mapping und verwendet die gemeinsame Sway-Core-IPC-Command-Grenze.
+Client-Colors-Mapping und nutzt die gemeinsame `skaldos/sway/core/ipc.command`-Grenze exakt einmal.
+
+Die Function `execute(value)` ist ein toleranter `dix/norn/knot`: Vorhandene bekannte Felder
+werden in deklarierter Reihenfolge durch `client_colors.execute` verarbeitet und anschliessend an
+ihren oeffentlichen Handler uebergeben. Fehlende bekannte Felder werden uebersprungen, unbekannte
+Felder ignoriert. Ein leeres Mapping bewirkt daher nichts und liefert ein leeres Mapping. Die
+direkten Handler bleiben einzeln komponierbar und validieren ihren vollstaendigen Input vor dem
+Sway-Command.

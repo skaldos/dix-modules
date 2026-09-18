@@ -24,6 +24,7 @@ skaldos/sway/nav/cli          # management CLI
 
 skaldos/sway/theme/color         # atomic Sway hexadecimal color strand
 skaldos/sway/theme/client_colors # flat five-color model strand
+skaldos/sway/theme/client_theme  # tolerant Knot plus four public Sway effects
 ```
 
 `ipc.command` remains the generic low-level Sway boundary. `nav/binding` owns the domain-specific
@@ -105,11 +106,11 @@ bindsym $mod+l exec --no-startup-id $dix_bin/dix-sway-nav right $$dix_sway_nav
 The doubled dollar sign is essential: Sway expands the route when the binding runs, not while the
 configuration is loaded.
 
-## Optional theme value strands
+## Optional theme strands and client effect
 
-`sway/theme` is a third, independently loadable module root. It composes the optional
-`dix/norn/strand` structural boundary and does not depend on Sway IPC, navigation, state, ROBA,
-applications, or a CLI.
+`sway/theme` is a third, independently loadable module root. It composes `dix/norn/strand` and
+`dix/norn/knot`. It depends on the narrow Sway Core IPC boundary for its client effects, but not on
+navigation, state, ROBA, applications, or a CLI.
 
 ```text
 skaldos/sway/theme/color.execute(value)
@@ -117,11 +118,14 @@ skaldos/sway/theme/color.execute(value)
 
 skaldos/sway/theme/client_colors.execute(value)
   flat model boundary -> five locally aliased color calls -> flat model boundary
+
+skaldos/sway/theme/client_theme.execute(value)
+  known present fields -> client_colors -> public set_* handler -> field result
 ```
 
 Client colors require exactly `border`, `background`, `text`, `indicator`, and `child_border`.
-These compositions only transform and validate values; applying a theme to Sway remains outside
-this module.
+The four direct client-theme handlers apply complete focused, focused-inactive, unfocused, or
+urgent color sets. The tolerant Knot skips missing known fields and ignores unknown fields.
 
 ## Management CLI
 
