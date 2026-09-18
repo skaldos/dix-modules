@@ -25,5 +25,7 @@ uses the shared `skaldos/sway/core/ipc.command` boundary exactly once.
 Its `execute(value)` function is a tolerant `dix/norn/knot`: known present fields are processed in
 the declared order through `client_colors.execute` and then passed to their public handler. Missing
 known fields are skipped and unknown fields are ignored. An empty mapping therefore has no effect
-and returns an empty mapping. The direct handlers remain independently composable and validate
-their complete input before issuing a Sway command.
+and returns an empty mapping. Knot resolves the `client_colors` dependency and public handlers
+from its immediate `client_theme` owner while the graph is built; the wrapper passes only the
+input value. The direct handlers remain independently composable and validate their complete input
+before issuing a Sway command.

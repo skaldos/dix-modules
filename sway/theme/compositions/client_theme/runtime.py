@@ -34,16 +34,7 @@ class Runtime:
 
     def execute(self, value: object) -> dict[str, object]:
         """Apply all known present fields through Client Colors and their public handler."""
-        return self.knot.require("execute")(
-            value,
-            {"client_colors": self.client_colors.require("execute")},
-            {
-                "set_focused": self.set_focused,
-                "set_focused_inactive": self.set_focused_inactive,
-                "set_unfocused": self.set_unfocused,
-                "set_urgent": self.set_urgent,
-            },
-        )
+        return self.knot.require("execute")(value)
 
     def set_focused(self, value: object) -> None:
         """Apply one complete focused client color mapping."""

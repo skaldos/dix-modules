@@ -26,6 +26,7 @@ Client-Colors-Mapping und nutzt die gemeinsame `skaldos/sway/core/ipc.command`-G
 Die Function `execute(value)` ist ein toleranter `dix/norn/knot`: Vorhandene bekannte Felder
 werden in deklarierter Reihenfolge durch `client_colors.execute` verarbeitet und anschliessend an
 ihren oeffentlichen Handler uebergeben. Fehlende bekannte Felder werden uebersprungen, unbekannte
-Felder ignoriert. Ein leeres Mapping bewirkt daher nichts und liefert ein leeres Mapping. Die
-direkten Handler bleiben einzeln komponierbar und validieren ihren vollstaendigen Input vor dem
-Sway-Command.
+Felder ignoriert. Ein leeres Mapping bewirkt daher nichts und liefert ein leeres Mapping. Knot
+loest die `client_colors`-Dependency und die oeffentlichen Handler beim Graphaufbau aus seinem
+unmittelbaren `client_theme`-Owner auf; der Wrapper uebergibt nur den Eingabewert. Die direkten
+Handler bleiben einzeln komponierbar und validieren ihren vollstaendigen Input vor dem Sway-Command.

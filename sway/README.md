@@ -125,7 +125,9 @@ skaldos/sway/theme/client_theme.execute(value)
 
 Client colors require exactly `border`, `background`, `text`, `indicator`, and `child_border`.
 The four direct client-theme handlers apply complete focused, focused-inactive, unfocused, or
-urgent color sets. The tolerant Knot skips missing known fields and ignores unknown fields.
+urgent color sets. The tolerant Knot binds `client_colors` and those handlers from its immediate
+owner during graph construction; `client_theme.execute` passes only the input value. It skips
+missing known fields and ignores unknown fields.
 
 ## Management CLI
 

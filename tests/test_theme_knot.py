@@ -151,51 +151,88 @@ def test_client_theme_knot_stops_on_strand_error_before_ipc(
     assert RecordingConnection.commands == []
 
 
-def test_custom_knot_shell_overrides_one_handler_and_wraps_the_rest(
+def test_new_knot_owner_reuses_the_spec_with_its_own_client_colors_strand(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     RecordingConnection.commands = []
     monkeypatch.setattr(i3ipc, "Connection", RecordingConnection)
     module_root = tmp_path / "custom"
-    composition_root = module_root / "compositions" / "client_theme"
-    composition_root.mkdir(parents=True)
-    composition_root.joinpath("composition.toml").write_text(
+    colors_root = module_root / "compositions" / "client_colors"
+    colors_root.mkdir(parents=True)
+    colors_root.joinpath("composition.toml").write_text(
+        dedent(
+            """
+            [composition]
+            id = "client_colors"
+            [compositions.base]
+            use = "skaldos/sway/theme/client_colors"
+            [functions.execute]
+            description = "Map one compact custom palette to Sway client colors."
+            """
+        ).strip()
+        + "\n"
+    )
+    colors_root.joinpath("runtime.py").write_text(
+        dedent(
+            """
+            from collections.abc import Mapping
+
+            class Runtime:
+                def __init__(self, *, context, config, base):
+                    self.base = base
+
+                def execute(self, value):
+                    if not isinstance(value, Mapping):
+                        raise ValueError("custom palette must be a mapping")
+                    mapped = {
+                        "border": value["edge"],
+                        "background": value["surface"],
+                        "text": value["text"],
+                        "indicator": value["accent"],
+                        "child_border": value["edge"],
+                    }
+                    return self.base.require("execute")(mapped)
+            """
+        ).strip()
+        + "\n"
+    )
+    theme_root = module_root / "compositions" / "client_theme"
+    theme_root.mkdir(parents=True)
+    theme_root.joinpath("composition.toml").write_text(
         dedent(
             """
             [composition]
             id = "client_theme"
             [compositions.base]
             use = "skaldos/sway/theme/client_theme"
-            export = ["set_focused_inactive", "set_unfocused", "set_urgent"]
             [compositions.client_colors]
-            use = "skaldos/sway/theme/client_colors"
+            use = "test/custom/client_colors"
             [compositions.knot]
             use = "dix/norn/knot"
             config = { model = "knot.toml" }
             [functions.set_focused]
-            description = "Custom focused effect."
+            [functions.set_focused_inactive]
+            [functions.set_unfocused]
+            [functions.set_urgent]
             [functions.execute]
-            description = "Execute the custom client theme Knot."
+            description = "Execute the custom client theme through the same Knot spec."
             """
         ).strip()
         + "\n"
     )
-    composition_root.joinpath("knot.toml").write_text(
+    theme_root.joinpath("knot.toml").write_text(
         (ROOT / "sway/theme/compositions/client_theme/sway_theme.toml").read_text()
     )
-    composition_root.joinpath("runtime.py").write_text(
+    theme_root.joinpath("runtime.py").write_text(
         dedent(
             """
-            from collections.abc import Mapping
-
             class Runtime:
                 def __init__(self, *, context, config, base, client_colors, knot):
-                    self.context, self.config = context, config
                     self.base, self.client_colors, self.knot = base, client_colors, knot
 
                 def set_focused(self, value):
-                    return "custom-focused"
+                    return self.base.require("set_focused")(value)
 
                 def set_focused_inactive(self, value):
                     return self.base.require("set_focused_inactive")(value)
@@ -207,16 +244,7 @@ def test_custom_knot_shell_overrides_one_handler_and_wraps_the_rest(
                     return self.base.require("set_urgent")(value)
 
                 def execute(self, value):
-                    return self.knot.require("execute")(
-                        value,
-                        {"client_colors": self.client_colors.require("execute")},
-                        {
-                            "set_focused": self.set_focused,
-                            "set_focused_inactive": self.set_focused_inactive,
-                            "set_unfocused": self.set_unfocused,
-                            "set_urgent": self.set_urgent,
-                        },
-                    )
+                    return self.knot.require("execute")(value)
             """
         ).strip()
         + "\n"
@@ -234,13 +262,33 @@ def test_custom_knot_shell_overrides_one_handler_and_wraps_the_rest(
             "custom-theme",
             "test/custom/client_theme",
             {},
-            composition_root,
+            theme_root,
         ),
         owner_scope_id="custom-test",
     )
 
-    focused = _colors()
-    urgent = _colors(20)
+    focused = {
+        "edge": "#010101",
+        "surface": "#020202",
+        "text": "#030303",
+        "accent": "#040404",
+    }
+    urgent = {
+        "edge": "#111111",
+        "surface": "#121212",
+        "text": "#131313",
+        "accent": "#141414",
+    }
     result = instance.api.require("execute")({"focused": focused, "urgent": urgent})
-    assert result == {"focused": "custom-focused", "urgent": None}
-    assert RecordingConnection.commands == ["client.urgent " + " ".join(urgent.values())]
+    assert result == {"focused": None, "urgent": None}
+    assert RecordingConnection.commands == [
+        "client.focused #010101 #020202 #030303 #040404 #010101",
+        "client.urgent #111111 #121212 #131313 #141414 #111111",
+    ]
+
+
+def test_client_theme_product_has_no_manual_knot_callable_tables() -> None:
+    source = (ROOT / "sway/theme/compositions/client_theme/runtime.py").read_text()
+    assert 'self.knot.require("execute")(value)' in source
+    assert '"client_colors":' not in source
+    assert '"set_focused":' not in source
