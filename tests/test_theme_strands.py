@@ -49,7 +49,7 @@ def _client_colors(tmp_path: Path):
 def test_color_strand_runs_in_real_composed_graph(tmp_path: Path) -> None:
     loaded, instance = _color(tmp_path)
 
-    assert tuple(loaded.applications) == ()
+    assert tuple(loaded.applications) == ("skaldos/sway/theme/theme",)
     assert set(loaded.compositions) == {
         "skaldos/sway/theme/client_colors",
         "skaldos/sway/theme/client_theme",
