@@ -8,7 +8,6 @@ from pathlib import Path
 from types import ModuleType
 
 _DIRECTIONS = ("left", "right", "up", "down")
-_STRATEGIES = ("basic", "windows-list")
 
 
 class Api:
@@ -17,6 +16,19 @@ class Api:
 
     def require(self, name: str) -> Callable[..., object]:
         return self.values[name]
+
+
+class LazyApi:
+    def __init__(self, factory: Callable[[], object], names: tuple[str, ...]):
+        self.factory, self.names = factory, names
+        self.runtime: object | None = None
+
+    def require(self, name: str) -> Callable[..., object]:
+        if name not in self.names:
+            raise KeyError(name)
+        if self.runtime is None:
+            self.runtime = self.factory()
+        return getattr(self.runtime, name)
 
 
 def execute(
@@ -40,24 +52,40 @@ def _execute_with_runtime(
     ipc: object,
     basic: object,
 ) -> dict[str, object]:
+    window_ids = _route_arguments(strategy, arguments)
+    nav_mod = _runtime(module_root / "apps/nav/runtime.py", "skaldos_sway_nav")
+    nav = nav_mod.Runtime(
+        context=None,
+        config={},
+        basic_nav=_api(basic, _DIRECTIONS),
+        windows_list_nav=LazyApi(
+            lambda: _windows_list_runtime(module_root, ipc, basic), _DIRECTIONS
+        ),
+    )
+    return _result(nav, direction, strategy, window_ids)
+
+
+def _route_arguments(strategy: str, arguments: list[str]) -> list[int] | None:
     if strategy == "basic":
         if arguments:
             raise ValueError("basic strategy does not accept window IDs")
-        return _result(basic, direction)
-    if strategy != "windows-list":
-        raise ValueError(f"unsupported strategy: {strategy!r}")
-    window_ids = _window_ids(arguments)
+        return None
+    if strategy == "windows-list":
+        return _window_ids(arguments)
+    return None
+
+
+def _windows_list_runtime(module_root: Path, ipc: object, basic: object) -> object:
     window_list_mod = _runtime(
         module_root / "compositions/windows_list_nav/runtime.py",
         "skaldos_sway_windows_list_nav",
     )
-    window_list = window_list_mod.Runtime(
+    return window_list_mod.Runtime(
         context=None,
         config={},
         basic_nav=_api(basic, _DIRECTIONS),
         ipc=_ipc_api(ipc),
     )
-    return _result(window_list, direction, window_ids)
 
 
 def main(argv: list[str] | None = None, module_root: Path | None = None) -> int:

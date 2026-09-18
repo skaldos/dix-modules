@@ -139,10 +139,15 @@ def test_windows_list_build_failure_falls_back(tmp_path):
     root = tmp_path / "sway"
     (root / "compositions/ipc").mkdir(parents=True)
     (root / "compositions/basic_nav").mkdir(parents=True)
+    (root / "apps/nav").mkdir(parents=True)
     (root / "navigation_entry.py").write_bytes(
         (ROOT / "sway/navigation_entry.py").read_bytes()
     )
-    for path in ("compositions/ipc/runtime.py", "compositions/basic_nav/runtime.py"):
+    for path in (
+        "compositions/ipc/runtime.py",
+        "compositions/basic_nav/runtime.py",
+        "apps/nav/runtime.py",
+    ):
         source = ROOT / "sway" / path
         (root / path).write_bytes(source.read_bytes())
     value = invoke(tmp_path, "right", "windows-list", "32", root=root)
