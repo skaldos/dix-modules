@@ -1,0 +1,14 @@
+[app]
+id = "cli"
+
+[compositions.typer]
+use = "dix/cli/typer"
+
+[apps.basic]
+use = "skaldos/sway/nav/basic"
+
+[apps.windows_list]
+use = "skaldos/sway/nav/windows_list"
+
+[functions.main]
+description = "Run the Skaldos Sway navigation management CLI."

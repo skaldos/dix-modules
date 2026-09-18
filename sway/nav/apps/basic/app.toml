@@ -1,0 +1,23 @@
+[app]
+id = "basic"
+
+[compositions.basic_nav]
+use = "skaldos/sway/nav/basic_nav"
+
+[compositions.binding]
+use = "skaldos/sway/nav/binding"
+
+[functions.set]
+description = "Select native basic navigation for Sway keybindings."
+
+[functions.left]
+description = "Move focus one native Sway step to the left."
+
+[functions.right]
+description = "Move focus one native Sway step to the right."
+
+[functions.up]
+description = "Move focus one native Sway step up."
+
+[functions.down]
+description = "Move focus one native Sway step down."

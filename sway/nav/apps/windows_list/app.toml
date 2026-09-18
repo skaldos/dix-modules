@@ -1,0 +1,23 @@
+[app]
+id = "windows_list"
+
+[compositions.windows_list_nav]
+use = "skaldos/sway/nav/windows_list_nav"
+
+[compositions.binding]
+use = "skaldos/sway/nav/binding"
+
+[functions.set]
+description = "Select window-list navigation for Sway keybindings."
+
+[functions.left]
+description = "Navigate left through an explicit list of window IDs."
+
+[functions.right]
+description = "Navigate right through an explicit list of window IDs."
+
+[functions.up]
+description = "Navigate up through an explicit list of window IDs."
+
+[functions.down]
+description = "Navigate down through an explicit list of window IDs."

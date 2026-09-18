@@ -26,9 +26,12 @@ def test_sway_is_an_umbrella_with_two_explicit_module_roots():
         "skaldos/sway/nav/binding",
         "skaldos/sway/nav/windows_list_nav",
     }
-    assert [value.id for value in nav.application_definitions] == [
-        "skaldos/sway/nav/nav"
-    ]
+    assert {value.id for value in nav.application_definitions} == {
+        "skaldos/sway/nav/basic",
+        "skaldos/sway/nav/cli",
+        "skaldos/sway/nav/nav",
+        "skaldos/sway/nav/windows_list",
+    }
 
 
 def test_replacement_branch_has_no_removed_feature_sources():

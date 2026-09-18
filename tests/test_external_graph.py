@@ -12,6 +12,7 @@ from dix.core import (
 )
 from dix.core.application import ApplicationInstanceSpec
 from dix.core.composition import CompositionInstanceSpec
+from dix.modules import first_party_module_path
 
 
 class Node:
@@ -58,6 +59,7 @@ def test_stateless_navigation_compositions_run_in_real_dix_graph(tmp_path, monke
     compositions = registry.require("composition", CompositionComponent)
     applications = registry.require("application", ApplicationComponent)
     root = Path(__file__).parents[1] / "sway"
+    modules.load_module(first_party_module_path("dix/cli"), module_id="dix/cli")
     modules.load_module(root / "core", module_id="skaldos/sway/core")
     modules.load_module(root / "nav", module_id="skaldos/sway/nav")
 
@@ -100,3 +102,4 @@ def test_stateless_navigation_compositions_run_in_real_dix_graph(tmp_path, monke
     compositions.destroy_instance("navigation-proof", "basic")
     modules.unload_module("skaldos/sway/nav")
     modules.unload_module("skaldos/sway/core")
+    modules.unload_module("dix/cli")
