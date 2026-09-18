@@ -9,6 +9,10 @@ handler = "set_focused"
 strand = "client_colors"
 handler = "set_focused_inactive"
 
+[fields.focused_tab_title]
+strand = "focused_tab_title_colors"
+handler = "set_focused_tab_title"
+
 [fields.unfocused]
 strand = "client_colors"
 handler = "set_unfocused"

@@ -1,0 +1,12 @@
+[composition]
+id = "focused_tab_title_colors"
+
+[compositions.strand]
+use = "dix/norn/strand"
+config = { spec = "strand.toml" }
+
+[compositions.color]
+use = "skaldos/sway/theme/color"
+
+[functions.execute]
+description = "Validate all three colors of the Sway focused tab title class."

@@ -57,6 +57,14 @@ def _colors(start: int = 1) -> dict[str, str]:
     }
 
 
+def _focused_tab_title_colors(start: int = 1) -> dict[str, str]:
+    return {
+        "border": f"#{start:06x}",
+        "background": f"#{start + 1:06x}",
+        "text": f"#{start + 2:06x}",
+    }
+
+
 @pytest.mark.parametrize(
     "function_id,command_name",
     [
@@ -81,7 +89,7 @@ def test_client_theme_handlers_are_direct_safe_effects(
     ]
 
 
-def test_client_theme_surface_contains_execute_and_four_handlers(
+def test_client_theme_surface_contains_execute_and_five_handlers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -90,9 +98,48 @@ def test_client_theme_surface_contains_execute_and_four_handlers(
         "execute",
         "set_focused",
         "set_focused_inactive",
+        "set_focused_tab_title",
         "set_unfocused",
         "set_urgent",
     }
+
+
+def test_focused_tab_title_handler_is_a_direct_safe_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance = _client_theme(tmp_path, monkeypatch)
+    colors = _focused_tab_title_colors()
+
+    assert instance.api.require("set_focused_tab_title")(colors) is None
+    assert RecordingConnection.commands == [
+        "client.focused_tab_title " + " ".join(colors.values())
+    ]
+
+
+@pytest.mark.parametrize(
+    "value,match",
+    [
+        ([], "must be a mapping"),
+        ({}, "missing fields"),
+        ({**_focused_tab_title_colors(), "extra": "#000000"}, "additional fields"),
+        ({**_focused_tab_title_colors(), "border": 1}, "invalid"),
+        (
+            {**_focused_tab_title_colors(), "border": "#000000; exec evil"},
+            "invalid",
+        ),
+    ],
+)
+def test_focused_tab_title_handler_rejects_unsafe_values_before_ipc(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    value: object,
+    match: str,
+) -> None:
+    instance = _client_theme(tmp_path, monkeypatch)
+    with pytest.raises(Exception, match=match):
+        instance.api.require("set_focused_tab_title")(value)
+    assert RecordingConnection.commands == []
 
 
 @pytest.mark.parametrize(
@@ -123,15 +170,22 @@ def test_client_theme_knot_executes_in_model_order_and_ignores_other_fields(
 ) -> None:
     instance = _client_theme(tmp_path, monkeypatch)
     focused = _colors(1)
+    focused_tab_title = _focused_tab_title_colors(10)
     urgent = _colors(20)
 
     result = instance.api.require("execute")(
-        {"ignored": {"anything": True}, "urgent": urgent, "focused": focused}
+        {
+            "ignored": {"anything": True},
+            "urgent": urgent,
+            "focused_tab_title": focused_tab_title,
+            "focused": focused,
+        }
     )
 
-    assert result == {"focused": None, "urgent": None}
+    assert result == {"focused": None, "focused_tab_title": None, "urgent": None}
     assert RecordingConnection.commands == [
         "client.focused " + " ".join(focused.values()),
+        "client.focused_tab_title " + " ".join(focused_tab_title.values()),
         "client.urgent " + " ".join(urgent.values()),
     ]
     RecordingConnection.commands = []
@@ -209,11 +263,14 @@ def test_new_knot_owner_reuses_the_spec_with_its_own_client_colors_strand(
             use = "skaldos/sway/theme/client_theme"
             [compositions.client_colors]
             use = "test/custom/client_colors"
+            [compositions.focused_tab_title_colors]
+            use = "skaldos/sway/theme/focused_tab_title_colors"
             [compositions.knot]
             use = "dix/norn/knot"
             config = { model = "knot.toml" }
             [functions.set_focused]
             [functions.set_focused_inactive]
+            [functions.set_focused_tab_title]
             [functions.set_unfocused]
             [functions.set_urgent]
             [functions.execute]
@@ -229,14 +286,20 @@ def test_new_knot_owner_reuses_the_spec_with_its_own_client_colors_strand(
         dedent(
             """
             class Runtime:
-                def __init__(self, *, context, config, base, client_colors, knot):
-                    self.base, self.client_colors, self.knot = base, client_colors, knot
+                def __init__(self, *, context, config, base, client_colors,
+                             focused_tab_title_colors, knot):
+                    self.base, self.client_colors = base, client_colors
+                    self.focused_tab_title_colors = focused_tab_title_colors
+                    self.knot = knot
 
                 def set_focused(self, value):
                     return self.base.require("set_focused")(value)
 
                 def set_focused_inactive(self, value):
                     return self.base.require("set_focused_inactive")(value)
+
+                def set_focused_tab_title(self, value):
+                    return self.base.require("set_focused_tab_title")(value)
 
                 def set_unfocused(self, value):
                     return self.base.require("set_unfocused")(value)

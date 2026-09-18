@@ -47,6 +47,24 @@ def _client_colors(tmp_path: Path):
     return loaded, instance
 
 
+def _focused_tab_title_colors(tmp_path: Path):
+    registry = create_core_component_registry()
+    modules = registry.require("module", ModuleComponent)
+    compositions = registry.require("composition", CompositionComponent)
+    _load_theme_dependencies(modules)
+    loaded = modules.load_module(ROOT / "sway/theme", module_id="skaldos/sway/theme")
+    instance = compositions.create_instance(
+        CompositionInstanceSpec(
+            "focused-tab-title-colors",
+            "skaldos/sway/theme/focused_tab_title_colors",
+            {},
+            tmp_path,
+        ),
+        owner_scope_id="theme-test",
+    )
+    return loaded, instance
+
+
 def test_color_strand_runs_in_real_composed_graph(tmp_path: Path) -> None:
     loaded, instance = _color(tmp_path)
 
@@ -58,6 +76,7 @@ def test_color_strand_runs_in_real_composed_graph(tmp_path: Path) -> None:
         "skaldos/sway/theme/client_colors",
         "skaldos/sway/theme/client_theme",
         "skaldos/sway/theme/color",
+        "skaldos/sway/theme/focused_tab_title_colors",
     }
     assert {item.id for item in instance.api.functions()} == {"execute"}
     execute = instance.api.require("execute")
@@ -88,6 +107,7 @@ def test_client_colors_composes_five_color_calls_and_returns_new_dict(tmp_path: 
         "skaldos/sway/theme/client_colors",
         "skaldos/sway/theme/client_theme",
         "skaldos/sway/theme/color",
+        "skaldos/sway/theme/focused_tab_title_colors",
     }
     assert {item.id for item in instance.api.functions()} == {"execute"}
     raw = {
@@ -164,3 +184,57 @@ def test_client_colors_preserves_color_domain_error(tmp_path: Path) -> None:
         instance.api.require("execute")(value)
     assert type(captured.value).__name__ == "SwayColorError"
     assert "Sway color" in str(captured.value)
+
+
+def test_focused_tab_title_colors_compose_three_color_calls(tmp_path: Path) -> None:
+    _, instance = _focused_tab_title_colors(tmp_path)
+    raw = {
+        "border": "#010203",
+        "background": "#11121314",
+        "text": "#AABBCC",
+    }
+
+    result = instance.api.require("execute")(raw)
+    assert result == raw
+    assert type(result) is dict
+    assert result is not raw
+
+
+@pytest.mark.parametrize(
+    "value,marker",
+    [
+        ({"border": "#010203", "background": "#111213"}, "missing_field"),
+        (
+            {
+                "border": "#010203",
+                "background": "#111213",
+                "text": "#AABBCC",
+                "extra": "#000000",
+            },
+            "additional_field",
+        ),
+        (
+            {"border": 1, "background": "#111213", "text": "#AABBCC"},
+            "incompatible_type",
+        ),
+    ],
+)
+def test_focused_tab_title_colors_reject_structural_model_errors(
+    tmp_path: Path,
+    value: object,
+    marker: str,
+) -> None:
+    _, instance = _focused_tab_title_colors(tmp_path)
+    with pytest.raises(Exception) as captured:
+        instance.api.require("execute")(value)
+    assert type(captured.value).__name__ == "StrandInputValueError"
+    assert marker in str(captured.value)
+
+
+def test_focused_tab_title_colors_preserve_color_domain_error(tmp_path: Path) -> None:
+    _, instance = _focused_tab_title_colors(tmp_path)
+    with pytest.raises(Exception) as captured:
+        instance.api.require("execute")(
+            {"border": "#010203", "background": "bad", "text": "#AABBCC"}
+        )
+    assert type(captured.value).__name__ == "SwayColorError"

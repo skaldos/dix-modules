@@ -1,0 +1,10 @@
+[strand]
+id = "sway_focused_tab_title_colors"
+
+[input]
+type = "model"
+model = "focused_tab_title_colors.toml"
+
+[output]
+type = "model"
+model = "focused_tab_title_colors.toml"

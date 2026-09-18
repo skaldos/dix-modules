@@ -4,6 +4,9 @@ id = "client_theme"
 [compositions.client_colors]
 use = "skaldos/sway/theme/client_colors"
 
+[compositions.focused_tab_title_colors]
+use = "skaldos/sway/theme/focused_tab_title_colors"
+
 [compositions.ipc]
 use = "skaldos/sway/core/ipc"
 
@@ -16,6 +19,9 @@ description = "Set the complete focused Sway client color class."
 
 [functions.set_focused_inactive]
 description = "Set the complete focused-inactive Sway client color class."
+
+[functions.set_focused_tab_title]
+description = "Set the complete focused-tab-title Sway client color class."
 
 [functions.set_unfocused]
 description = "Set the complete unfocused Sway client color class."
