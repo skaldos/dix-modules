@@ -1,7 +1,57 @@
 import sys
 from pathlib import Path
 
+import pytest
 from dix.core.application import ApplicationRuntimeContext
+
+
+@pytest.mark.parametrize("direction", ["left", "right", "up", "down"])
+def test_basic_navigation_exposes_native_direction_steps(load_runtime, api, direction):
+    current = [10]
+    commands = []
+
+    def move(value):
+        commands.append(value)
+        current[0] = 20
+
+    runtime = load_runtime("sway/compositions/basic_nav/runtime.py")(
+        context=None,
+        config={},
+        ipc=api(focused_con_id=lambda: current[0], focus_direction=move),
+    )
+    assert getattr(runtime, direction)() == {
+        "direction": direction,
+        "origin_id": 10,
+        "focused_id": 20,
+        "changed": True,
+    }
+    assert commands == [direction]
+
+
+def test_basic_navigation_enforces_ipc_boundaries(load_runtime, api):
+    Runtime = load_runtime("sway/compositions/basic_nav/runtime.py")
+    unchanged = Runtime(
+        context=None,
+        config={},
+        ipc=api(focused_con_id=lambda: 10, focus_direction=lambda _value: None),
+    )
+    assert unchanged.left()["changed"] is False
+
+    invalid_id = Runtime(
+        context=None,
+        config={},
+        ipc=api(focused_con_id=lambda: True, focus_direction=lambda _value: None),
+    )
+    with pytest.raises(TypeError, match="positive integer"):
+        invalid_id.left()
+
+    invalid_return = Runtime(
+        context=None,
+        config={},
+        ipc=api(focused_con_id=lambda: 10, focus_direction=lambda _value: False),
+    )
+    with pytest.raises(TypeError, match="must return None"):
+        invalid_return.left()
 
 
 def test_navigation_basic_and_group(load_runtime, api, tmp_path):
@@ -25,7 +75,7 @@ def test_navigation_basic_and_group(load_runtime, api, tmp_path):
             {"con_id": 30, "parent_id": 1, "children": [], "focus": []},
         ],
     )
-    Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
+    Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
     Group = load_runtime("sway/apps/navigation_group/runtime.py")
     c = ApplicationRuntimeContext(
         instance_id="x",
@@ -121,7 +171,7 @@ def test_group_navigation_restores_origin_when_no_target(load_runtime, api, tmp_
             {"con_id": 30, "parent_id": 1, "children": [], "focus": []},
         ],
     )
-    Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
+    Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
     Group = load_runtime("sway/apps/navigation_group/runtime.py")
     context = ApplicationRuntimeContext(
         instance_id="x",
@@ -172,7 +222,7 @@ def test_group_navigation_resolves_hidden_leaf_in_entered_branch(load_runtime, a
             {"con_id": 10, "parent_id": 200, "children": [], "focus": []},
         ],
     )
-    Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
+    Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
     Group = load_runtime("sway/apps/navigation_group/runtime.py")
     context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
     basic = Basic(context=context, config={}, ipc=ipc)
@@ -202,7 +252,7 @@ def test_group_navigation_direct_hit_does_not_read_topology(load_runtime, api, t
         live_con_ids=lambda: [10, 20],
         navigation_topology=lambda: (_ for _ in ()).throw(AssertionError("must stay lazy")),
     )
-    Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
+    Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
     Group = load_runtime("sway/apps/navigation_group/runtime.py")
     context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
     basic = Basic(context=context, config={}, ipc=ipc)
@@ -236,7 +286,7 @@ def test_group_navigation_reports_failed_direct_focus(load_runtime, api, tmp_pat
             {"con_id": 10, "parent_id": 200, "children": [], "focus": []},
         ],
     )
-    Basic = load_runtime("sway/apps/navigation_basic/runtime.py")
+    Basic = load_runtime("sway/compositions/basic_nav/runtime.py")
     Group = load_runtime("sway/apps/navigation_group/runtime.py")
     context = ApplicationRuntimeContext("x", "x", "x", tmp_path, tmp_path, tmp_path, "x")
     basic = Basic(context=context, config={}, ipc=ipc)
@@ -247,7 +297,5 @@ def test_group_navigation_reports_failed_direct_focus(load_runtime, api, tmp_pat
         active_members=api(get=lambda: [30]),
         ipc=ipc,
     )
-    import pytest
-
     with pytest.raises(RuntimeError, match="direct focus failed"):
         group.left()

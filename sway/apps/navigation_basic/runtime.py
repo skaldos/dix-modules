@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 from collections.abc import Callable, Mapping
+from pathlib import Path
 from typing import Protocol
 
 
@@ -9,36 +11,37 @@ class Api(Protocol):
 
 
 class Runtime:
-    def __init__(self, *, context: object, config: Mapping[str, object], ipc: Api) -> None:
-        self.context, self.config, self.ipc = context, config, ipc
+    def __init__(
+        self,
+        *,
+        context: object,
+        config: Mapping[str, object],
+        ipc: Api,
+    ) -> None:
+        self.context, self.config = context, config
+        path = Path(__file__).parents[2] / "compositions/basic_nav/runtime.py"
+        spec = importlib.util.spec_from_file_location("skaldos_sway_basic_nav_adapter", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"cannot load basic_nav runtime: {path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        delegate = module.Runtime(context=context, config=config, ipc=ipc)
+        self._require = lambda name: getattr(delegate, name)
 
     def left(self) -> dict[str, object]:
-        return self._move("left")
+        return self._call("left")
 
     def right(self) -> dict[str, object]:
-        return self._move("right")
+        return self._call("right")
 
     def up(self) -> dict[str, object]:
-        return self._move("up")
+        return self._call("up")
 
     def down(self) -> dict[str, object]:
-        return self._move("down")
+        return self._call("down")
 
-    def _move(self, direction: str) -> dict[str, object]:
-        origin = _id(self.ipc.require("focused_con_id")())
-        result = self.ipc.require("focus_direction")(direction)
-        if result is not None:
-            raise TypeError("focus_direction must return None")
-        focused = _id(self.ipc.require("focused_con_id")())
-        return {
-            "direction": direction,
-            "origin_id": origin,
-            "focused_id": focused,
-            "changed": focused != origin,
-        }
-
-
-def _id(value: object) -> int:
-    if type(value) is not int or value <= 0:
-        raise TypeError("focused con_id must be a positive integer")
-    return value
+    def _call(self, direction: str) -> dict[str, object]:
+        result = self._require(direction)()
+        if not isinstance(result, dict):
+            raise TypeError("basic navigation result must be a dictionary")
+        return result
