@@ -25,9 +25,25 @@ class Runtime:
         *,
         context: object,
         config: Mapping[str, object],
+        client_colors: Api,
         ipc: Api,
+        knot: Api,
     ) -> None:
-        self.context, self.config, self.ipc = context, config, ipc
+        self.context, self.config = context, config
+        self.client_colors, self.ipc, self.knot = client_colors, ipc, knot
+
+    def execute(self, value: object) -> dict[str, object]:
+        """Apply all known present fields through Client Colors and their public handler."""
+        return self.knot.require("execute")(
+            value,
+            {"client_colors": self.client_colors.require("execute")},
+            {
+                "set_focused": self.set_focused,
+                "set_focused_inactive": self.set_focused_inactive,
+                "set_unfocused": self.set_unfocused,
+                "set_urgent": self.set_urgent,
+            },
+        )
 
     def set_focused(self, value: object) -> None:
         """Apply one complete focused client color mapping."""

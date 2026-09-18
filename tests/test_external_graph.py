@@ -144,6 +144,9 @@ class Runtime:
     registry = create_core_component_registry()
     modules = registry.require("module", ModuleComponent)
     compositions = registry.require("composition", CompositionComponent)
+    modules.load_module(
+        Path(__file__).parents[1] / "sway/core", module_id="skaldos/sway/core"
+    )
     modules.load_module(first_party_module_path("dix/norn"), module_id="dix/norn")
     modules.load_module(Path(__file__).parents[1] / "sway/theme", module_id="skaldos/sway/theme")
     modules.load_module(consumer, module_id="test/consumer")

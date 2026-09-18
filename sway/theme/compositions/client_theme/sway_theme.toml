@@ -1,0 +1,18 @@
+[knot]
+id = "sway_client_theme"
+
+[fields.focused]
+strand = "client_colors"
+handler = "set_focused"
+
+[fields.focused_inactive]
+strand = "client_colors"
+handler = "set_focused_inactive"
+
+[fields.unfocused]
+strand = "client_colors"
+handler = "set_unfocused"
+
+[fields.urgent]
+strand = "client_colors"
+handler = "set_urgent"

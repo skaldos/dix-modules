@@ -36,6 +36,7 @@ def test_sway_is_an_umbrella_with_three_explicit_module_roots():
 
     assert {value.id for value in theme.composition_definitions} == {
         "skaldos/sway/theme/client_colors",
+        "skaldos/sway/theme/client_theme",
         "skaldos/sway/theme/color",
     }
     assert theme.application_definitions == ()

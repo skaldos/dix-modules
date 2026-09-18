@@ -1,8 +1,15 @@
 [composition]
 id = "client_theme"
 
+[compositions.client_colors]
+use = "skaldos/sway/theme/client_colors"
+
 [compositions.ipc]
 use = "skaldos/sway/core/ipc"
+
+[compositions.knot]
+use = "dix/norn/knot"
+config = { model = "sway_theme.toml" }
 
 [functions.set_focused]
 description = "Set the complete focused Sway client color class."
@@ -15,3 +22,6 @@ description = "Set the complete unfocused Sway client color class."
 
 [functions.set_urgent]
 description = "Set the complete urgent Sway client color class."
+
+[functions.execute]
+description = "Apply all known present client-theme fields through the Norn Knot."

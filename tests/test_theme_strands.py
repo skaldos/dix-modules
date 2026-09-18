@@ -10,11 +10,16 @@ from dix.modules import first_party_module_path
 ROOT = Path(__file__).parents[1]
 
 
+def _load_theme_dependencies(modules: ModuleComponent) -> None:
+    modules.load_module(ROOT / "sway/core", module_id="skaldos/sway/core")
+    modules.load_module(first_party_module_path("dix/norn"), module_id="dix/norn")
+
+
 def _color(tmp_path: Path):
     registry = create_core_component_registry()
     modules = registry.require("module", ModuleComponent)
     compositions = registry.require("composition", CompositionComponent)
-    modules.load_module(first_party_module_path("dix/norn"), module_id="dix/norn")
+    _load_theme_dependencies(modules)
     loaded = modules.load_module(ROOT / "sway/theme", module_id="skaldos/sway/theme")
     instance = compositions.create_instance(
         CompositionInstanceSpec("color", "skaldos/sway/theme/color", {}, tmp_path),
@@ -27,7 +32,7 @@ def _client_colors(tmp_path: Path):
     registry = create_core_component_registry()
     modules = registry.require("module", ModuleComponent)
     compositions = registry.require("composition", CompositionComponent)
-    modules.load_module(first_party_module_path("dix/norn"), module_id="dix/norn")
+    _load_theme_dependencies(modules)
     loaded = modules.load_module(ROOT / "sway/theme", module_id="skaldos/sway/theme")
     instance = compositions.create_instance(
         CompositionInstanceSpec(
@@ -47,6 +52,7 @@ def test_color_strand_runs_in_real_composed_graph(tmp_path: Path) -> None:
     assert tuple(loaded.applications) == ()
     assert set(loaded.compositions) == {
         "skaldos/sway/theme/client_colors",
+        "skaldos/sway/theme/client_theme",
         "skaldos/sway/theme/color",
     }
     assert {item.id for item in instance.api.functions()} == {"execute"}
@@ -76,6 +82,7 @@ def test_client_colors_composes_five_color_calls_and_returns_new_dict(tmp_path: 
     loaded, instance = _client_colors(tmp_path)
     assert set(loaded.compositions) == {
         "skaldos/sway/theme/client_colors",
+        "skaldos/sway/theme/client_theme",
         "skaldos/sway/theme/color",
     }
     assert {item.id for item in instance.api.functions()} == {"execute"}
