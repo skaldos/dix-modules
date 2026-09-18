@@ -11,7 +11,7 @@ from dix.bootstrap import build_launcher
 
 ROOT = Path(__file__).parents[1].resolve()
 DIX = Path(os.environ.get("DIX_REPOSITORY", "/cwd/repos/dix")).resolve()
-NAV = ROOT / "sway/integrations/bin/skaldos-sway-nav"
+NAV = ROOT / "sway/integrations/navigation/bin/dix-sway-nav"
 MANAGE = ROOT / "sway/integrations/bin/skaldos-sway-json"
 
 
@@ -93,8 +93,14 @@ def test_documented_wrapper_path_runs_real_dix_roba_and_fake_sway() -> None:
     )
     sway_launchers = base / "launchers"
     sway_launchers.mkdir()
-    for name in ("skaldos-sway-nav.py", "skaldos-sway-json.py"):
-        shutil.copy2(ROOT / "sway/integrations/launchers" / name, sway_launchers / name)
+    shutil.copy2(
+        ROOT / "sway/integrations/navigation/launchers/dix-sway-nav.py",
+        sway_launchers / "dix-sway-nav.py",
+    )
+    shutil.copy2(
+        ROOT / "sway/integrations/launchers/skaldos-sway-json.py",
+        sway_launchers / "skaldos-sway-json.py",
+    )
     dix_env = base / "dix.env"
     dix_env.write_text(
         f'export DIX_VENV="{DIX / ".venv"}"\n'

@@ -135,19 +135,22 @@ be edited into malformed values.
 ## 4. Build and install the local launchers and commands
 
 The management entry needs a running ROBA daemon, the DIX control registry, and a managed context.
-The integration installer builds the committed Typer application, copies both Sway Python
-launchers, and installs the small commands below `DIX_BIN`:
+The general integration installer builds the committed Typer application and installs management,
+theme, and Wofi commands below `DIX_BIN`. Navigation is deliberately separate; its own installer
+copies only the direct low-latency launcher and `dix-sway-nav` wrapper:
 
 ```sh
 "$SWAY_ROOT/integrations/install"
+"$SWAY_ROOT/integrations/navigation/install"
 export PATH=$HOME/.local/bin:$PATH
 dix-roba --help
 skaldos-sway --help
 ```
 
 The resulting `dix-roba`, full Typer-based `skaldos-sway`, direct `skaldos-sway-json`,
-low-latency `skaldos-sway-nav`, and Wofi commands all source `~/.dix/env`. Their Python launchers
-live together below `DIX_LAUNCHERS`.
+low-latency `dix-sway-nav`, and Wofi commands all source `~/.dix/env`. Their Python launchers
+live together below `DIX_LAUNCHERS`, but only the explicit navigation installer owns
+`dix-sway-nav`. The general installer neither installs nor invokes it.
 
 The installer also copies the complete `dix.toml` and `roba.toml` examples plus their PNG
 wallpapers into `SKALDOS_SWAY_THEME_DIR` when they do not exist. Re-running it never overwrites
@@ -185,15 +188,16 @@ visible error, not an attach operation.
 
 ## 6. Inspect the transparent wrappers
 
-The installer already placed the wrappers below `DIX_BIN`. They contain only this boundary:
+The two explicit installers placed their respective wrappers below `DIX_BIN`. They contain only
+this boundary:
 
 ```sh
-cat "$HOME/.local/bin/skaldos-sway-nav"
+cat "$HOME/.local/bin/dix-sway-nav"
 cat "$HOME/.local/bin/skaldos-sway-json"
 ```
 
 The wrappers never start ROBA. `skaldos-sway-json` is the broad DIX/ROBA management path;
-`skaldos-sway-nav` is the direct dependency-light navigation path.
+`dix-sway-nav` is the direct dependency-light navigation path.
 
 ## 7. Manage groups
 
@@ -315,9 +319,9 @@ launcher; those remain separate integrations.
 The low-latency command is stateless. Select the strategy explicitly after the direction:
 
 ```sh
-skaldos-sway-nav right basic
-skaldos-sway-nav left windows-list 23 3542 1
-skaldos-sway-nav up windows-list
+dix-sway-nav right basic
+dix-sway-nav left windows-list 23 3542 1
+dix-sway-nav up windows-list
 ```
 
 `windows-list` receives positive unique Sway window `con_id` values. An empty list is a successful
@@ -358,23 +362,27 @@ are shell command boundaries, not a DIX API.
 
 ## 11. Add the Sway bindings
 
-The complete maintained fragment is
-[`integrations/sway/config`](integrations/sway/config). Copy it into the Sway configuration and
-replace `/home/YOU` with the real absolute home directory:
+Management/Wofi bindings and navigation bindings have separate ownership. Copy both maintained
+fragments, [`integrations/sway/config`](integrations/sway/config) and
+[`integrations/navigation/sway/config`](integrations/navigation/sway/config), into the Sway
+configuration and replace `/home/YOU` with the real absolute home directory:
 
 ```text
 set $skaldos_home /home/YOU
 set $skaldos_bin $skaldos_home/.local/bin
 
-bindsym $mod+h exec --no-startup-id $skaldos_bin/skaldos-sway-nav left basic
-bindsym $mod+j exec --no-startup-id $skaldos_bin/skaldos-sway-nav down basic
-bindsym $mod+k exec --no-startup-id $skaldos_bin/skaldos-sway-nav up basic
-bindsym $mod+l exec --no-startup-id $skaldos_bin/skaldos-sway-nav right basic
-
 bindsym $mod+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-select
 bindsym $mod+Shift+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-add
 bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-remove
 bindsym $mod+t exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-theme
+
+set $dix_home /home/YOU
+set $dix_bin $dix_home/.local/bin
+
+bindsym $mod+h exec --no-startup-id $dix_bin/dix-sway-nav left basic
+bindsym $mod+j exec --no-startup-id $dix_bin/dix-sway-nav down basic
+bindsym $mod+k exec --no-startup-id $dix_bin/dix-sway-nav up basic
+bindsym $mod+l exec --no-startup-id $dix_bin/dix-sway-nav right basic
 ```
 
 Sway receives no DIX-specific environment. Every command loads the current values from
@@ -386,7 +394,7 @@ test:
 ```sh
 swaymsg reload
 skaldos-sway-json list-lines
-skaldos-sway-nav right basic
+dix-sway-nav right basic
 ```
 
 The final command moves focus. Once a group has live members, select it and test the fixed bindings.

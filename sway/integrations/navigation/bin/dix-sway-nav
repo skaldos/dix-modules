@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+env_file=${DIX_ENV:-$HOME/.dix/env}
+[ -r "$env_file" ] || {
+    printf 'dix-sway-nav: DIX environment file is not readable: %s\n' "$env_file" >&2
+    exit 1
+}
+. "$env_file"
+
+[ -x "$DIX_VENV/bin/python" ] || {
+    printf 'dix-sway-nav: DIX environment Python is not executable: %s\n' "$DIX_VENV/bin/python" >&2
+    exit 1
+}
+[ -r "$DIX_LAUNCHERS/dix-sway-nav.py" ] || {
+    printf 'dix-sway-nav: launcher is not readable: %s\n' "$DIX_LAUNCHERS/dix-sway-nav.py" >&2
+    exit 1
+}
+exec "$DIX_VENV/bin/python" "$DIX_LAUNCHERS/dix-sway-nav.py" "$@"

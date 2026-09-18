@@ -1,0 +1,9 @@
+# The installed command loads ~/.dix/env itself. Sway only needs one stable command path.
+set $dix_home /home/YOU
+set $dix_bin $dix_home/.local/bin
+
+# Fixed basic bindings. A later slice may materialize a runtime route after the direction.
+bindsym $mod+h exec --no-startup-id $dix_bin/dix-sway-nav left basic
+bindsym $mod+j exec --no-startup-id $dix_bin/dix-sway-nav down basic
+bindsym $mod+k exec --no-startup-id $dix_bin/dix-sway-nav up basic
+bindsym $mod+l exec --no-startup-id $dix_bin/dix-sway-nav right basic

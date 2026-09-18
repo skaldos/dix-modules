@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+navigation_root=$(CDPATH= cd "$(dirname "$0")" && pwd -P)
+env_file=${DIX_ENV:-$HOME/.dix/env}
+
+[ -r "$env_file" ] || {
+    printf 'DIX environment file is not readable: %s\n' "$env_file" >&2
+    exit 1
+}
+. "$env_file"
+
+for variable in DIX_VENV DIX_LAUNCHERS DIX_BIN SKALDOS_SWAY_ROOT; do
+    eval "value=\${$variable:-}"
+    [ -n "$value" ] || {
+        printf 'DIX environment value is missing: %s\n' "$variable" >&2
+        exit 1
+    }
+done
+[ -x "$DIX_VENV/bin/python" ] || {
+    printf 'DIX environment Python is not executable: %s\n' "$DIX_VENV/bin/python" >&2
+    exit 1
+}
+[ -d "$SKALDOS_SWAY_ROOT" ] || {
+    printf 'Sway module root is not a directory: %s\n' "$SKALDOS_SWAY_ROOT" >&2
+    exit 1
+}
+
+mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN"
+cp "$navigation_root/launchers/dix-sway-nav.py" "$DIX_LAUNCHERS/dix-sway-nav.py"
+cp "$navigation_root/bin/dix-sway-nav" "$DIX_BIN/dix-sway-nav"
+chmod 0755 "$DIX_LAUNCHERS/dix-sway-nav.py" "$DIX_BIN/dix-sway-nav"
+
+# These are the exact paths created by the pre-UP-037 navigation integration.
+rm -f "$DIX_LAUNCHERS/skaldos-sway-nav.py" "$DIX_BIN/skaldos-sway-nav"
+
+printf 'installed navigation launcher in %s\n' "$DIX_LAUNCHERS"
+printf 'installed navigation command in %s\n' "$DIX_BIN"

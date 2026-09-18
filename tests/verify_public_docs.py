@@ -95,6 +95,7 @@ def verify() -> None:
         "DIX_ROBA_RUNTIME_ROOT",
         "DIX_ROBA_LOGS_ROOT",
         '"$SWAY_ROOT/integrations/install"',
+        '"$SWAY_ROOT/integrations/navigation/install"',
         '"$HOME/.dix/env"',
         "DIX_LAUNCHERS",
         "dix-roba --help",
@@ -102,7 +103,7 @@ def verify() -> None:
         "managed start",
         "control create_context",
         "--context_id skaldos-sway",
-        "skaldos-sway-nav",
+        "dix-sway-nav",
         "skaldos-sway-json",
         "create work",
         "list_lines",
@@ -181,20 +182,29 @@ def verify() -> None:
                 f"{relative} places external source in the DIX build input before initial sync"
             )
 
-    config = (ROOT / "sway/integrations/sway/config").read_text()
-    active_config_lines = [
-        line for line in config.splitlines() if line and not line.startswith("#")
-    ]
-    for line in active_config_lines:
-        if line not in sway_en or line not in sway_de:
-            raise AssertionError(f"public Sway fragment drifted from committed config: {line}")
+    for config_path in (
+        ROOT / "sway/integrations/sway/config",
+        ROOT / "sway/integrations/navigation/sway/config",
+    ):
+        active_config_lines = [
+            line
+            for line in config_path.read_text().splitlines()
+            if line and not line.startswith("#")
+        ]
+        for line in active_config_lines:
+            if line not in sway_en or line not in sway_de:
+                raise AssertionError(
+                    f"public Sway fragment drifted from committed config: {line}"
+                )
 
     requirements = (ROOT / "sway/requirements.txt").read_text()
     if requirements != "i3ipc==2.2.1\n":
         raise AssertionError("Sway dependency ownership is not exact")
 
     for relative in (
-        Path("sway/integrations/bin/skaldos-sway-nav"),
+        Path("sway/integrations/navigation/install"),
+        Path("sway/integrations/navigation/bin/dix-sway-nav"),
+        Path("sway/integrations/navigation/launchers/dix-sway-nav.py"),
         Path("sway/integrations/bin/skaldos-sway-json"),
         Path("sway/integrations/wofi/select"),
         Path("sway/integrations/wofi/add"),

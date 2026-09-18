@@ -9,6 +9,9 @@ ROOT = Path(__file__).parents[1]
 INTEGRATIONS = ROOT / "sway" / "integrations"
 BIN = INTEGRATIONS / "bin"
 LAUNCHERS = INTEGRATIONS / "launchers"
+NAVIGATION = INTEGRATIONS / "navigation"
+NAV_BIN = NAVIGATION / "bin"
+NAV_LAUNCHERS = NAVIGATION / "launchers"
 
 
 def _layout(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -27,10 +30,11 @@ def _layout(tmp_path: Path) -> tuple[Path, Path, Path]:
     python.write_text('#!/bin/sh\nprintf "arg=%s\\n" "$@"\nexit "${FAKE_EXIT:-0}"\n')
     python.chmod(0o755)
 
-    for name in ("skaldos-sway-nav.py", "skaldos-sway-json.py"):
-        shutil.copy2(LAUNCHERS / name, launcher_root / name)
-    for name in ("skaldos-sway-nav", "skaldos-sway-json"):
-        shutil.copy2(BIN / name, user_bin / name)
+    shutil.copy2(LAUNCHERS / "skaldos-sway-json.py", launcher_root / "skaldos-sway-json.py")
+    shutil.copy2(NAV_LAUNCHERS / "dix-sway-nav.py", launcher_root / "dix-sway-nav.py")
+    shutil.copy2(BIN / "skaldos-sway-json", user_bin / "skaldos-sway-json")
+    shutil.copy2(NAV_BIN / "dix-sway-nav", user_bin / "dix-sway-nav")
+    for name in ("dix-sway-nav", "skaldos-sway-json"):
         (user_bin / name).chmod(0o755)
 
     (dix_home / "env").write_text(
@@ -59,10 +63,10 @@ def test_sway_owns_one_exact_dependency() -> None:
 def test_wrappers_load_one_central_environment_and_forward_arguments(tmp_path: Path) -> None:
     home, user_bin, launcher_root = _layout(tmp_path)
 
-    nav = _run(home, user_bin / "skaldos-sway-nav", "left", "windows-list", "23")
+    nav = _run(home, user_bin / "dix-sway-nav", "left", "windows-list", "23")
     assert nav.returncode == 0, nav.stderr
     assert nav.stdout.splitlines() == [
-        f"arg={launcher_root / 'skaldos-sway-nav.py'}",
+        f"arg={launcher_root / 'dix-sway-nav.py'}",
         "arg=left",
         "arg=windows-list",
         "arg=23",
@@ -108,7 +112,7 @@ def test_wrapper_reports_missing_central_environment(tmp_path: Path) -> None:
     home, user_bin, _ = _layout(tmp_path)
     (home / ".dix" / "env").unlink()
 
-    result = _run(home, user_bin / "skaldos-sway-nav", "left")
+    result = _run(home, user_bin / "dix-sway-nav", "left")
 
     assert result.returncode == 1
     assert "DIX environment file is not readable" in result.stderr
@@ -118,30 +122,34 @@ def test_wrapper_reports_missing_dix_environment(tmp_path: Path) -> None:
     home, user_bin, _ = _layout(tmp_path)
     (home / ".dix" / "src" / "dix" / ".venv" / "bin" / "python").unlink()
 
-    result = _run(home, user_bin / "skaldos-sway-nav", "left")
+    result = _run(home, user_bin / "dix-sway-nav", "left")
 
     assert result.returncode == 1
     assert "DIX environment Python is not executable" in result.stderr
 
 
-def test_sway_fragment_only_addresses_installed_commands() -> None:
-    config = (INTEGRATIONS / "sway" / "config").read_text()
+def test_sway_fragments_have_disjoint_command_ownership() -> None:
+    general = (INTEGRATIONS / "sway" / "config").read_text()
+    navigation = (NAVIGATION / "sway" / "config").read_text()
     for value in (
-        "$skaldos_bin/skaldos-sway-nav",
         "$skaldos_bin/skaldos-sway-wofi-theme",
         "$skaldos_bin/skaldos-sway-wofi-select",
         "$skaldos_bin/skaldos-sway-wofi-add",
         "$skaldos_bin/skaldos-sway-wofi-remove",
     ):
-        assert value in config
-    for value in (
-        "DIX_ROBA_RUNTIME_ROOT",
-        "SKALDOS_SWAY_GROUP_STATE_FILE",
-        "SKALDOS_SWAY_MANAGEMENT",
-        "exec_always",
-    ):
-        assert value not in config
-    assert not any(line.startswith("mode ") for line in config.splitlines())
+        assert value in general
+        assert value not in navigation
+    assert "dix-sway-nav" not in general
+    assert "$dix_bin/dix-sway-nav" in navigation
+    for config in (general, navigation):
+        for value in (
+            "DIX_ROBA_RUNTIME_ROOT",
+            "SKALDOS_SWAY_GROUP_STATE_FILE",
+            "SKALDOS_SWAY_MANAGEMENT",
+            "exec_always",
+        ):
+            assert value not in config
+        assert not any(line.startswith("mode ") for line in config.splitlines())
 
 
 def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_path: Path) -> None:
@@ -188,7 +196,7 @@ def test_environment_template_is_posix_and_exports_all_shared_boundaries(tmp_pat
     ]
 
 
-def test_installer_builds_both_typer_launchers_and_installs_the_full_cli() -> None:
+def test_general_installer_builds_management_without_navigation() -> None:
     installer = (INTEGRATIONS / "install").read_text()
 
     for value in (
@@ -205,6 +213,8 @@ def test_installer_builds_both_typer_launchers_and_installs_the_full_cli() -> No
         "$integration_root/themes/wallpapers/$theme.png",
     ):
         assert value in installer
+    for forbidden in ("dix-sway-nav", "skaldos-sway-nav", "navigation/install"):
+        assert forbidden not in installer
 
 
 def test_example_themes_are_complete_and_load_through_generic_catalog(
@@ -229,7 +239,7 @@ def test_example_themes_are_complete_and_load_through_generic_catalog(
     }
 
 
-def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) -> None:
+def test_separate_installers_build_management_and_navigation_in_clone_layout(tmp_path: Path) -> None:
     dix_repository = Path(os.environ["DIX_REPOSITORY"])
     dix_source = tmp_path / "source" / "dix"
     modules = dix_source / "modules"
@@ -278,6 +288,18 @@ def test_installer_builds_both_real_clis_in_clone_shaped_layout(tmp_path: Path) 
     )
 
     assert installed.returncode == 0, installed.stderr
+    assert not (user_bin / "dix-sway-nav").exists()
+    assert not (launchers / "dix-sway-nav.py").exists()
+    nav_installed = subprocess.run(
+        [str(external / "sway" / "integrations" / "navigation" / "install")],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert nav_installed.returncode == 0, nav_installed.stderr
+    assert (user_bin / "dix-sway-nav").is_file()
+    assert (launchers / "dix-sway-nav.py").is_file()
     assert (launchers / "dix-roba.py").is_file()
     assert (launchers / "skaldos-sway.py").is_file()
     assert (dix_root / "config/skaldos/sway/themes/dix.toml").is_file()
