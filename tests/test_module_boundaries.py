@@ -39,7 +39,10 @@ def test_sway_is_an_umbrella_with_three_explicit_module_roots():
         "skaldos/sway/theme/client_theme",
         "skaldos/sway/theme/color",
     }
-    assert theme.application_definitions == ()
+    assert {value.id for value in theme.application_definitions} == {
+        "skaldos/sway/theme/cli",
+        "skaldos/sway/theme/theme",
+    }
 
 
 def test_theme_module_has_no_forbidden_runtime_dependencies():
@@ -48,10 +51,18 @@ def test_theme_module_has_no_forbidden_runtime_dependencies():
         for path in (SWAY / "theme").rglob("*")
         if path.is_file() and path.suffix in {".py", ".toml"}
     ).lower()
-    for forbidden in ("roba", "pydantic", "typer", "click", "httpx", "i3ipc"):
+    for forbidden in ("roba", "pydantic", "httpx"):
         assert forbidden not in product
-    assert not (SWAY / "theme/apps").exists()
-    assert not (SWAY / "theme/integrations").exists()
+    compositions = "\n".join(
+        path.read_text()
+        for path in (SWAY / "theme/compositions").rglob("*")
+        if path.is_file() and path.suffix in {".py", ".toml"}
+    ).lower()
+    for forbidden in ("typer", "click", "i3ipc"):
+        assert forbidden not in compositions
+    assert (SWAY / "theme/apps/theme").is_dir()
+    assert (SWAY / "theme/apps/cli").is_dir()
+    assert (SWAY / "theme/integrations").is_dir()
 
 
 def test_replacement_branch_has_no_removed_feature_sources():

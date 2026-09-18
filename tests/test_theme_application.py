@@ -112,6 +112,28 @@ def test_apply_delegates_the_complete_root_mapping_exactly_once(tmp_path: Path) 
     assert calls == [_full_theme()]
 
 
+def test_apply_passes_the_parser_root_object_without_copying(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "theme.toml"
+    path.write_text("")
+    document = _full_theme()
+    calls: list[object] = []
+    from sway.theme.apps.theme import runtime as theme_runtime
+
+    monkeypatch.setattr(theme_runtime.tomllib, "load", lambda _stream: document)
+    runtime = theme_runtime.Runtime(
+        context=object(),
+        config={},
+        client_theme=FakeApi(lambda value: calls.append(value) or {}),
+    )  # type: ignore[arg-type]
+
+    assert runtime.apply(str(path)) is None
+    assert len(calls) == 1
+    assert calls[0] is document
+
+
 def test_apply_expands_user_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "theme.toml"
     path.write_text("")
@@ -225,3 +247,32 @@ def test_real_graph_preserves_partial_effect_on_late_failure(
         application.api.require("apply")(str(path))
     assert type(captured.value).__name__ == "SwayColorError"
     assert len(RecordingConnection.commands) == 3
+
+
+def test_real_graph_preserves_partial_effect_on_late_ipc_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application = _application(tmp_path, monkeypatch)
+    path = tmp_path / "late-ipc-error.toml"
+    path.write_text(_toml(_full_theme()))
+    RecordingConnection.fail_at = 4
+
+    with pytest.raises(Exception) as captured:
+        application.api.require("apply")(str(path))
+    assert type(captured.value).__name__ == "SwayIpcError"
+    assert len(RecordingConnection.commands) == 4
+
+
+def test_real_graph_parse_failure_happens_before_ipc(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application = _application(tmp_path, monkeypatch)
+    path = tmp_path / "invalid.toml"
+    path.write_text("focused = [")
+
+    with pytest.raises(Exception) as captured:
+        application.api.require("apply")(str(path))
+    assert type(captured.value).__name__ == "TOMLDecodeError"
+    assert RecordingConnection.commands == []

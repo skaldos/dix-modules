@@ -49,7 +49,7 @@ def test_navigation_delivery_files_have_inspectable_ownership():
     assert 'id = "skaldos/sway/nav"' in template
 
 
-def test_theme_source_delivery_is_composition_only():
+def test_theme_source_delivery_contains_only_the_explicit_theme_surface():
     theme = ROOT / "sway/theme"
     assert {
         path.relative_to(theme).as_posix()
@@ -58,6 +58,10 @@ def test_theme_source_delivery_is_composition_only():
     } == {
         "README.de.md",
         "README.md",
+        "apps/cli/app.toml",
+        "apps/cli/runtime.py",
+        "apps/theme/app.toml",
+        "apps/theme/runtime.py",
         "compositions/client_colors/client_colors.toml",
         "compositions/client_colors/composition.toml",
         "compositions/client_colors/runtime.py",
@@ -68,4 +72,8 @@ def test_theme_source_delivery_is_composition_only():
         "compositions/color/composition.toml",
         "compositions/color/runtime.py",
         "compositions/color/strand.toml",
+        "integrations/bin/dix-sway-theme-cli",
+        "integrations/env",
+        "integrations/install",
+        "integrations/launchers/dix-sway-theme-cli.toml",
     }

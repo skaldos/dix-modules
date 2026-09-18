@@ -38,6 +38,9 @@ def test_bilingual_sway_guides_describe_optional_theme_strands():
             "dix/norn/strand",
             "dix/norn/knot",
             "#RRGGBB",
+            "dix-sway-theme-cli",
+            "theme apply --file",
+            "sway/theme/integrations/install",
         ):
             assert required in value
 
@@ -47,3 +50,6 @@ def test_bilingual_sway_guides_describe_optional_theme_strands():
         assert "skaldos/sway/theme/client_colors" in value
         assert "skaldos/sway/theme/client_theme" in value
         assert "dix/norn/knot" in value
+        assert "dix-sway-theme-cli" in value
+        assert "theme apply --file" in value
+        assert "focused_tab_title" in value and "background" in value

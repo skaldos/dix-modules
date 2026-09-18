@@ -31,6 +31,9 @@ for relative in ("sway/README.md", "sway/README.de.md"):
         "skaldos/sway/theme/client_theme",
         "dix/norn/strand",
         "dix/norn/knot",
+        "dix-sway-theme-cli",
+        "theme apply --file",
+        "sway/theme/integrations/install",
     ):
         if required not in value:
             raise SystemExit(f"{relative} misses {required!r}")
