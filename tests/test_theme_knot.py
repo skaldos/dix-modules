@@ -89,7 +89,7 @@ def test_client_theme_handlers_are_direct_safe_effects(
     ]
 
 
-def test_client_theme_surface_contains_execute_and_five_handlers(
+def test_client_theme_surface_contains_execute_and_six_handlers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -101,6 +101,7 @@ def test_client_theme_surface_contains_execute_and_five_handlers(
         "set_focused_tab_title",
         "set_unfocused",
         "set_urgent",
+        "set_background",
     }
 
 
@@ -261,6 +262,8 @@ def test_new_knot_owner_reuses_the_spec_with_its_own_client_colors_strand(
             id = "client_theme"
             [compositions.base]
             use = "skaldos/sway/theme/client_theme"
+            [compositions.background]
+            use = "skaldos/sway/theme/background"
             [compositions.client_colors]
             use = "test/custom/client_colors"
             [compositions.focused_tab_title_colors]
@@ -273,6 +276,7 @@ def test_new_knot_owner_reuses_the_spec_with_its_own_client_colors_strand(
             [functions.set_focused_tab_title]
             [functions.set_unfocused]
             [functions.set_urgent]
+            [functions.set_background]
             [functions.execute]
             description = "Execute the custom client theme through the same Knot spec."
             """
@@ -286,9 +290,9 @@ def test_new_knot_owner_reuses_the_spec_with_its_own_client_colors_strand(
         dedent(
             """
             class Runtime:
-                def __init__(self, *, context, config, base, client_colors,
+                def __init__(self, *, context, config, base, background, client_colors,
                              focused_tab_title_colors, knot):
-                    self.base, self.client_colors = base, client_colors
+                    self.base, self.background, self.client_colors = base, background, client_colors
                     self.focused_tab_title_colors = focused_tab_title_colors
                     self.knot = knot
 
@@ -306,6 +310,9 @@ def test_new_knot_owner_reuses_the_spec_with_its_own_client_colors_strand(
 
                 def set_urgent(self, value):
                     return self.base.require("set_urgent")(value)
+
+                def set_background(self, value):
+                    return self.base.require("set_background")(value)
 
                 def execute(self, value):
                     return self.knot.require("execute")(value)

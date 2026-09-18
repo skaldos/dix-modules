@@ -1,0 +1,8 @@
+[strand]
+id = "sway_background"
+
+[input]
+type = "object"
+
+[output]
+type = "object"

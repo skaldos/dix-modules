@@ -1,0 +1,9 @@
+[composition]
+id = "background"
+
+[compositions.strand]
+use = "dix/norn/strand"
+config = { spec = "strand.toml" }
+
+[functions.execute]
+description = "Validate and normalize one Sway image or color background."

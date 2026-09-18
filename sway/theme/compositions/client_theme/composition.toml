@@ -7,6 +7,9 @@ use = "skaldos/sway/theme/client_colors"
 [compositions.focused_tab_title_colors]
 use = "skaldos/sway/theme/focused_tab_title_colors"
 
+[compositions.background]
+use = "skaldos/sway/theme/background"
+
 [compositions.ipc]
 use = "skaldos/sway/core/ipc"
 
@@ -28,6 +31,9 @@ description = "Set the complete unfocused Sway client color class."
 
 [functions.set_urgent]
 description = "Set the complete urgent Sway client color class."
+
+[functions.set_background]
+description = "Set one complete image or color Sway output background."
 
 [functions.execute]
 description = "Apply all known present client-theme fields through the Norn Knot."

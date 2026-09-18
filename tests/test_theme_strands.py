@@ -73,6 +73,7 @@ def test_color_strand_runs_in_real_composed_graph(tmp_path: Path) -> None:
         "skaldos/sway/theme/theme",
     )
     assert set(loaded.compositions) == {
+        "skaldos/sway/theme/background",
         "skaldos/sway/theme/client_colors",
         "skaldos/sway/theme/client_theme",
         "skaldos/sway/theme/color",
@@ -104,6 +105,7 @@ def test_color_keeps_structural_and_domain_errors_separate(tmp_path: Path) -> No
 def test_client_colors_composes_five_color_calls_and_returns_new_dict(tmp_path: Path) -> None:
     loaded, instance = _client_colors(tmp_path)
     assert set(loaded.compositions) == {
+        "skaldos/sway/theme/background",
         "skaldos/sway/theme/client_colors",
         "skaldos/sway/theme/client_theme",
         "skaldos/sway/theme/color",
