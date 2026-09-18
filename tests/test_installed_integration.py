@@ -57,8 +57,17 @@ class Connection:
     return root
 
 
-def run(command: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, text=True, capture_output=True, env=env, check=False)
+def run(
+    command: list[str], env: dict[str, str], *, cwd: Path | None = None
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        text=True,
+        capture_output=True,
+        env=env,
+        cwd=cwd,
+        check=False,
+    )
 
 
 def test_installer_delivers_both_commands_and_is_repeatable(tmp_path):
@@ -100,8 +109,14 @@ def test_installed_commands_execute_against_fake_sway(tmp_path):
         "FAKE_SWAY_LOG": str(log),
     }
     binaries = tmp_path / "bin"
+    unrelated_cwd = tmp_path / "unrelated-cwd"
+    unrelated_cwd.mkdir()
 
-    direct = run([str(binaries / "dix-sway-nav"), "right", "basic"], runtime_env)
+    direct = run(
+        [str(binaries / "dix-sway-nav"), "right", "basic"],
+        runtime_env,
+        cwd=unrelated_cwd,
+    )
     assert direct.returncode == 0, direct.stderr
     assert '"executed":"basic"' in direct.stdout
 
@@ -116,6 +131,7 @@ def test_installed_commands_execute_against_fake_sway(tmp_path):
             "42",
         ],
         runtime_env,
+        cwd=unrelated_cwd,
     )
     assert managed.returncode == 0, managed.stderr
     assert log.read_text().splitlines() == [
