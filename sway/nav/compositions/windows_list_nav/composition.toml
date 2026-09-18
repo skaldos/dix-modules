@@ -1,0 +1,20 @@
+[composition]
+id = "windows_list_nav"
+
+[compositions.basic_nav]
+use = "skaldos/sway/nav/basic_nav"
+
+[compositions.ipc]
+use = "skaldos/sway/core/ipc"
+
+[functions.left]
+description = "Focus left through an explicit list of window con_ids."
+
+[functions.right]
+description = "Focus right through an explicit list of window con_ids."
+
+[functions.up]
+description = "Focus up through an explicit list of window con_ids."
+
+[functions.down]
+description = "Focus down through an explicit list of window con_ids."

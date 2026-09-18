@@ -1,0 +1,13 @@
+[app]
+id = "nav"
+
+[compositions.basic_nav]
+use = "skaldos/sway/nav/basic_nav"
+
+[compositions.windows_list_nav]
+use = "skaldos/sway/nav/windows_list_nav"
+
+[functions.left]
+[functions.right]
+[functions.up]
+[functions.down]

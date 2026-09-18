@@ -1,9 +1,0 @@
-[composition]
-id = "theme_files"
-
-[functions.create]
-description = "Create one complete editable Sway theme without overwriting an existing file."
-[functions.list]
-description = "List valid Sway theme IDs in lexical order."
-[functions.load]
-description = "Load and strictly validate one complete Sway theme."

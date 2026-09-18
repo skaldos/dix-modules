@@ -1,8 +1,0 @@
-[app]
-id = "navigation_basic"
-[compositions.ipc]
-use = "skaldos/sway/ipc"
-[functions.left]
-[functions.right]
-[functions.up]
-[functions.down]

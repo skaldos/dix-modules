@@ -59,7 +59,7 @@ def invoke(tmp_path, *arguments, failures=0, root=None, extra_env=None):
     command = [
         sys.executable,
         str(ROOT / "tests/probes/navigation_probe.py"),
-        str(root or ROOT / "sway"),
+        str(root or ROOT / "sway/nav"),
         *arguments,
     ]
     result = subprocess.run(
@@ -136,20 +136,26 @@ def test_route_and_parameter_errors_fallback_once(tmp_path, arguments, requested
 
 
 def test_windows_list_build_failure_falls_back(tmp_path):
-    root = tmp_path / "sway"
-    (root / "compositions/ipc").mkdir(parents=True)
+    root = tmp_path / "sway/nav"
+    core = root.parent / "core"
+    (core / "compositions/ipc").mkdir(parents=True)
     (root / "compositions/basic_nav").mkdir(parents=True)
     (root / "apps/nav").mkdir(parents=True)
     (root / "navigation_entry.py").write_bytes(
-        (ROOT / "sway/navigation_entry.py").read_bytes()
+        (ROOT / "sway/nav/navigation_entry.py").read_bytes()
     )
-    for path in (
-        "compositions/ipc/runtime.py",
-        "compositions/basic_nav/runtime.py",
-        "apps/nav/runtime.py",
+    for target, source in (
+        (
+            core / "compositions/ipc/runtime.py",
+            ROOT / "sway/core/compositions/ipc/runtime.py",
+        ),
+        (
+            root / "compositions/basic_nav/runtime.py",
+            ROOT / "sway/nav/compositions/basic_nav/runtime.py",
+        ),
+        (root / "apps/nav/runtime.py", ROOT / "sway/nav/apps/nav/runtime.py"),
     ):
-        source = ROOT / "sway" / path
-        (root / path).write_bytes(source.read_bytes())
+        target.write_bytes(source.read_bytes())
     value = invoke(tmp_path, "right", "windows-list", "32", root=root)
     assert value["code"] == 0 and envelope(value)["fallback"] is True
     assert "windows_list_nav/runtime.py" in value["stderr"]
@@ -157,17 +163,23 @@ def test_windows_list_build_failure_falls_back(tmp_path):
 
 
 def test_direct_entry_delegates_to_the_nav_application_router(tmp_path):
-    root = tmp_path / "sway"
-    (root / "compositions/ipc").mkdir(parents=True)
+    root = tmp_path / "sway/nav"
+    core = root.parent / "core"
+    (core / "compositions/ipc").mkdir(parents=True)
     (root / "compositions/basic_nav").mkdir(parents=True)
     (root / "apps/nav").mkdir(parents=True)
-    for path in (
-        "navigation_entry.py",
-        "compositions/ipc/runtime.py",
-        "compositions/basic_nav/runtime.py",
+    for target, source in (
+        (root / "navigation_entry.py", ROOT / "sway/nav/navigation_entry.py"),
+        (
+            core / "compositions/ipc/runtime.py",
+            ROOT / "sway/core/compositions/ipc/runtime.py",
+        ),
+        (
+            root / "compositions/basic_nav/runtime.py",
+            ROOT / "sway/nav/compositions/basic_nav/runtime.py",
+        ),
     ):
-        source = ROOT / "sway" / path
-        (root / path).write_bytes(source.read_bytes())
+        target.write_bytes(source.read_bytes())
     (root / "apps/nav/runtime.py").write_text(
         """
 class Runtime:

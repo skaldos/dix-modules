@@ -1,9 +1,0 @@
-[composition]
-id = "themed_group_files"
-
-[functions.list]
-description = "List canonical persistent themed-group definition IDs."
-[functions.load]
-description = "Load and strictly validate one themed-group definition."
-[functions.load_all]
-description = "Load the complete themed-group catalog and reject duplicate groups."

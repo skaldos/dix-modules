@@ -1,6 +1,0 @@
-[composition]
-id = "navigation_target"
-[functions.get]
-description = "Read the closed navigation target alias."
-[functions.set]
-description = "Atomically replace the navigation target alias."

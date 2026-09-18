@@ -26,7 +26,7 @@ def test_ipc_normalizes_regular_and_floating_children(load_runtime, monkeypatch)
     import i3ipc
 
     monkeypatch.setattr(i3ipc, "Connection", Connection)
-    Runtime = load_runtime("sway/compositions/ipc/runtime.py")
+    Runtime = load_runtime("sway/core/compositions/ipc/runtime.py")
     assert Runtime(context=None, config={}).navigation_topology() == [
         {"con_id": 1, "parent_id": None, "children": [2, 3], "focus": [3, 2]},
         {"con_id": 2, "parent_id": 1, "children": [], "focus": []},
@@ -76,7 +76,7 @@ def test_topology_validation_rejects_invalid_graphs(topology, message):
     import importlib.util
     from pathlib import Path
 
-    path = Path(__file__).parents[1] / "sway/compositions/ipc/runtime.py"
+    path = Path(__file__).parents[1] / "sway/core/compositions/ipc/runtime.py"
     spec = importlib.util.spec_from_file_location("topology_validation", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -98,7 +98,7 @@ def test_ipc_rejects_cycles_in_raw_tree(monkeypatch):
     import importlib.util
     from pathlib import Path
 
-    path = Path(__file__).parents[1] / "sway/compositions/ipc/runtime.py"
+    path = Path(__file__).parents[1] / "sway/core/compositions/ipc/runtime.py"
     spec = importlib.util.spec_from_file_location("cyclic_topology", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

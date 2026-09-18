@@ -1,9 +1,0 @@
-# The installed commands load ~/.dix/env themselves. Sway only needs stable command paths.
-set $skaldos_home /home/YOU
-set $skaldos_bin $skaldos_home/.local/bin
-
-# Choose keys appropriate for the local configuration.
-bindsym $mod+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-select
-bindsym $mod+Shift+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-add
-bindsym $mod+Ctrl+g exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-remove
-bindsym $mod+t exec --no-startup-id $skaldos_bin/skaldos-sway-wofi-theme

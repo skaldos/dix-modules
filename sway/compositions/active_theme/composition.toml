@@ -1,7 +1,0 @@
-[composition]
-id = "active_theme"
-
-[functions.get]
-description = "Read the last theme successfully applied by the theme application."
-[functions.set]
-description = "Atomically project the last successfully applied theme ID."

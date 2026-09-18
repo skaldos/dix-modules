@@ -1,6 +1,0 @@
-[composition]
-id = "active_members"
-[functions.get]
-description = "Read canonical active group member IDs."
-[functions.set]
-description = "Atomically replace canonical active group member IDs."
