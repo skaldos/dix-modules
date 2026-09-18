@@ -24,7 +24,7 @@ print(
             "commands": getattr(sys.modules.get("i3ipc"), "commands", []),
             "loaded": sorted(
                 name
-                for name in ("roba", "httpx", "pydantic", "typer", "click")
+                for name in ("dix", "roba", "httpx", "pydantic", "typer", "click")
                 if name in sys.modules
             ),
         },

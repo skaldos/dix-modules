@@ -217,6 +217,25 @@ def test_general_installer_builds_management_without_navigation() -> None:
         assert forbidden not in installer
 
 
+def test_navigation_command_replaces_legacy_source_without_alias() -> None:
+    legacy = "skaldos-sway-nav"
+    legacy_mentions = []
+    for path in (ROOT / "sway").rglob("*"):
+        if (
+            not path.is_file()
+            or path.suffix in {".png", ".pyc"}
+            or "__pycache__" in path.parts
+        ):
+            continue
+        text = path.read_text()
+        if legacy in text:
+            legacy_mentions.append((path.relative_to(ROOT), text.count(legacy)))
+
+    assert not (BIN / legacy).exists()
+    assert not (LAUNCHERS / f"{legacy}.py").exists()
+    assert legacy_mentions == [(Path("sway/integrations/navigation/install"), 2)]
+
+
 def test_example_themes_are_complete_and_load_through_generic_catalog(
     load_runtime, tmp_path, monkeypatch
 ) -> None:

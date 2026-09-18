@@ -156,6 +156,45 @@ def test_windows_list_build_failure_falls_back(tmp_path):
     assert value["commands"] == ["focus right"]
 
 
+def test_direct_entry_delegates_to_the_nav_application_router(tmp_path):
+    root = tmp_path / "sway"
+    (root / "compositions/ipc").mkdir(parents=True)
+    (root / "compositions/basic_nav").mkdir(parents=True)
+    (root / "apps/nav").mkdir(parents=True)
+    for path in (
+        "navigation_entry.py",
+        "compositions/ipc/runtime.py",
+        "compositions/basic_nav/runtime.py",
+    ):
+        source = ROOT / "sway" / path
+        (root / path).write_bytes(source.read_bytes())
+    (root / "apps/nav/runtime.py").write_text(
+        """
+class Runtime:
+    def __init__(self, *, context, config, basic_nav, windows_list_nav):
+        self.basic_nav = basic_nav
+        self.windows_list_nav = windows_list_nav
+
+    def right(self, strategy="basic", window_ids=None):
+        return {
+            "router": "nav-application-runtime",
+            "strategy": strategy,
+            "window_ids": window_ids,
+        }
+""".lstrip()
+    )
+
+    value = invoke(tmp_path, "right", "basic", root=root)
+
+    assert envelope(value)["result"] == {
+        "router": "nav-application-runtime",
+        "strategy": "basic",
+        "window_ids": None,
+    }
+    assert value["commands"] == []
+    assert value["loaded"] == []
+
+
 def test_window_loop_error_falls_back_from_current_focus(tmp_path):
     value = invoke(tmp_path, "right", "windows-list", "392", failures=1)
     assert value["code"] == 0 and envelope(value)["fallback"] is True
