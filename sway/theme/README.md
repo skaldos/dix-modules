@@ -15,3 +15,7 @@ color-format rule and its domain error.
 `border`, `background`, `text`, `indicator`, and `child_border`. The model boundary owns the
 mapping structure. Every field is independently processed by the locally composed Color strand,
 and the result is returned as a new native dictionary.
+
+`skaldos/sway/theme/client_theme` exposes four safe client-color effects for focused,
+focused-inactive, unfocused, and urgent clients. Each accepts one complete client-color mapping and
+uses the shared Sway Core IPC command boundary.

@@ -1,0 +1,17 @@
+[composition]
+id = "client_theme"
+
+[compositions.ipc]
+use = "skaldos/sway/core/ipc"
+
+[functions.set_focused]
+description = "Set the complete focused Sway client color class."
+
+[functions.set_focused_inactive]
+description = "Set the complete focused-inactive Sway client color class."
+
+[functions.set_unfocused]
+description = "Set the complete unfocused Sway client color class."
+
+[functions.set_urgent]
+description = "Set the complete urgent Sway client color class."
