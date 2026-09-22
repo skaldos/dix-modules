@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+integration_root=$(CDPATH='' cd "$(dirname "$0")" && pwd -P)
+module_root=$(CDPATH='' cd "$integration_root/.." && pwd -P)
+bin_dir=${DIX_BIN:-$HOME/.local/bin}
+venv_dir=${SKALDOS_WORKBENCH_VENV:-${XDG_DATA_HOME:-$HOME/.local/share}/skaldos/visidata-venv}
+
+command -v uv >/dev/null 2>&1 || {
+    printf 'uv is required to install the VisiData workbench\n' >&2
+    exit 1
+}
+mkdir -p "$bin_dir" "$(dirname "$venv_dir")"
+uv venv --python 3.12 "$venv_dir"
+uv pip install --python "$venv_dir/bin/python" -r "$module_root/requirements.txt"
+
+python3 - "$bin_dir/skaldos-workbench" "$venv_dir/bin/python" "$module_root/launch.py" <<'PY'
+from pathlib import Path
+from shlex import quote
+import sys
+
+target, python, launcher = map(Path, sys.argv[1:])
+target.write_text(
+    "#!/bin/sh\nexec " + quote(str(python)) + " " + quote(str(launcher)) + ' "$@"\n',
+    encoding="utf-8",
+)
+target.chmod(0o755)
+PY
+printf 'installed %s (source: %s)\n' "$bin_dir/skaldos-workbench" "$module_root"
