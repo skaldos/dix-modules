@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import copy
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import pytest
 
-pytest.importorskip("visidata")
+try:
+    version("visidata")
+except PackageNotFoundError:
+    pytest.skip("VisiData distribution is not installed", allow_module_level=True)
 
 ROOT = Path(__file__).parents[1] / "visidata"
 sys.path.insert(0, str(ROOT))

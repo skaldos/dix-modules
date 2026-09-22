@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
         from skaldos_workbench.ui import JsonDraftSheet
 
         from visidata import vd
-    except ModuleNotFoundError:
+    except ImportError:
         print("VisiData is not installed in this Python environment", file=sys.stderr)
         return 1
 
