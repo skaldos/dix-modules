@@ -1,0 +1,5 @@
+[access]
+name = "roba-key"
+adapter = "dix-roba-cli"
+get = "get_key"
+set = "set_key"
