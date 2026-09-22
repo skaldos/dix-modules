@@ -31,6 +31,11 @@ Context einen Capability-Socket mit nativem `read` **und** `write` fuer den
 Context (oder die exakt adressierte Instanz) erzeugen und dessen Pfad nutzen.
 **Keinen** Owner-Token an die Workbench geben:
 
+**Capability-Scope ist nicht Key-Scope.** Ein Socket mit `read`/`write` auf
+`context` kann auch andere Keys in diesem Context bedienen; nur die
+Workbench selbst bindet sich an den gewaehlten Key. Socketpfad schuetzen
+und fuer Experimente besser einen eigenen Test-Context nutzen.
+
 ```sh
 skaldos-workbench \
   --dix-roba-cli "$HOME/.local/bin/dix-roba-cli" \

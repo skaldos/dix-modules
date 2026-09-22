@@ -31,6 +31,11 @@ a Context and a capability socket with native `read` **and** `write` on that
 Context (or the exact addressed Instance), then use the returned socket path.
 Do **not** pass an owner token to this workbench. Example with placeholders:
 
+**Capability scope is not key scope.** A socket granted `read`/`write` on
+`context` can access other keys in that Context too; the workbench merely
+binds itself to one named key. Protect the socket path and prefer a dedicated
+test Context for experiments.
+
 ```sh
 skaldos-workbench \
   --dix-roba-cli "$HOME/.local/bin/dix-roba-cli" \

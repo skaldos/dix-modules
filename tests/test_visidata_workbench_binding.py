@@ -124,6 +124,23 @@ def test_cli_errors_are_value_free(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert "secret" not in str(exc.value) and "payload" not in str(exc.value)
 
 
+def test_cli_timeout_does_not_chain_json_bearing_argv(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    binary = tmp_path / "dix-roba-cli"
+    binary.touch()
+
+    def time_out(argv, **_kwargs):
+        raise subprocess.TimeoutExpired(argv, 10)
+
+    monkeypatch.setattr(subprocess, "run", time_out)
+    access = RobaCliAccess(binary, "unix:/tmp/context/sockets/rw.sock", "profile")
+    with pytest.raises(AccessError, match="could not complete") as exc:
+        access.set_key({"secret": "payload"})
+    assert exc.value.__suppress_context__
+    assert "payload" not in str(exc.value)
+
+
 def test_cli_requires_capability_locator(tmp_path: Path) -> None:
     binary = tmp_path / "dix-roba-cli"
     binary.touch()

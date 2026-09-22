@@ -33,14 +33,14 @@ class RobaCliAccess:
         result = self._call("get")
         try:
             return json.loads(result, parse_constant=_reject_constant)
-        except ValueError as exc:
-            raise AccessError("dix-roba-cli data get did not return JSON") from exc
+        except ValueError:
+            raise AccessError("dix-roba-cli data get did not return JSON") from None
 
     def set_key(self, value: object) -> None:
         try:
             encoded = json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
-        except (TypeError, ValueError) as exc:
-            raise ValueError("draft is not a finite JSON value") from exc
+        except (TypeError, ValueError):
+            raise ValueError("draft is not a finite JSON value") from None
         self._call("set", encoded)
 
     def _call(self, method: str, encoded: str | None = None) -> str:
@@ -54,8 +54,9 @@ class RobaCliAccess:
             result = subprocess.run(
                 argv, capture_output=True, text=True, check=False, timeout=self.timeout,
             )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise AccessError(f"dix-roba-cli data {method} could not complete") from exc
+        except (OSError, subprocess.TimeoutExpired):
+            # TimeoutExpired can retain argv, including --value_json, in its traceback.
+            raise AccessError(f"dix-roba-cli data {method} could not complete") from None
         if result.returncode:
             # The CLI may include the submitted value or backend details in stderr.
             raise AccessError(
