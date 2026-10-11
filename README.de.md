@@ -17,9 +17,9 @@ wiederherzustellen.
 Einstieg: [deutsche Sway-Anleitung](sway/README.de.md) oder
 [englische Sway-Anleitung](sway/README.md).
 
-Die getrennte [VisiData-Workbench](visidata/README.de.md) (auch
-[auf Englisch](visidata/README.md)) ist ein V0-Editor fuer einen explizit
-gebundenen ROBA-Key via `dix-roba-cli`; sie gehoert nicht zu den Sway-Modulen.
+Die getrennte [VisiData-Loom-Workbench](visidata/README.de.md) (auch
+[auf Englisch](visidata/README.md)) ist ein providerneutraler V0-Client mit direkt in-process
+gebundener `dix/roba/loom`-Application; sie gehoert nicht zu den Sway-Modulen.
 
 ## Lizenz
 

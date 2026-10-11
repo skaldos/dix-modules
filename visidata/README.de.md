@@ -1,82 +1,115 @@
-# Skaldos VisiData-Workbench (V0)
+# Direkte VisiData-Loom-Workbench (V0)
 
-Ein kleiner interaktiver JSON-Editor fuer **einen vorhandenen** ROBA-Context-
-Key. Keine ROBA-Admin-UI, kein persistenter Profil-Editor und kein generischer
-Command-Runner. Das technische [`roba-key.toml`](templates/roba-key.toml)
-benennt bekannte Get-/Set-Operationen; das getrennte
-[`profile.toml`](templates/profile.toml) benennt das editierbare Feld. Erst die
-Laufzeitbindung waehlt Context-Socket und Key. VisiData bearbeitet eine lokale
-Kopie; nur ausdrueckliches **Apply** schreibt.
+Dieses Modul ist ein providerneutraler VisiData-Client fuer den geschlossenen Loom-Vertrag:
+
+```python
+execute(value, object_id=None)
+# -> [{"object_id": str, "description": str, "value": object}, ...]
+```
+
+Die gelieferte DIX-Application bindet den generischen Workbench direkt und in-process an
+`dix/roba/loom`. Sie ruft weder `dix-roba-cli` auf noch waehlt sie Provider, Commands oder Imports
+aus editierten Daten. `dix-roba-workbench` verlangt immer einen expliziten JSON-Seed.
 
 ## Installation
 
-Voraussetzungen: Python 3.12, `uv`, installiertes `dix-roba-cli`, vorhandener
-ROBA-Context mit **Read+Write-Capability-Socket**. `chafa` ist fuer die
-PNG-Anzeige optional. Der Installer baut eine eigene VisiData-3.4-Venv samt
-schmalem Launcher und veraendert weder DIX/ROBA noch deren Runtime:
+Voraussetzungen sind Python 3.12, `uv`, eine DIX-Venv mit ROBA-Extra sowie aktuelle Checkouts von
+DIX und diesen `dix-modules`. Die zentrale Umgebung liegt standardmaessig in `~/.dix/env` und muss
+definieren:
 
 ```sh
-# Bei angepasstem DIX_BIN vorher die eigene zentrale Env laden:
-# . "$HOME/.dix/env"
+DIX_SOURCE_ROOT=...  # DIX-Source-Checkout
+DIX_VENV=...         # DIX-Venv mit ROBA-Unterstuetzung
+DIX_LAUNCHERS=...
+DIX_BIN=...
+```
+
+VisiData 3.4 in diese DIX-Venv installieren und den normalen `python_cli`-Launcher bauen:
+
+```sh
+. "$HOME/.dix/env"
 ./visidata/integrations/install
 ```
 
-`DIX_BIN` ist standardmaessig `~/.local/bin`;
-`SKALDOS_WORKBENCH_VENV` ist standardmaessig
-`${XDG_DATA_HOME:-~/.local/share}/skaldos/visidata-venv`. Der Launcher zeigt
-auf diesen Checkout; nach dessen Verschiebung erneut installieren.
+Der Installer erzeugt nur `dix-roba-workbench` und entfernt einen vorhandenen alten Wrapper
+`$DIX_BIN/skaldos-workbench`. Unbekannte Nutzerdateien oder alte Venvs loescht er nicht. Der
+DIX-Launcher laedt derzeit auch `dix/cli`, weil das vollstaendige Modul `dix/roba` selbst eine
+CLI-Application deklariert; der Providerpfad des Workbench ruft diese CLI niemals auf.
 
-`dix-roba-cli` wie in der DIX-ROBA-Anleitung bauen/installieren. Im vorhandenen
-Context einen Capability-Socket mit nativem `read` **und** `write` fuer den
-Context (oder die exakt adressierte Instanz) erzeugen und dessen Pfad nutzen.
-**Keinen** Owner-Token an die Workbench geben:
+## Seed und Start
 
-**Capability-Scope ist nicht Key-Scope.** Ein Socket mit `read`/`write` auf
-`context` kann auch andere Keys in diesem Context bedienen; nur die
-Workbench selbst bindet sich an den gewaehlten Key. Socketpfad schuetzen
-und fuer Experimente besser einen eigenen Test-Context nutzen.
+Eine Daemon-Konfiguration ist der kleinste sinnvolle ROBA-Loom-Seed. Fuer Experimente isolierte
+Pfade verwenden:
 
-```sh
-skaldos-workbench \
-  --dix-roba-cli "$HOME/.local/bin/dix-roba-cli" \
-  --locator unix:/absoluter/context/sockets/rw.sock \
-  --key profile \
-  --logo dix
+```json
+{
+  "daemon_id": "workbench-test",
+  "runtime_root": "/tmp/workbench-test/runtime",
+  "logs_root": "/tmp/workbench-test/logs",
+  "timeout": 5.0
+}
 ```
 
-Mit `--logo roba` wird das andere aktuelle PNG gewaehlt. Beide stammen aus
-den vom Nutzer benannten `/cwd/pocs/gimp-mcp`-Assets:
+```sh
+dix-roba-workbench --seed ./seed.json --logo dix
+# alternativ: --logo roba
+```
+
+Ungueltiges oder unlesbares JSON scheitert vor VisiData und vor jedem Providercall. Beide
+gelieferten PNGs behalten ihre dokumentierten SHA-256-Werte:
 
 | Asset | SHA-256 |
 | --- | --- |
 | `assets/dix.png` | `3f2c47cdbf876a51453344bf2e6693180116a684b4b88888591c42233793ad87` |
 | `assets/roba.png` | `921757a4abb2e0e19ef647a2129b3396a29a82c436d4ee5d0eb333e0339c22b8` |
 
-Das PNG erscheint beim Start und mit **B** erneut aus VisiData. Der konkrete
-Aufruf lautet `chafa --fill block -c full --scale 0.5 <PNG>`. Auf schmalen
-Terminals oder ohne `chafa` erscheint stattdessen ein Textlabel; die
-Bearbeitung bleibt moeglich. Der Installer generiert/laedt keine Bilder.
+Branding nutzt `chafa --fill block -c full --scale 0.5`. Fehlendes Chafa, umgeleitete Ein-/Ausgabe
+oder ein kleines Terminal blockieren den Workbench nie.
 
-## Bedienung
+## Tasten und Wirkungen
+
+Reference-Sheet:
 
 | Taste | Wirkung |
 | --- | --- |
-| Enter | Objekt/Liste oeffnen |
-| e | Vorhandenen Skalar als JSON editieren (`"Text"`, `42`, `true`, `null`) |
-| a | **Ganzen** lokalen Key-Wert ueber `dix-roba-cli data set` anwenden |
-| B | Gewaehltes PNG erneut zeigen |
+| Enter | Vollstaendige Reference als abgeloesten lokalen Draft inspizieren; nie ausfuehren |
+| E | `object_id` und Wert anzeigen, bestaetigen lassen, dann exakt einmal ausfuehren |
+| B | Gewaehltes Logo erneut anzeigen |
 | q | In VisiData zurueck/beenden |
 
-Nach lokaler Aenderung steht `*draft*` im Sheet-Namen. Ein Apply-Fehler
-laesst den Entwurf stehen. V0 kann keine Keys/Listeneintraege einfuegen oder
-loeschen, Container nicht inline ersetzen, und kennt weder CAS noch
-Mehrwriter-Erkennung. **Apply ersetzt den ganzen Key** und kann damit eine
-parallele Aenderung an diesem Key ueberschreiben; Nachbar-Keys bleiben
-unveraendert. Kein automatischer Readback, kein Write der Template-Datei,
-keine ROBA-Persistenz-/Restart-Zusage. Backendfehler werden ohne Ausgabe des
-uebergebenen JSON oder von Credentials zusammengefasst.
+Draft-Sheet:
 
-Tests vom Repo-Root: `uv run --no-project --with visidata==3.4 --with
-pytest==9.1.1 --python 3.12 python -m pytest -q
-tests/test_visidata_workbench_*.py`. Menschliche Sichtabnahme braucht ein
-echtes Terminal.
+| Taste | Wirkung |
+| --- | --- |
+| Enter | In Mapping/Liste drillen; nie ausfuehren |
+| e | Gewaehlten JSON-kompatiblen Skalar lokal ersetzen |
+| r | Vollstaendigen JSON-kompatiblen Teilbaum lokal ersetzen |
+| E | Vollstaendigen Draft anzeigen, bestaetigen und exakt einmal ausfuehren |
+| q | Zum vorherigen Sheet zurueckkehren |
+
+**Jede Reference kann eine externe Wirkung darstellen.** Der generische Client klassifiziert Namen
+wie `read`, `write`, `start` oder `delete` bewusst nicht. Enter, Edit, Sheetnavigation und Ende
+bleiben lokal; nach der initialen Seed-Aufloesung ruft nur **E** den Provider und verlangt immer
+Bestaetigung. Cancel ruft nichts auf. Providerexceptions bleiben sichtbar und erhalten den Draft.
+Ein leeres Ergebnis ist erfolgreich und oeffnet ein leeres Reference-Sheet. History ist nur
+Navigation, niemals Undo oder Rollback externer Wirkungen.
+
+Das lokale interaktive Sheet zeigt absichtlich vollstaendige Werte, einschliesslich von ROBA
+gelieferter Tokens und Socket-Capabilities. Nur in einem vertrauenswuerdigen Terminal verwenden;
+Screenshots, Scrollback und Aufzeichnungen schuetzen. V0 besitzt keine automatische Redaction,
+Clipboard-/Export-Policy, Credential-Recovery, Session-Persistenz, CAS,
+Mehrwriter-Konfliktbehandlung oder Rollback. Native Nicht-JSON-Werte sind inspizierbar, koennen
+aber nicht verlustbehaftet zurueckgeschrieben werden.
+
+## Tests
+
+Vom Repository-Root mit verfuegbarem gepinnten ROBA-Source:
+
+```sh
+uv run --no-project --with /cwd/repos/roba --with visidata==3.4 \
+  --with pytest==9.1.1 --python 3.12 \
+  python -m pytest -q tests/test_visidata_*.py
+```
+
+Der reale Test nutzt nur einen temporaeren Daemon und temporaeren State. Die interaktive
+Sichtabnahme benoetigt weiterhin ein echtes Terminal.
