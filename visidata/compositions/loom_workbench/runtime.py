@@ -28,3 +28,23 @@ class Runtime:
         session = LoomSession(execute)
         session.resolve(seed)
         return session
+
+    def start(
+        self,
+        execute: Callable[[object, str | None], object],
+        seed: object,
+        logo: str = "dix",
+    ) -> int:
+        """Resolve the seed and run VisiData without exposing provider selection."""
+        from visidata import vd
+
+        from .branding import show_logo
+        from .ui import ReferenceSheet
+
+        session = self.create_session(execute, seed)
+        show_logo(logo)
+        vd.options.disp_menu = False
+        sheet = ReferenceSheet(session, logo=logo)
+        sheet.reload()
+        vd.run(sheet)
+        return 0

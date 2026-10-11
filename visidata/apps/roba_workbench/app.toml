@@ -1,0 +1,11 @@
+[app]
+id = "roba_workbench"
+
+[compositions.workbench]
+use = "skaldos/visidata/loom_workbench"
+
+[compositions.loom]
+use = "dix/roba/loom"
+
+[functions.main]
+description = "Run the direct VisiData workbench for the statically bound ROBA Loom."

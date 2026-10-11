@@ -1,0 +1,26 @@
+# Installer template. Quoted @...@ values are materialized from the central DIX env.
+[launcher]
+name = "dix-roba-workbench"
+adapter = "python_cli"
+application = "skaldos/visidata/roba_workbench"
+function = "main"
+
+[[modules]]
+id = "dix/state"
+source = "@DIX_STATE_MODULE@"
+
+[[modules]]
+id = "dix/cli"
+source = "@DIX_CLI_MODULE@"
+
+[[modules]]
+id = "dix/norn"
+source = "@DIX_NORN_MODULE@"
+
+[[modules]]
+id = "dix/roba"
+source = "@DIX_ROBA_MODULE@"
+
+[[modules]]
+id = "skaldos/visidata"
+source = "@SKALDOS_VISIDATA_MODULE@"

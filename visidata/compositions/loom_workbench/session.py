@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import json
+import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
@@ -36,6 +38,46 @@ class LoomDraft:
     @property
     def dirty(self) -> bool:
         return self.value != self._original
+
+    def at(self, path: Sequence[str | int] = ()) -> object:
+        value = self.value
+        for part in path:
+            if (
+                isinstance(value, dict) and isinstance(part, str) and part in value
+            ) or (
+                isinstance(value, list)
+                and type(part) is int
+                and 0 <= part < len(value)
+            ):
+                value = value[part]
+            else:
+                raise KeyError("path does not identify an existing draft value")
+        return value
+
+    def replace_json(self, path: Sequence[str | int], raw_json: str) -> None:
+        """Replace one JSON-compatible subtree with one fully parsed JSON value."""
+        current = self.at(path)
+        if not _is_json_value(current):
+            raise TypeError("selected native value is not losslessly JSON-editable")
+        try:
+            replacement = json.loads(raw_json, parse_constant=_reject_json_constant)
+        except ValueError as exc:
+            raise ValueError("replacement must be one finite JSON value") from exc
+        if not path:
+            self.value = replacement
+            return
+        parent = self.at(path[:-1])
+        part = path[-1]
+        if (
+            isinstance(parent, dict) and isinstance(part, str) and part in parent
+        ) or (
+            isinstance(parent, list)
+            and type(part) is int
+            and 0 <= part < len(parent)
+        ):
+            parent[part] = replacement
+        else:
+            raise KeyError("path does not identify an existing draft value")
 
 
 @dataclass(frozen=True)
@@ -126,3 +168,22 @@ def _copy_references(references: Sequence[ObjectReference]) -> tuple[ObjectRefer
         ObjectReference(item.object_id, item.description, copy.deepcopy(item.value))
         for item in references
     )
+
+
+def _is_json_value(value: object) -> bool:
+    if value is None or isinstance(value, (str, bool, int)):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, list):
+        return all(_is_json_value(item) for item in value)
+    if isinstance(value, dict):
+        return all(
+            isinstance(key, str) and _is_json_value(item)
+            for key, item in value.items()
+        )
+    return False
+
+
+def _reject_json_constant(_value: str) -> object:
+    raise ValueError("non-finite numbers are not JSON")

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from dix.core import CompositionComponent, ModuleComponent, create_core_component_registry
 from dix.core.composition import CompositionInstanceSpec
+from dix.modules import first_party_module_path
 
 
 class FakeLoom:
@@ -26,10 +27,12 @@ def workbench(tmp_path: Path):
     registry = create_core_component_registry()
     modules = registry.require("module", ModuleComponent)
     compositions = registry.require("composition", CompositionComponent)
-    modules.load_module(
-        Path(__file__).parents[1] / "visidata",
-        module_id="skaldos/visidata",
-    )
+    loaded: list[str] = []
+    for module_id in ("dix/state", "dix/cli", "dix/norn", "dix/roba"):
+        modules.load_module(first_party_module_path(module_id), module_id=module_id)
+        loaded.append(module_id)
+    modules.load_module(Path(__file__).parents[1] / "visidata", module_id="skaldos/visidata")
+    loaded.append("skaldos/visidata")
     instance = compositions.create_instance(
         CompositionInstanceSpec(
             "workbench", "skaldos/visidata/loom_workbench", {}, tmp_path
@@ -40,7 +43,8 @@ def workbench(tmp_path: Path):
         yield instance.api
     finally:
         compositions.destroy_instance("visidata-session-test", "workbench")
-        modules.unload_module("skaldos/visidata")
+        for module_id in reversed(loaded):
+            modules.unload_module(module_id)
 
 
 def test_seed_duplicate_ids_and_deep_drafts(workbench) -> None:

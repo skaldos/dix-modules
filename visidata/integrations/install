@@ -3,27 +3,83 @@ set -eu
 
 integration_root=$(CDPATH='' cd "$(dirname "$0")" && pwd -P)
 module_root=$(CDPATH='' cd "$integration_root/.." && pwd -P)
-bin_dir=${DIX_BIN:-$HOME/.local/bin}
-venv_dir=${SKALDOS_WORKBENCH_VENV:-${XDG_DATA_HOME:-$HOME/.local/share}/skaldos/visidata-venv}
+env_file=${DIX_ENV:-$HOME/.dix/env}
 
 command -v uv >/dev/null 2>&1 || {
     printf 'uv is required to install the VisiData workbench\n' >&2
     exit 1
 }
-mkdir -p "$bin_dir" "$(dirname "$venv_dir")"
-uv venv --python 3.12 "$venv_dir"
-uv pip install --python "$venv_dir/bin/python" -r "$module_root/requirements.txt"
+[ -r "$env_file" ] || {
+    printf 'DIX environment file is not readable: %s\n' "$env_file" >&2
+    exit 1
+}
+. "$env_file"
 
-python3 - "$bin_dir/skaldos-workbench" "$venv_dir/bin/python" "$module_root/launch.py" <<'PY'
-from pathlib import Path
-from shlex import quote
+for variable in DIX_SOURCE_ROOT DIX_VENV DIX_LAUNCHERS DIX_BIN; do
+    eval "value=\${$variable:-}"
+    [ -n "$value" ] || {
+        printf 'DIX environment value is missing: %s\n' "$variable" >&2
+        exit 1
+    }
+done
+
+[ -x "$DIX_VENV/bin/python" ] || {
+    printf 'DIX environment Python is not executable: %s\n' "$DIX_VENV/bin/python" >&2
+    exit 1
+}
+
+for module in \
+    "$DIX_SOURCE_ROOT/modules/dix/state" \
+    "$DIX_SOURCE_ROOT/modules/dix/cli" \
+    "$DIX_SOURCE_ROOT/modules/dix/norn" \
+    "$DIX_SOURCE_ROOT/modules/dix/roba" \
+    "$module_root"
+do
+    [ -d "$module" ] || {
+        printf 'DIX module root is not a directory: %s\n' "$module" >&2
+        exit 1
+    }
+done
+
+mkdir -p "$DIX_LAUNCHERS" "$DIX_BIN"
+uv pip install --python "$DIX_VENV/bin/python" -r "$module_root/requirements.txt"
+
+launcher_spec="$DIX_LAUNCHERS/dix-roba-workbench.toml"
+"$DIX_VENV/bin/python" - \
+    "$integration_root/launchers/dix-roba-workbench.toml" \
+    "$launcher_spec" \
+    "$DIX_SOURCE_ROOT/modules/dix/state" \
+    "$DIX_SOURCE_ROOT/modules/dix/cli" \
+    "$DIX_SOURCE_ROOT/modules/dix/norn" \
+    "$DIX_SOURCE_ROOT/modules/dix/roba" \
+    "$module_root" <<'PY'
+from __future__ import annotations
+
+import json
 import sys
+from pathlib import Path
 
-target, python, launcher = map(Path, sys.argv[1:])
-target.write_text(
-    "#!/bin/sh\nexec " + quote(str(python)) + " " + quote(str(launcher)) + ' "$@"\n',
-    encoding="utf-8",
-)
-target.chmod(0o755)
+source, target, state, cli, norn, roba, visidata = map(Path, sys.argv[1:])
+value = source.read_text()
+for marker, path in {
+    '"@DIX_STATE_MODULE@"': state,
+    '"@DIX_CLI_MODULE@"': cli,
+    '"@DIX_NORN_MODULE@"': norn,
+    '"@DIX_ROBA_MODULE@"': roba,
+    '"@SKALDOS_VISIDATA_MODULE@"': visidata,
+}.items():
+    value = value.replace(marker, json.dumps(str(path.resolve())))
+target.write_text(value)
 PY
-printf 'installed %s (source: %s)\n' "$bin_dir/skaldos-workbench" "$module_root"
+
+"$DIX_VENV/bin/python" -m dix.bootstrap build \
+    "$launcher_spec" \
+    --output "$DIX_LAUNCHERS/dix-roba-workbench.py" \
+    --replace
+
+cp "$integration_root/bin/dix-roba-workbench" "$DIX_BIN/dix-roba-workbench"
+rm -f "$DIX_BIN/skaldos-workbench"
+chmod 0755 "$DIX_LAUNCHERS/dix-roba-workbench.py" "$DIX_BIN/dix-roba-workbench"
+
+printf 'installed ROBA Loom Workbench launcher in %s\n' "$DIX_LAUNCHERS"
+printf 'installed ROBA Loom Workbench command in %s\n' "$DIX_BIN"

@@ -3,3 +3,6 @@ id = "loom_workbench"
 
 [functions.create_session]
 description = "Resolve one seed through a locally bound synchronous Loom capability."
+
+[functions.start]
+description = "Start the interactive VisiData workbench for one locally bound Loom capability."

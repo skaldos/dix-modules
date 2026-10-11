@@ -1,5 +1,3 @@
-"""Terminal-only branding with the two user-supplied PNGs."""
-
 from __future__ import annotations
 
 import shutil
@@ -7,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ASSETS = Path(__file__).parents[1] / "assets"
+ASSETS = Path(__file__).parents[2] / "assets"
 
 
 def logo_path(logo: str) -> Path:
@@ -17,12 +15,11 @@ def logo_path(logo: str) -> Path:
 
 
 def logo_command(logo: str) -> list[str]:
-    """The exact full-color block rendering selected by the user."""
     return ["chafa", "--fill", "block", "-c", "full", "--scale", "0.5", str(logo_path(logo))]
 
 
 def show_logo(logo: str, *, pause: bool = True) -> bool:
-    """Show a skippable PNG splash; never block data access on small terminals."""
+    """Render optional branding without blocking workbench availability."""
     logo_path(logo)
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         return False
