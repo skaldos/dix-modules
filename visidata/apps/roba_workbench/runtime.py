@@ -37,6 +37,11 @@ class Runtime:
         )
         parser.add_argument("--seed", required=True, type=Path, help="JSON seed file")
         parser.add_argument("--logo", choices=("dix", "roba"), default="dix")
+        parser.add_argument(
+            "--no-confirm",
+            action="store_true",
+            help="execute without confirmation (unsafe; intended for local pressure tests)",
+        )
         try:
             arguments = parser.parse_args(list(argv))
         except SystemExit as exc:
@@ -50,6 +55,7 @@ class Runtime:
             self.loom.require("execute"),
             seed,
             arguments.logo,
+            not arguments.no_confirm,
         )
         if type(result) is not int:
             raise TypeError("workbench start must return an integer exit code")

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import copy
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from visidata.editor import SuspendCurses
@@ -10,7 +11,7 @@ from visidata.editor import SuspendCurses
 from visidata import ItemColumn, Sheet, vd
 
 from .branding import show_logo
-from .session import LoomDraft, LoomSession
+from .session import LoomDraft, LoomSession, ObjectReference
 
 type DraftPath = tuple[str | int, ...]
 
@@ -25,14 +26,34 @@ class ReferenceSheet(Sheet):
         ItemColumn("value", width=76),
     ]
 
-    def __init__(self, session: LoomSession, *, logo: str = "dix") -> None:
+    def __init__(
+        self,
+        session: LoomSession,
+        *,
+        references: Sequence[ObjectReference] | None = None,
+        logo: str = "dix",
+        confirm_execute: bool = True,
+    ) -> None:
         self.session = session
+        self.references = (
+            session.reference_snapshot()
+            if references is None
+            else tuple(
+                ObjectReference(
+                    reference.object_id,
+                    reference.description,
+                    copy.deepcopy(reference.value),
+                )
+                for reference in references
+            )
+        )
         self.logo = logo
+        self.confirm_execute = confirm_execute
         super().__init__(self._title())
 
     def _title(self) -> str:
         return (
-            f"{self.logo.upper()} Loom | {len(self.session.references)} references | "
+            f"{self.logo.upper()} Loom | {len(self.references)} references | "
             f"history {len(self.session.history)}"
         )
 
@@ -43,23 +64,32 @@ class ReferenceSheet(Sheet):
                 "description": reference.description,
                 "value": _preview(reference.value),
                 "reference": reference,
-                "index": index,
             }
-            for index, reference in enumerate(self.session.references)
+            for reference in self.references
         ]
         self.name = self._title()
         if not self.rows:
             vd.status("Loom returned an empty reference set")
 
     def openRow(self, row: dict[str, Any]) -> DraftSheet:
-        draft = self.session.inspect(row["index"])
-        sheet = DraftSheet(self.session, draft, logo=self.logo)
+        draft = self.session.inspect_reference(row["reference"])
+        sheet = DraftSheet(
+            self.session,
+            draft,
+            logo=self.logo,
+            confirm_execute=self.confirm_execute,
+        )
         sheet.reload()
         return sheet
 
     def executeRow(self, row: dict[str, Any]) -> None:
-        draft = self.session.inspect(row["index"])
-        _confirm_and_execute(self.session, draft, self.logo)
+        draft = self.session.inspect_reference(row["reference"])
+        _confirm_and_execute(
+            self.session,
+            draft,
+            self.logo,
+            confirm_execute=self.confirm_execute,
+        )
 
     def showBrand(self) -> None:
         with SuspendCurses():
@@ -83,11 +113,13 @@ class DraftSheet(Sheet):
         *,
         path: DraftPath = (),
         logo: str = "dix",
+        confirm_execute: bool = True,
     ) -> None:
         self.session = session
         self.draft = draft
         self.path = path
         self.logo = logo
+        self.confirm_execute = confirm_execute
         super().__init__(self._title())
 
     def _title(self) -> str:
@@ -125,6 +157,7 @@ class DraftSheet(Sheet):
             self.draft,
             path=row["path"],
             logo=self.logo,
+            confirm_execute=self.confirm_execute,
         )
         sheet.reload()
         return sheet
@@ -149,29 +182,45 @@ class DraftSheet(Sheet):
         except (ValueError, TypeError, KeyError) as exc:
             vd.fail(str(exc))
         self.reload()
-        vd.status("local draft changed; use E for explicit Loom execution")
+        vd.status("local draft changed; use Shift+Enter for explicit Loom execution")
 
     def executeDraft(self) -> None:
-        _confirm_and_execute(self.session, self.draft, self.logo)
+        _confirm_and_execute(
+            self.session,
+            self.draft,
+            self.logo,
+            confirm_execute=self.confirm_execute,
+        )
 
 
-def _confirm_and_execute(session: LoomSession, draft: LoomDraft, logo: str) -> None:
+def _confirm_and_execute(
+    session: LoomSession,
+    draft: LoomDraft,
+    logo: str,
+    *,
+    confirm_execute: bool,
+) -> None:
     try:
         shown = json.dumps(draft.value, ensure_ascii=False, allow_nan=False)
     except (TypeError, ValueError):
         shown = repr(draft.value)
     prompt = f"Execute Loom object_id={draft.reference.object_id!r} value={shown}? "
-    if not vd.confirm(prompt):
+    if confirm_execute and not vd.confirm(prompt):
         vd.status("Loom execution cancelled; no provider call")
         return
     try:
-        session.execute_draft(draft)
+        references = session.execute_draft(draft)
     except Exception as exc:  # noqa: BLE001 - the provider exception is the visible boundary
         vd.fail(
             f"Loom execute failed for {draft.reference.object_id!r}: "
             f"{type(exc).__name__}: {exc}"
         )
-    result = ReferenceSheet(session, logo=logo)
+    result = ReferenceSheet(
+        session,
+        references=references,
+        logo=logo,
+        confirm_execute=confirm_execute,
+    )
     result.reload()
     vd.push(result)
 
@@ -220,11 +269,15 @@ def _is_json_value(value: object) -> bool:
     return False
 
 
+# A normal terminal Enter sends CR (^M).  Terminals can map physical
+# Shift+Enter to LF (^J), which VisiData otherwise aliases to plain Enter.
+vd.prettykeys_trdict["^J"] = "Shift+Enter"
+
 ReferenceSheet.addCommand(
-    "E",
+    "Shift+Enter",
     "execute-loom-reference",
     "sheet.executeRow(cursorRow) if cursorRow is not None else vd.fail('no row selected')",
-    "confirm and execute the complete selected Loom reference",
+    "execute the complete selected Loom reference",
 )
 ReferenceSheet.addCommand(
     "B", "show-brand-logo", "sheet.showBrand()", "show selected DIX/ROBA PNG with chafa"
@@ -242,5 +295,5 @@ DraftSheet.addCommand(
     "replace the complete selected JSON-compatible subtree locally",
 )
 DraftSheet.addCommand(
-    "E", "execute-loom-reference", "sheet.executeDraft()", "confirm and execute this Loom draft"
+    "Shift+Enter", "execute-loom-reference", "sheet.executeDraft()", "execute this Loom draft"
 )

@@ -53,6 +53,7 @@ Pfade verwenden:
 ```sh
 dix-roba-workbench --seed ./seed.json --logo dix
 # alternativ: --logo roba
+# nur fuer lokale Drucktests: --no-confirm
 ```
 
 Ungueltiges oder unlesbares JSON scheitert vor VisiData und vor jedem Providercall. Beide
@@ -73,7 +74,7 @@ Reference-Sheet:
 | Taste | Wirkung |
 | --- | --- |
 | Enter | Vollstaendige Reference als abgeloesten lokalen Draft inspizieren; nie ausfuehren |
-| E | `object_id` und Wert anzeigen, bestaetigen lassen, dann exakt einmal ausfuehren |
+| Shift+Enter | `object_id` und Wert anzeigen, bestaetigen lassen, dann exakt einmal ausfuehren |
 | B | Gewaehltes Logo erneut anzeigen |
 | q | In VisiData zurueck/beenden |
 
@@ -84,15 +85,32 @@ Draft-Sheet:
 | Enter | In Mapping/Liste drillen; nie ausfuehren |
 | e | Gewaehlten JSON-kompatiblen Skalar lokal ersetzen |
 | r | Vollstaendigen JSON-kompatiblen Teilbaum lokal ersetzen |
-| E | Vollstaendigen Draft anzeigen, bestaetigen und exakt einmal ausfuehren |
+| Shift+Enter | Vollstaendigen Draft anzeigen, bestaetigen und exakt einmal ausfuehren |
 | q | Zum vorherigen Sheet zurueckkehren |
 
 **Jede Reference kann eine externe Wirkung darstellen.** Der generische Client klassifiziert Namen
 wie `read`, `write`, `start` oder `delete` bewusst nicht. Enter, Edit, Sheetnavigation und Ende
-bleiben lokal; nach der initialen Seed-Aufloesung ruft nur **E** den Provider und verlangt immer
-Bestaetigung. Cancel ruft nichts auf. Providerexceptions bleiben sichtbar und erhalten den Draft.
-Ein leeres Ergebnis ist erfolgreich und oeffnet ein leeres Reference-Sheet. History ist nur
-Navigation, niemals Undo oder Rollback externer Wirkungen.
+bleiben lokal; nach der initialen Seed-Aufloesung ruft nur **Shift+Enter** den Provider. Im
+Defaultmodus wird immer bestaetigt. Die explizite Option `--no-confirm` ueberspringt diese Nachfrage
+und ist nur fuer kontrollierte lokale Drucktests gedacht. Cancel ruft nichts auf.
+Providerexceptions bleiben sichtbar und erhalten den Draft. Ein leeres Ergebnis ist erfolgreich
+und oeffnet ein leeres Reference-Sheet. Jedes Reference-Sheet besitzt die vollstaendigen Werte,
+die es angezeigt hat; ein altes Sheet loest seine Zeilen daher nie gegen ein neueres
+Providerresultat auf. History ist nur Navigation, niemals Undo oder Rollback externer Wirkungen.
+
+Terminaleingabe unterscheidet Shift+Enter normalerweise nicht von Enter. Dieser Workbench behaelt
+CR als normales inspect-only Enter und interpretiert LF als logisches Shift+Enter. Fuer Alacritty
+die physische Taste explizit abbilden:
+
+```toml
+[[keyboard.bindings]]
+key = "Enter"
+mods = "Shift"
+chars = "\n"
+```
+
+Ohne eine solche Terminalabbildung bleibt Shift+Enter ununterscheidbar von Enter; der Workbench
+macht aus normalem Enter nicht still eine Ausfuehrung.
 
 Das lokale interaktive Sheet zeigt absichtlich vollstaendige Werte, einschliesslich von ROBA
 gelieferter Tokens und Socket-Capabilities. Nur in einem vertrauenswuerdigen Terminal verwenden;

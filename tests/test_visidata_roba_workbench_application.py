@@ -54,9 +54,12 @@ def test_application_graph_binds_real_roba_loom_and_seed_before_ui(
         "timeout": 1.0,
     }))
     try:
-        assert app.api.require("main")(["--seed", str(seed), "--logo", "roba"]) == 0
+        assert app.api.require("main")(
+            ["--seed", str(seed), "--logo", "roba", "--no-confirm"]
+        ) == 0
         assert len(seen) == 1
         assert seen[0].logo == "roba"
+        assert seen[0].confirm_execute is False
         seed.write_text("not-json")
         assert app.api.require("main")(["--seed", str(seed)]) == 2
         assert len(seen) == 1
@@ -174,3 +177,4 @@ def test_installer_builds_normal_launcher_in_isolated_delivery_roots(
     )
     assert help_result.returncode == 0, help_result.stderr
     assert "--seed" in help_result.stdout and "--logo" in help_result.stdout
+    assert "--no-confirm" in help_result.stdout

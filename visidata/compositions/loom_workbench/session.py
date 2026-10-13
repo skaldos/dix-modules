@@ -109,9 +109,18 @@ class LoomSession:
 
     def inspect(self, index: int) -> LoomDraft:
         """Open exactly the selected row without calling the provider."""
-        reference = self.references[index]
+        return self.inspect_reference(self.references[index])
+
+    def inspect_reference(self, reference: ObjectReference) -> LoomDraft:
+        """Open one materialized reference without consulting mutable session results."""
+        if not isinstance(reference, ObjectReference):
+            raise TypeError("reference must be an ObjectReference")
         self.draft = LoomDraft.from_reference(reference)
         return self.draft
+
+    def reference_snapshot(self) -> tuple[ObjectReference, ...]:
+        """Return a detached snapshot suitable for one persistent client view."""
+        return _copy_references(self.references)
 
     def execute_draft(self, draft: LoomDraft | None = None) -> tuple[ObjectReference, ...]:
         """Execute one explicit draft; exceptions leave all local state untouched."""

@@ -67,6 +67,53 @@ def test_reference_enter_only_inspects_and_duplicate_rows_remain_complete(ui_run
     assert child.draft.value == {"n": 2}
     assert len(loom.calls) == 1
     assert sheet.getCommand("execute-loom-reference") is not None
+    assert ui.vd.prettykeys("^J") == "Shift+Enter"
+    assert sheet.getCommand("Shift+Enter").longname == "execute-loom-reference"
+    command_e = sheet.getCommand("E")
+    assert command_e is None or command_e.longname != "execute-loom-reference"
+
+
+def test_old_reference_sheet_uses_its_snapshot_after_other_branch_executes(
+    ui_runtime, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from visidata import vd
+
+    api, ui = ui_runtime
+    loom = FakeLoom()
+    loom.result = [
+        {"object_id": "store", "description": "old store", "value": {"old": 1}},
+        {"object_id": "data", "description": "old data", "value": {"old": 2}},
+    ]
+    session = api.require("create_session")(loom, {})
+    root = ui.ReferenceSheet(session, confirm_execute=False)
+    root.reload()
+
+    store = root.openRow(root.rows[0])
+    loom.result = [
+        {"object_id": "wrong-zero", "description": "new zero", "value": {"new": 0}},
+        {"object_id": "wrong-one", "description": "new one", "value": {"new": 1}},
+    ]
+    session.execute_draft(store.draft)
+    reopened_store = root.openRow(root.rows[0])
+    assert reopened_store.draft.reference.object_id == "store"
+    assert reopened_store.draft.value == {"old": 1}
+
+    loom.result = [
+        {"object_id": "only-new", "description": "one result", "value": {"new": True}},
+    ]
+    session.execute_draft(reopened_store.draft)
+    reopened_data = root.openRow(root.rows[1])
+    assert reopened_data.draft.reference.object_id == "data"
+    assert reopened_data.draft.value == {"old": 2}
+
+    def unexpected_confirm(*args, **kwargs):
+        raise AssertionError("no-confirm mode must not ask")
+
+    monkeypatch.setattr(vd, "confirm", unexpected_confirm)
+    monkeypatch.setattr(vd, "push", lambda *args, **kwargs: None)
+    loom.result = []
+    root.executeRow(root.rows[1])
+    assert loom.calls[-1] == ({"old": 2}, "data")
 
 
 def test_scalar_and_complete_subtree_are_local_until_confirmed_execute(
@@ -78,6 +125,7 @@ def test_scalar_and_complete_subtree_are_local_until_confirmed_execute(
     loom = FakeLoom()
     session = api.require("create_session")(loom, {})
     root = ui.ReferenceSheet(session)
+    assert root.confirm_execute is True
     root.reload()
     draft_sheet = root.openRow(root.rows[0])
     monkeypatch.setattr(vd, "status", lambda *args, **kwargs: None)

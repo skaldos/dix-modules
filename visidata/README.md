@@ -51,6 +51,7 @@ A daemon configuration is the smallest useful ROBA Loom seed. Use isolated roots
 ```sh
 dix-roba-workbench --seed ./seed.json --logo dix
 # or: --logo roba
+# local pressure tests only: --no-confirm
 ```
 
 Invalid or unreadable JSON fails before VisiData and before any provider call. Both shipped PNGs
@@ -71,7 +72,7 @@ Reference sheet:
 | Key | Effect |
 | --- | --- |
 | Enter | Inspect the selected complete reference as a detached local draft; never execute |
-| E | Show `object_id` and value, ask for confirmation, then execute exactly once |
+| Shift+Enter | Show `object_id` and value, ask for confirmation, then execute exactly once |
 | B | Show the selected logo again |
 | q | Return/quit through VisiData |
 
@@ -82,15 +83,32 @@ Draft sheet:
 | Enter | Drill into a mapping/list; never execute |
 | e | Replace a selected JSON-compatible scalar locally |
 | r | Replace a complete JSON-compatible subtree locally |
-| E | Show and confirm the complete draft, then execute exactly once |
+| Shift+Enter | Show and confirm the complete draft, then execute exactly once |
 | q | Return to the previous sheet |
 
 **Every reference may represent an external effect.** The generic client deliberately does not
 classify names such as `read`, `write`, `start`, or `delete`. Enter/edit/sheet navigation/exit are
-local only; **E** is the only provider call after initial seed resolution, and it always confirms.
-Cancel performs no call. Provider exceptions remain visible and retain the draft. An empty result
-is successful and opens an empty reference sheet. History is navigation state, not undo or rollback
-of external effects.
+local only; **Shift+Enter** is the only provider call after initial seed resolution. It confirms by
+default. The explicit `--no-confirm` option skips that prompt and is intended only for controlled
+local pressure tests. Cancel performs no call. Provider exceptions remain visible and retain the
+draft. An empty result is successful and opens an empty reference sheet. Every reference sheet
+owns the complete reference values it displayed, so returning to an older sheet cannot resolve its
+rows against a newer provider result. History is navigation state, not undo or rollback of external
+effects.
+
+Terminal input normally does not distinguish Shift+Enter from Enter. This workbench keeps CR as
+plain inspect-only Enter and interprets LF as logical Shift+Enter. For Alacritty, map the physical
+key explicitly:
+
+```toml
+[[keyboard.bindings]]
+key = "Enter"
+mods = "Shift"
+chars = "\n"
+```
+
+Without such a terminal mapping Shift+Enter remains indistinguishable from Enter; the workbench
+does not silently turn plain Enter into execution.
 
 The local interactive sheet intentionally displays complete values, including tokens and socket
 capabilities returned by ROBA. Run it only in a trusted terminal; protect screenshots, scrollback,

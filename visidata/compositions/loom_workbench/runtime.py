@@ -34,6 +34,7 @@ class Runtime:
         execute: Callable[[object, str | None], object],
         seed: object,
         logo: str = "dix",
+        confirm_execute: bool = True,
     ) -> int:
         """Resolve the seed and run VisiData without exposing provider selection."""
         from visidata import vd
@@ -44,7 +45,11 @@ class Runtime:
         session = self.create_session(execute, seed)
         show_logo(logo)
         vd.options.disp_menu = False
-        sheet = ReferenceSheet(session, logo=logo)
+        sheet = ReferenceSheet(
+            session,
+            logo=logo,
+            confirm_execute=confirm_execute,
+        )
         sheet.reload()
         vd.run(sheet)
         return 0
