@@ -14,6 +14,7 @@ from .branding import show_logo
 from .session import LoomDraft, LoomSession, ObjectReference
 
 type DraftPath = tuple[str | int, ...]
+SHIFT_ENTER_KEY = "Alt+[13;2u"
 
 
 class ReferenceSheet(Sheet):
@@ -269,12 +270,8 @@ def _is_json_value(value: object) -> bool:
     return False
 
 
-# A normal terminal Enter sends CR (^M).  Terminals can map physical
-# Shift+Enter to LF (^J), which VisiData otherwise aliases to plain Enter.
-vd.prettykeys_trdict["^J"] = "Shift+Enter"
-
 ReferenceSheet.addCommand(
-    "Shift+Enter",
+    SHIFT_ENTER_KEY,
     "execute-loom-reference",
     "sheet.executeRow(cursorRow) if cursorRow is not None else vd.fail('no row selected')",
     "execute the complete selected Loom reference",
@@ -295,5 +292,5 @@ DraftSheet.addCommand(
     "replace the complete selected JSON-compatible subtree locally",
 )
 DraftSheet.addCommand(
-    "Shift+Enter", "execute-loom-reference", "sheet.executeDraft()", "execute this Loom draft"
+    SHIFT_ENTER_KEY, "execute-loom-reference", "sheet.executeDraft()", "execute this Loom draft"
 )

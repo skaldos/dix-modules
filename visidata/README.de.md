@@ -98,19 +98,19 @@ und oeffnet ein leeres Reference-Sheet. Jedes Reference-Sheet besitzt die vollst
 die es angezeigt hat; ein altes Sheet loest seine Zeilen daher nie gegen ein neueres
 Providerresultat auf. History ist nur Navigation, niemals Undo oder Rollback externer Wirkungen.
 
-Terminaleingabe unterscheidet Shift+Enter normalerweise nicht von Enter. Dieser Workbench behaelt
-CR als normales inspect-only Enter und interpretiert LF als logisches Shift+Enter. Fuer Alacritty
-die physische Taste explizit abbilden:
+Terminaleingabe unterscheidet Shift+Enter normalerweise nicht von Enter. Dieser Workbench bindet
+die Ausfuehrung deshalb an eine dedizierte CSI-u-Sequenz und laesst normales Enter sowie LF
+unangetastet. Fuer Alacritty die physische Taste explizit abbilden:
 
 ```toml
 [[keyboard.bindings]]
 key = "Enter"
 mods = "Shift"
-chars = "\n"
+chars = "\u001b[13;2u"
 ```
 
-Ohne eine solche Terminalabbildung bleibt Shift+Enter ununterscheidbar von Enter; der Workbench
-macht aus normalem Enter nicht still eine Ausfuehrung.
+Ohne eine solche Terminalabbildung bleibt Shift+Enter ununterscheidbar von Enter und fuehrt nicht
+aus. Der Workbench macht weder aus normalem Enter noch aus LF eine Ausfuehrung.
 
 Das lokale interaktive Sheet zeigt absichtlich vollstaendige Werte, einschliesslich von ROBA
 gelieferter Tokens und Socket-Capabilities. Nur in einem vertrauenswuerdigen Terminal verwenden;

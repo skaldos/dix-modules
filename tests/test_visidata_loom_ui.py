@@ -67,8 +67,9 @@ def test_reference_enter_only_inspects_and_duplicate_rows_remain_complete(ui_run
     assert child.draft.value == {"n": 2}
     assert len(loom.calls) == 1
     assert sheet.getCommand("execute-loom-reference") is not None
-    assert ui.vd.prettykeys("^J") == "Shift+Enter"
-    assert sheet.getCommand("Shift+Enter").longname == "execute-loom-reference"
+    assert ui.vd.prettykeys("^J") == "Enter"
+    assert sheet.getCommand("Enter").longname != "execute-loom-reference"
+    assert sheet.getCommand(ui.SHIFT_ENTER_KEY).longname == "execute-loom-reference"
     command_e = sheet.getCommand("E")
     assert command_e is None or command_e.longname != "execute-loom-reference"
 

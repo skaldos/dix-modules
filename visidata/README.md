@@ -96,19 +96,19 @@ owns the complete reference values it displayed, so returning to an older sheet 
 rows against a newer provider result. History is navigation state, not undo or rollback of external
 effects.
 
-Terminal input normally does not distinguish Shift+Enter from Enter. This workbench keeps CR as
-plain inspect-only Enter and interprets LF as logical Shift+Enter. For Alacritty, map the physical
-key explicitly:
+Terminal input normally does not distinguish Shift+Enter from Enter. This workbench therefore
+binds execution to a dedicated CSI-u sequence and leaves both normal Enter and LF untouched. For
+Alacritty, map the physical key explicitly:
 
 ```toml
 [[keyboard.bindings]]
 key = "Enter"
 mods = "Shift"
-chars = "\n"
+chars = "\u001b[13;2u"
 ```
 
-Without such a terminal mapping Shift+Enter remains indistinguishable from Enter; the workbench
-does not silently turn plain Enter into execution.
+Without such a terminal mapping Shift+Enter remains indistinguishable from Enter and does not
+execute. The workbench never turns plain Enter or LF into execution.
 
 The local interactive sheet intentionally displays complete values, including tokens and socket
 capabilities returned by ROBA. Run it only in a trusted terminal; protect screenshots, scrollback,
