@@ -69,9 +69,10 @@ def test_reference_enter_only_inspects_and_duplicate_rows_remain_complete(ui_run
     assert sheet.getCommand("execute-loom-reference") is not None
     assert ui.vd.prettykeys("^J") == "Enter"
     assert sheet.getCommand("Enter").longname != "execute-loom-reference"
-    assert sheet.getCommand(ui.SHIFT_ENTER_KEY).longname == "execute-loom-reference"
+    assert sheet.getCommand("Space").longname == "execute-loom-reference"
     command_e = sheet.getCommand("E")
     assert command_e is None or command_e.longname != "execute-loom-reference"
+    assert not hasattr(ui, "SHIFT_ENTER_KEY")
 
 
 def test_old_reference_sheet_uses_its_snapshot_after_other_branch_executes(

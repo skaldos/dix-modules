@@ -72,7 +72,7 @@ Reference sheet:
 | Key | Effect |
 | --- | --- |
 | Enter | Inspect the selected complete reference as a detached local draft; never execute |
-| Shift+Enter | Show `object_id` and value, ask for confirmation, then execute exactly once |
+| Space | Show `object_id` and value, ask for confirmation, then execute exactly once |
 | B | Show the selected logo again |
 | q | Return/quit through VisiData |
 
@@ -83,32 +83,20 @@ Draft sheet:
 | Enter | Drill into a mapping/list; never execute |
 | e | Replace a selected JSON-compatible scalar locally |
 | r | Replace a complete JSON-compatible subtree locally |
-| Shift+Enter | Show and confirm the complete draft, then execute exactly once |
+| Space | Show and confirm the complete draft, then execute exactly once |
 | q | Return to the previous sheet |
 
 **Every reference may represent an external effect.** The generic client deliberately does not
 classify names such as `read`, `write`, `start`, or `delete`. Enter/edit/sheet navigation/exit are
-local only; **Shift+Enter** is the only provider call after initial seed resolution. It confirms by
+local only; **Space** is the only provider call after initial seed resolution. It confirms by
 default. The explicit `--no-confirm` option skips that prompt and is intended only for controlled
 local pressure tests. Cancel performs no call. Provider exceptions remain visible and retain the
 draft. An empty result is successful and opens an empty reference sheet. Every reference sheet
 owns the complete reference values it displayed, so returning to an older sheet cannot resolve its
 rows against a newer provider result. History is navigation state, not undo or rollback of external
-effects.
-
-Terminal input normally does not distinguish Shift+Enter from Enter. This workbench therefore
-binds execution to a dedicated CSI-u sequence and leaves both normal Enter and LF untouched. For
-Alacritty, map the physical key explicitly:
-
-```toml
-[[keyboard.bindings]]
-key = "Enter"
-mods = "Shift"
-chars = "\u001b[13;2u"
-```
-
-Without such a terminal mapping Shift+Enter remains indistinguishable from Enter and does not
-execute. The workbench never turns plain Enter or LF into execution.
+effects. On these two Workbench sheets Space intentionally replaces VisiData's normal row-selection
+binding; this client does not consume multi-row selection. No terminal-specific key mapping is
+required.
 
 The local interactive sheet intentionally displays complete values, including tokens and socket
 capabilities returned by ROBA. Run it only in a trusted terminal; protect screenshots, scrollback,

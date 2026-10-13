@@ -74,7 +74,7 @@ Reference-Sheet:
 | Taste | Wirkung |
 | --- | --- |
 | Enter | Vollstaendige Reference als abgeloesten lokalen Draft inspizieren; nie ausfuehren |
-| Shift+Enter | `object_id` und Wert anzeigen, bestaetigen lassen, dann exakt einmal ausfuehren |
+| Space | `object_id` und Wert anzeigen, bestaetigen lassen, dann exakt einmal ausfuehren |
 | B | Gewaehltes Logo erneut anzeigen |
 | q | In VisiData zurueck/beenden |
 
@@ -85,32 +85,20 @@ Draft-Sheet:
 | Enter | In Mapping/Liste drillen; nie ausfuehren |
 | e | Gewaehlten JSON-kompatiblen Skalar lokal ersetzen |
 | r | Vollstaendigen JSON-kompatiblen Teilbaum lokal ersetzen |
-| Shift+Enter | Vollstaendigen Draft anzeigen, bestaetigen und exakt einmal ausfuehren |
+| Space | Vollstaendigen Draft anzeigen, bestaetigen und exakt einmal ausfuehren |
 | q | Zum vorherigen Sheet zurueckkehren |
 
 **Jede Reference kann eine externe Wirkung darstellen.** Der generische Client klassifiziert Namen
 wie `read`, `write`, `start` oder `delete` bewusst nicht. Enter, Edit, Sheetnavigation und Ende
-bleiben lokal; nach der initialen Seed-Aufloesung ruft nur **Shift+Enter** den Provider. Im
+bleiben lokal; nach der initialen Seed-Aufloesung ruft nur **Space** den Provider. Im
 Defaultmodus wird immer bestaetigt. Die explizite Option `--no-confirm` ueberspringt diese Nachfrage
 und ist nur fuer kontrollierte lokale Drucktests gedacht. Cancel ruft nichts auf.
 Providerexceptions bleiben sichtbar und erhalten den Draft. Ein leeres Ergebnis ist erfolgreich
 und oeffnet ein leeres Reference-Sheet. Jedes Reference-Sheet besitzt die vollstaendigen Werte,
 die es angezeigt hat; ein altes Sheet loest seine Zeilen daher nie gegen ein neueres
 Providerresultat auf. History ist nur Navigation, niemals Undo oder Rollback externer Wirkungen.
-
-Terminaleingabe unterscheidet Shift+Enter normalerweise nicht von Enter. Dieser Workbench bindet
-die Ausfuehrung deshalb an eine dedizierte CSI-u-Sequenz und laesst normales Enter sowie LF
-unangetastet. Fuer Alacritty die physische Taste explizit abbilden:
-
-```toml
-[[keyboard.bindings]]
-key = "Enter"
-mods = "Shift"
-chars = "\u001b[13;2u"
-```
-
-Ohne eine solche Terminalabbildung bleibt Shift+Enter ununterscheidbar von Enter und fuehrt nicht
-aus. Der Workbench macht weder aus normalem Enter noch aus LF eine Ausfuehrung.
+Auf diesen beiden Workbench-Sheets ersetzt Space bewusst Visidatas normale Zeilenauswahl; dieser
+Client konsumiert keine Mehrfachauswahl. Eine terminalspezifische Tastenabbildung ist nicht noetig.
 
 Das lokale interaktive Sheet zeigt absichtlich vollstaendige Werte, einschliesslich von ROBA
 gelieferter Tokens und Socket-Capabilities. Nur in einem vertrauenswuerdigen Terminal verwenden;

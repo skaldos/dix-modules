@@ -14,7 +14,6 @@ from .branding import show_logo
 from .session import LoomDraft, LoomSession, ObjectReference
 
 type DraftPath = tuple[str | int, ...]
-SHIFT_ENTER_KEY = "Alt+[13;2u"
 
 
 class ReferenceSheet(Sheet):
@@ -183,7 +182,7 @@ class DraftSheet(Sheet):
         except (ValueError, TypeError, KeyError) as exc:
             vd.fail(str(exc))
         self.reload()
-        vd.status("local draft changed; use Shift+Enter for explicit Loom execution")
+        vd.status("local draft changed; use Space for explicit Loom execution")
 
     def executeDraft(self) -> None:
         _confirm_and_execute(
@@ -271,7 +270,7 @@ def _is_json_value(value: object) -> bool:
 
 
 ReferenceSheet.addCommand(
-    SHIFT_ENTER_KEY,
+    "Space",
     "execute-loom-reference",
     "sheet.executeRow(cursorRow) if cursorRow is not None else vd.fail('no row selected')",
     "execute the complete selected Loom reference",
@@ -292,5 +291,5 @@ DraftSheet.addCommand(
     "replace the complete selected JSON-compatible subtree locally",
 )
 DraftSheet.addCommand(
-    SHIFT_ENTER_KEY, "execute-loom-reference", "sheet.executeDraft()", "execute this Loom draft"
+    "Space", "execute-loom-reference", "sheet.executeDraft()", "execute this Loom draft"
 )
