@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
@@ -160,6 +161,35 @@ def test_header_falls_back_without_chafa(applications, tmp_path: Path, monkeypat
         ]
     ) == 0
     assert "DIX Cockpit | session demo" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("logo", ("dix", "roba"))
+def test_header_selects_existing_logo_with_optional_chafa(
+    applications, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, logo: str
+) -> None:
+    runtime = applications["control_window"].runtime
+    tools = tmp_path / "tools"
+    tools.mkdir(exist_ok=True)
+    log = tmp_path / f"{logo}.log"
+    chafa = tools / "chafa"
+    chafa.write_text(f'#!/bin/sh\nprintf "%s\\n" "$*" > "{log}"\n')
+    chafa.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tools}:{os.environ['PATH']}")
+    monkeypatch.setenv("DIX_COCKPIT_ASSET_ROOT", str(ROOT / "visidata/assets"))
+    assert runtime.main(
+        [
+            "--mode",
+            "header",
+            "--once",
+            "--session",
+            "demo",
+            "--catalog",
+            str(tmp_path / "catalog.toml"),
+            "--logo",
+            logo,
+        ]
+    ) == 0
+    assert str(ROOT / f"visidata/assets/{logo}.png") in log.read_text()
 
 
 def test_application_graph_is_static_and_reuses_generic_workbench(applications) -> None:

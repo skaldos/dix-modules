@@ -213,6 +213,14 @@ class Runtime:
             self._run((*self._base(socket_path), "select-pane", "-t", f"={session}:control.2")),
             "focus Cockpit Control body",
         )
+        for target, title in (
+            (f"={session}:control.1", "DIX Cockpit"),
+            (f"={session}:control.2", "Daemon Catalog"),
+        ):
+            self._require(
+                self._run((*self._base(socket_path), "select-pane", "-t", target, "-T", title)),
+                "set Cockpit pane title",
+            )
 
     def update_status(
         self,
@@ -240,7 +248,7 @@ class Runtime:
                         *self._base(socket_path),
                         "set-option",
                         "-t",
-                        f"={session}",
+                        session,
                         option,
                         value,
                     )
