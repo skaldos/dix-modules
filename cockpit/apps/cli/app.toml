@@ -1,0 +1,14 @@
+[app]
+id = "cli"
+
+[compositions.settings]
+use = "skaldos/cockpit/config"
+
+[compositions.catalog]
+use = "skaldos/cockpit/daemon_catalog"
+
+[compositions.session]
+use = "skaldos/cockpit/cockpit_session"
+
+[functions.main]
+description = "Run the DIX Cockpit start, attach, status and stop CLI."

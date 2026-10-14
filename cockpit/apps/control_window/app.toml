@@ -1,0 +1,14 @@
+[app]
+id = "control_window"
+
+[compositions.catalog]
+use = "skaldos/cockpit/daemon_catalog"
+
+[compositions.connections]
+use = "skaldos/cockpit/roba_connections"
+
+[compositions.session]
+use = "skaldos/cockpit/cockpit_session"
+
+[functions.main]
+description = "Run the DIX Cockpit catalog body or its non-blocking logo header."

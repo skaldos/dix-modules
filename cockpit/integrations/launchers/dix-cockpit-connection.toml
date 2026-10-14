@@ -1,0 +1,30 @@
+# Internal window launcher; each process resolves capabilities from non-secret catalog identity.
+[launcher]
+name = "dix-cockpit-connection"
+adapter = "python_cli"
+application = "skaldos/cockpit/connection_window"
+function = "main"
+
+[[modules]]
+id = "dix/state"
+source = "@DIX_STATE_MODULE@"
+
+[[modules]]
+id = "dix/cli"
+source = "@DIX_CLI_MODULE@"
+
+[[modules]]
+id = "dix/norn"
+source = "@DIX_NORN_MODULE@"
+
+[[modules]]
+id = "dix/roba"
+source = "@DIX_ROBA_MODULE@"
+
+[[modules]]
+id = "skaldos/visidata"
+source = "@SKALDOS_VISIDATA_MODULE@"
+
+[[modules]]
+id = "skaldos/cockpit"
+source = "@SKALDOS_COCKPIT_MODULE@"

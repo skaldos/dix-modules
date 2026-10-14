@@ -1,0 +1,17 @@
+[app]
+id = "connection_window"
+
+[compositions.catalog]
+use = "skaldos/cockpit/daemon_catalog"
+
+[compositions.connections]
+use = "skaldos/cockpit/roba_connections"
+
+[compositions.workbench]
+use = "skaldos/visidata/loom_workbench"
+
+[compositions.loom]
+use = "dix/roba/loom"
+
+[functions.main]
+description = "Resolve one catalog target and run the generic Loom workbench in-process."

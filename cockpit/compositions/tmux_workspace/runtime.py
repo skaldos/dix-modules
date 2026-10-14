@@ -44,6 +44,8 @@ class Runtime:
 
     def config_path(self) -> Path:
         configured = self.config.get("tmux_config")
+        if configured is None:
+            configured = os.environ.get("DIX_COCKPIT_TMUX_CONFIG")
         if configured is not None:
             if not isinstance(configured, str) or not configured.strip():
                 raise TypeError("tmux_config must be a non-empty path string")
@@ -183,6 +185,68 @@ class Runtime:
             )
         self._require(result, f"{action} Cockpit connection window")
         return {"session": session, "window": window, "action": action}
+
+    def layout_control(
+        self,
+        *,
+        session: str,
+        socket: str | Path,
+        header_command: Sequence[str],
+    ) -> None:
+        session = _name(session, "session")
+        socket_path = self._socket(socket)
+        result = self._run(
+            (
+                *self._base(socket_path),
+                "split-window",
+                "-t",
+                f"={session}:control.1",
+                "-v",
+                "-b",
+                "-l",
+                "8",
+                _shell_command(header_command),
+            )
+        )
+        self._require(result, "create Cockpit header pane")
+        self._require(
+            self._run((*self._base(socket_path), "select-pane", "-t", f"={session}:control.2")),
+            "focus Cockpit Control body",
+        )
+
+    def update_status(
+        self,
+        *,
+        session: str,
+        socket: str | Path,
+        catalog: str,
+        count: int,
+        logo: str,
+    ) -> None:
+        session = _name(session, "session")
+        socket_path = self._socket(socket)
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise TypeError("Cockpit daemon count must be a non-negative integer")
+        if logo not in {"dix", "roba"}:
+            raise ValueError("logo must be dix or roba")
+        for option, value in (
+            ("@cockpit-catalog", str(Path(catalog).expanduser().resolve(strict=False))),
+            ("@cockpit-count", str(count)),
+            ("@cockpit-logo", logo.upper()),
+        ):
+            self._require(
+                self._run(
+                    (
+                        *self._base(socket_path),
+                        "set-option",
+                        "-t",
+                        f"={session}",
+                        option,
+                        value,
+                    )
+                ),
+                "update Cockpit status",
+            )
 
     def window_name(self, catalog_id: str) -> str:
         if not isinstance(catalog_id, str) or not catalog_id.strip():

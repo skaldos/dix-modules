@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Callable, Mapping, Sequence
 from typing import Protocol
 
@@ -45,6 +46,8 @@ class Runtime:
         catalog: str | None = None,
         logo: str = "dix",
         control_command: Sequence[str],
+        header_command: Sequence[str],
+        count: int,
         attach: bool = True,
     ) -> dict[str, object]:
         paths = self.paths(catalog=catalog)
@@ -54,15 +57,41 @@ class Runtime:
             "DIX_COCKPIT_LOGO": _logo(logo),
             "DIX_COCKPIT_TMUX_SOCKET": paths["socket"],
             "DIX_COCKPIT_TMUX_CONFIG": paths["tmux_config"],
+            "DIX_COCKPIT_CLIPBOARD_COPY": os.environ.get(
+                "DIX_COCKPIT_CLIPBOARD_COPY", "dix-cockpit-clipboard-copy"
+            ),
+            "DIX_COCKPIT_CLIPBOARD_PASTE": os.environ.get(
+                "DIX_COCKPIT_CLIPBOARD_PASTE", "dix-cockpit-clipboard-paste"
+            ),
         }
         result = self.tmux.require("start")(
             session=session,
             socket=paths["socket"],
             control_command=control_command,
             environment=environment,
-            attach=attach,
+            attach=False,
         )
-        return {**result, "catalog": paths["catalog"], "logo": logo}
+        if result.get("created") is True:
+            self.tmux.require("layout_control")(
+                session=session,
+                socket=paths["socket"],
+                header_command=header_command,
+            )
+        self.tmux.require("update_status")(
+            session=session,
+            socket=paths["socket"],
+            catalog=paths["catalog"],
+            count=count,
+            logo=logo,
+        )
+        if attach:
+            self.tmux.require("attach")(session=session, socket=paths["socket"])
+        return {
+            **result,
+            "attached": attach,
+            "catalog": paths["catalog"],
+            "logo": logo,
+        }
 
     def attach(self, *, session: str = "dix") -> int:
         return self.tmux.require("attach")(session=session, socket=self.paths()["socket"])
@@ -85,6 +114,23 @@ class Runtime:
             socket=self.paths()["socket"],
             catalog_id=catalog_id,
             command=command,
+        )
+
+    def update_status(
+        self,
+        *,
+        session: str,
+        catalog: str,
+        count: int,
+        logo: str,
+    ) -> None:
+        paths = self.paths(catalog=catalog)
+        self.tmux.require("update_status")(
+            session=session,
+            socket=paths["socket"],
+            catalog=paths["catalog"],
+            count=count,
+            logo=_logo(logo),
         )
 
 

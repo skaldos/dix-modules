@@ -22,5 +22,8 @@ description = "Stop only one named Cockpit session."
 [functions.open_connection]
 description = "Create or focus the stable window for one non-secret catalog identity."
 
+[functions.update_status]
+description = "Refresh non-secret session status after a catalog reload."
+
 [functions.paths]
 description = "Return the non-secret catalog, runtime, socket and config paths."
