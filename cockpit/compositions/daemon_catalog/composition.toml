@@ -1,0 +1,5 @@
+[composition]
+id = "daemon_catalog"
+
+[functions.load]
+description = "Load and strictly validate one ordered Cockpit daemon catalog."

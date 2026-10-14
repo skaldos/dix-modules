@@ -1,0 +1,11 @@
+[composition]
+id = "config"
+
+[functions.defaults]
+description = "Return deterministic XDG defaults for one DIX Cockpit process."
+
+[functions.catalog_path]
+description = "Resolve one explicit or default Cockpit daemon catalog path."
+
+[functions.runtime_root]
+description = "Resolve the short runtime root used by the isolated Cockpit tmux server."

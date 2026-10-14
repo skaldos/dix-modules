@@ -1,0 +1,17 @@
+[composition]
+id = "roba_connections"
+
+[compositions.daemon]
+use = "dix/roba/daemon"
+
+[compositions.control]
+use = "dix/roba/control"
+
+[compositions.loom]
+use = "dix/roba/loom"
+
+[functions.resolve]
+description = "Resolve one validated catalog entry to stopped, running or visible error state."
+
+[functions.resolve_all]
+description = "Resolve an ordered catalog while preserving every row."
