@@ -9,3 +9,9 @@ description = "Resolve one explicit or default Cockpit daemon catalog path."
 
 [functions.runtime_root]
 description = "Resolve the short runtime root used by the isolated Cockpit tmux server."
+
+[functions.state_root]
+description = "Resolve the persistent XDG state root used by Cockpit sessions."
+
+[functions.session_paths]
+description = "Derive and validate all non-secret paths for one named Cockpit runtime."

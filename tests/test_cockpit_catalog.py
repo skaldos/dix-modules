@@ -80,7 +80,7 @@ timeout = 2.5
         ('[daemons.a]\ndaemon_id="a"\nruntime_root="r"\nlogs_root="l"\ntimeout=true\n', "number"),
         (
             '[daemons.a]\ndaemon_id="a"\nruntime_root="r"\nlogs_root="l"\n'
-            + '[daemons.a]\ntimeout=1\n',
+            + "[daemons.a]\ntimeout=1\n",
             "invalid daemon catalog",
         ),
     ),
@@ -108,6 +108,7 @@ def test_config_uses_xdg_defaults_without_creating_files(tmp_path: Path, monkeyp
     loaded.append("skaldos/cockpit")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     instance = compositions.create_instance(
         CompositionInstanceSpec("config", "skaldos/cockpit/config", {}, tmp_path),
         owner_scope_id="cockpit-config-test",
@@ -116,9 +117,11 @@ def test_config_uses_xdg_defaults_without_creating_files(tmp_path: Path, monkeyp
         assert instance.api.require("defaults")() == {
             "catalog_path": str(tmp_path / "cfg/skaldos/cockpit/daemons.toml"),
             "runtime_root": str(tmp_path / "run/dix-cockpit"),
+            "state_root": str(tmp_path / "state/skaldos/cockpit"),
         }
         assert not (tmp_path / "cfg").exists()
         assert not (tmp_path / "run").exists()
+        assert not (tmp_path / "state").exists()
     finally:
         compositions.destroy_instance("cockpit-config-test", "config")
         for module_id in reversed(loaded):

@@ -1,0 +1,23 @@
+[composition]
+id = "roba_runtime"
+
+[compositions.settings]
+use = "skaldos/cockpit/config"
+
+[compositions.daemon]
+use = "dix/roba/daemon"
+
+[functions.paths]
+description = "Return all non-secret paths for one named Cockpit-owned ROBA runtime."
+
+[functions.status]
+description = "Classify one Cockpit-owned ROBA runtime without mutating it or exposing secrets."
+
+[functions.start]
+description = "Start or reuse one Cockpit-owned ROBA runtime and private Control capability."
+
+[functions.stop]
+description = "Stop only one provably Cockpit-owned ROBA runtime and remove volatile capability data."
+
+[functions.owner_environment]
+description = "Return the privileged owner environment after validating live Cockpit ownership."
