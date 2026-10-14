@@ -187,3 +187,61 @@ def test_session_rejects_foreign_resources_and_internal_stop(
     monkeypatch.setenv("DIX_COCKPIT_SESSION", "dix")
     with pytest.raises(RuntimeError, match="detach first"):
         session_runtime.stop()
+
+
+def test_failed_workspace_creation_rolls_back_only_new_owned_resources(
+    session_runtime,
+) -> None:
+    events: list[str] = []
+    state = {"roba": False, "tmux": False}
+    session_runtime.runtime = FakeApi(
+        paths=lambda **_values: _paths(),
+        status=lambda **_values: {
+            "state": "running" if state["roba"] else "stopped",
+            "running": state["roba"],
+            "owned": state["roba"],
+        },
+        start=lambda **_values: state.update(roba=True) or {"created": True},
+        stop=lambda **_values: (
+            events.append("roba-stop") or state.update(roba=False) or {"stopped": True}
+        ),
+    )
+    session_runtime.tmux = FakeApi(
+        socket_path=lambda _root: Path("/tmp/cockpit/tmux.sock"),
+        config_path=lambda: Path("/tmp/cockpit/tmux.conf"),
+        status=lambda **_values: {
+            "running": state["tmux"],
+            "owned": state["tmux"],
+            "windows": [],
+        },
+        start=lambda **_values: state.update(tmux=True) or {"created": True},
+        layout_runtime=lambda **_values: (_ for _ in ()).throw(RuntimeError("layout failed")),
+        stop=lambda **_values: events.append("tmux-stop") or state.update(tmux=False) or True,
+    )
+    with pytest.raises(RuntimeError, match="layout failed"):
+        session_runtime.start(shell_command=["shell"], status_command=["status"], attach=False)
+    assert events == ["tmux-stop", "roba-stop"]
+    assert state == {"roba": False, "tmux": False}
+
+
+def test_attach_and_status_never_create_resources(session_runtime) -> None:
+    calls: list[str] = []
+    session_runtime.runtime = FakeApi(
+        paths=lambda **_values: _paths(),
+        status=lambda **_values: {
+            "state": "stopped",
+            "running": False,
+            "owned": False,
+        },
+        start=lambda **_values: calls.append("start"),
+    )
+    session_runtime.tmux = FakeApi(
+        socket_path=lambda _root: Path("/tmp/cockpit/tmux.sock"),
+        config_path=lambda: Path("/tmp/cockpit/tmux.conf"),
+        status=lambda **_values: {"running": False, "owned": False, "windows": []},
+        start=lambda **_values: calls.append("start"),
+    )
+    assert session_runtime.status()["state"] == "stopped"
+    with pytest.raises(RuntimeError, match="not healthy"):
+        session_runtime.attach()
+    assert calls == []

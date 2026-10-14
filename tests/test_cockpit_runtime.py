@@ -9,6 +9,7 @@ import pytest
 from dix.core import CompositionComponent, ModuleComponent, create_core_component_registry
 from dix.core.composition import CompositionInstanceSpec
 from dix.modules import first_party_module_path
+from roba import start_daemon, stop_daemon
 
 ROOT = Path(__file__).parents[1]
 
@@ -148,3 +149,22 @@ def test_owner_artifact_never_uses_ambient_roba_roots(
     assert owner["runtime_root"] == str(root / "run/sessions/dix/roba")
     assert owner["logs_root"] == str(root / "state/sessions/dix/logs")
     assert "/tmp/ambient-roba" not in json.dumps(owner)
+
+
+def test_runtime_never_adopts_or_stops_a_foreign_daemon(cockpit_runtime) -> None:
+    runtime, _ = cockpit_runtime
+    paths = runtime.require("paths")(session="dix")
+    environment = {
+        "ROBA_RUNTIME_ROOT": paths["roba_runtime_root"],
+        "ROBA_LOGS_ROOT": paths["roba_logs_root"],
+    }
+    start_daemon("default", env=environment)
+    try:
+        status = runtime.require("status")(session="dix")
+        assert status["state"] == "foreign"
+        with pytest.raises(RuntimeError, match="without Cockpit ownership"):
+            runtime.require("start")(session="dix")
+        with pytest.raises(RuntimeError, match="without Cockpit ownership"):
+            runtime.require("stop")(session="dix")
+    finally:
+        stop_daemon(daemon="id:default", env=environment)
