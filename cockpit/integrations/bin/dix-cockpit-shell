@@ -8,4 +8,6 @@ env_file=${DIX_ENV:-$HOME/.dix/env}
 }
 . "$env_file"
 
+export DIX_COCKPIT_ZSH_CONFIG="${DIX_COCKPIT_ZSH_CONFIG:-$DIX_LAUNCHERS/cockpit/zsh/.zshrc}"
+
 exec "$DIX_VENV/bin/python" "$DIX_LAUNCHERS/dix-cockpit-owner-shell.py" "$@"

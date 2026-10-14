@@ -7,10 +7,6 @@ modules_root=$(CDPATH='' cd "$module_root/.." && pwd -P)
 visidata_root=${SKALDOS_VISIDATA_ROOT:-$modules_root/visidata}
 env_file=${DIX_ENV:-$HOME/.dix/env}
 
-command -v uv >/dev/null 2>&1 || {
-    printf 'uv is required to install DIX Cockpit\n' >&2
-    exit 1
-}
 [ -r "$env_file" ] || {
     printf 'DIX environment file is not readable: %s\n' "$env_file" >&2
     exit 1
@@ -43,10 +39,10 @@ do
     }
 done
 
-mkdir -p "$DIX_LAUNCHERS/cockpit" "$DIX_BIN"
-uv pip install --python "$DIX_VENV/bin/python" -r "$module_root/requirements.txt"
+mkdir -p "$DIX_LAUNCHERS/cockpit/assets" "$DIX_LAUNCHERS/cockpit/zsh" "$DIX_BIN"
+chmod 0700 "$DIX_LAUNCHERS/cockpit" "$DIX_LAUNCHERS/cockpit/assets" "$DIX_LAUNCHERS/cockpit/zsh"
 
-for name in dix-cockpit dix-cockpit-control dix-cockpit-connection; do
+for name in dix-cockpit dix-cockpit-owner-shell dix-cockpit-runtime-status; do
     launcher_spec="$DIX_LAUNCHERS/$name.toml"
     "$DIX_VENV/bin/python" - \
         "$integration_root/launchers/$name.toml" \
@@ -83,10 +79,15 @@ PY
 done
 
 cp "$integration_root/tmux/cockpit.conf" "$DIX_LAUNCHERS/cockpit/tmux.conf"
+cp "$integration_root/zsh/.zshrc" "$DIX_LAUNCHERS/cockpit/zsh/.zshrc"
+cp "$module_root/assets/dix.png" "$DIX_LAUNCHERS/cockpit/assets/dix.png"
+cp "$module_root/assets/roba.png" "$DIX_LAUNCHERS/cockpit/assets/roba.png"
+chmod 0600 "$DIX_LAUNCHERS/cockpit/tmux.conf" "$DIX_LAUNCHERS/cockpit/zsh/.zshrc"
+chmod 0600 "$DIX_LAUNCHERS/cockpit/assets/dix.png" "$DIX_LAUNCHERS/cockpit/assets/roba.png"
 for name in \
     dix-cockpit \
-    dix-cockpit-control \
-    dix-cockpit-connection \
+    dix-cockpit-shell \
+    dix-cockpit-runtime-status \
     dix-cockpit-clipboard-copy \
     dix-cockpit-clipboard-paste
 do
@@ -95,18 +96,6 @@ do
 done
 chmod 0755 "$DIX_LAUNCHERS"/dix-cockpit*.py
 
-catalog=${DIX_COCKPIT_CATALOG:-${XDG_CONFIG_HOME:-$HOME/.config}/skaldos/cockpit/daemons.toml}
-if [ ! -e "$catalog" ]; then
-    mkdir -p "$(dirname "$catalog")"
-    cat > "$catalog" <<'EOF'
-[daemons.default]
-daemon_id = "default"
-runtime_root = "~/.roba/runtime"
-logs_root = "~/.roba/logs"
-timeout = 5.0
-EOF
-fi
 
-printf 'installed DIX Cockpit launchers in %s\n' "$DIX_LAUNCHERS"
+printf 'installed privileged DIX Cockpit launchers in %s\n' "$DIX_LAUNCHERS"
 printf 'installed DIX Cockpit commands in %s\n' "$DIX_BIN"
-printf 'Cockpit daemon catalog: %s\n' "$catalog"

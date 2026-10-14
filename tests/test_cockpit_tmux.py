@@ -51,6 +51,7 @@ class FakeTmux:
     def __init__(self) -> None:
         self.calls: list[tuple[list[str], dict[str, str]]] = []
         self.sessions: dict[str, list[str]] = {}
+        self.options: dict[tuple[str, str], str] = {}
 
     def __call__(self, command, **kwargs):
         args = list(command)
@@ -68,6 +69,8 @@ class FakeTmux:
                     "kill-session",
                     "list-sessions",
                     "kill-server",
+                    "set-option",
+                    "show-options",
                 )
                 if item in args
             ),
@@ -80,6 +83,15 @@ class FakeTmux:
             session = args[args.index("-s") + 1]
             self.sessions[session] = ["control"]
             return _completed(args)
+        if operation == "set-option":
+            session = args[args.index("-t") + 1].removeprefix("=")
+            option = args[-2]
+            self.options[(session, option)] = args[-1]
+            return _completed(args)
+        if operation == "show-options":
+            session = args[args.index("-t") + 1].removeprefix("=")
+            value = self.options.get((session, args[-1]))
+            return _completed(args, 0 if value is not None else 1, stdout=(value or "") + "\n")
         if operation == "list-windows":
             session = args[args.index("-t") + 1].removeprefix("=")
             return _completed(args, stdout="\n".join(self.sessions[session]) + "\n")
@@ -90,6 +102,7 @@ class FakeTmux:
         if operation == "kill-session":
             session = args[args.index("-t") + 1].removeprefix("=")
             del self.sessions[session]
+            self.options = {key: value for key, value in self.options.items() if key[0] != session}
             return _completed(args)
         if operation == "list-sessions":
             if not self.sessions:

@@ -14,6 +14,7 @@ from dix.core.composition import CompositionRuntimeContext
 _SESSION = re.compile(r"[A-Za-z0-9_.-]+\Z")
 _WINDOW = re.compile(r"[A-Za-z0-9_.-]+\Z")
 _SOCKET_LIMIT = 107
+_OWNER_MARKER = "skaldos.dix-cockpit.tmux.v1"
 
 
 class TmuxWorkspaceError(RuntimeError):
@@ -68,13 +69,30 @@ class Runtime:
                 )
             )
             self._require(windows, "list Cockpit windows")
+            owner = self._run(
+                (
+                    *self._base(socket_path),
+                    "show-options",
+                    "-v",
+                    "-t",
+                    session,
+                    "@cockpit-owner",
+                )
+            )
             return {
                 "session": session,
                 "socket": str(socket_path),
                 "running": True,
+                "owned": owner.returncode == 0 and owner.stdout.strip() == _OWNER_MARKER,
                 "windows": [line for line in windows.stdout.splitlines() if line],
             }
-        return {"session": session, "socket": str(socket_path), "running": False, "windows": []}
+        return {
+            "session": session,
+            "socket": str(socket_path),
+            "running": False,
+            "owned": False,
+            "windows": [],
+        }
 
     def start(
         self,
@@ -92,6 +110,10 @@ class Runtime:
         current = self.status(session=session, socket=socket_path)
         created = False
         if current["running"] is True:
+            if current["owned"] is not True:
+                raise TmuxWorkspaceError(
+                    f"refusing to reuse a tmux session without Cockpit ownership: {session}"
+                )
             self._require(
                 self._run((*self._base(socket_path), "select-window", "-t", f"={session}:control")),
                 "focus Cockpit control window",
@@ -118,6 +140,16 @@ class Runtime:
                         tuple(start[:3] + ["-f", str(self.config_path())] + start[3:])
                     )
             self._require(result, "start Cockpit session")
+            for option, value in (
+                ("@cockpit-owner", _OWNER_MARKER),
+                ("@cockpit-session", session),
+            ):
+                self._require(
+                    self._run(
+                        (*self._base(socket_path), "set-option", "-t", session, option, value)
+                    ),
+                    "mark Cockpit session ownership",
+                )
             created = True
         if attach:
             self._require(
@@ -141,6 +173,10 @@ class Runtime:
         status = self.status(session=session, socket=socket)
         if status["running"] is not True:
             return False
+        if status["owned"] is not True:
+            raise TmuxWorkspaceError(
+                f"refusing to stop a tmux session without Cockpit ownership: {session}"
+            )
         socket_path = Path(str(status["socket"]))
         self._require(
             self._run((*self._base(socket_path), "kill-session", "-t", f"={session}")),

@@ -60,47 +60,60 @@ def applications(tmp_path: Path):
             modules.unload_module(module_id)
 
 
-def test_cli_start_builds_only_non_secret_window_commands(
+def test_cli_start_and_reset_build_only_non_secret_runtime_commands(
     applications, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     runtime = applications["cli"].runtime
-    catalog = tmp_path / "daemons.toml"
-    catalog.write_text(
-        '[daemons.local]\ndaemon_id="d"\nruntime_root="/tmp/r"\nlogs_root="/tmp/l"\n'
-    )
-    captured: dict[str, object] = {}
+    captured: list[tuple[str, dict[str, object]]] = []
 
-    def start(**values):
-        captured.update(values)
-        return {"created": True}
+    def operation(name):
+        def call(**values):
+            captured.append((name, values))
+            return {"created": True}
 
-    runtime.settings = FakeApi(catalog_path=lambda value=None: Path(value or catalog))
-    runtime.catalog = FakeApi(load=lambda _path: [{"catalog_id": "local"}])
-    runtime.session = FakeApi(start=start)
+        return call
+
+    runtime.session = FakeApi(start=operation("start"), reset=operation("reset"))
     monkeypatch.setenv("DIX_BIN", str(tmp_path / "bin"))
-    assert runtime.main(["start", "--catalog", str(catalog), "--logo", "roba"]) == 0
-    assert captured["attach"] is True
-    assert captured["count"] == 1
-    joined = " ".join((*captured["control_command"], *captured["header_command"]))
-    assert str(catalog) in joined and "roba" in joined
+    assert runtime.main(["start", "--session", "alpha", "--logo", "roba"]) == 0
+    assert runtime.main(["reset", "--session", "alpha"]) == 0
+    assert [name for name, _values in captured] == ["start", "reset"]
+    first = captured[0][1]
+    assert first["attach"] is True
+    assert first["shell_command"] == [
+        str(tmp_path / "bin/dix-cockpit-shell"),
+        "--session",
+        "alpha",
+    ]
+    joined = " ".join((*first["shell_command"], *first["status_command"]))
+    assert "roba" in joined
     assert "token" not in joined.lower()
 
 
-def test_cli_status_and_stop_are_scriptable_without_start(applications, capsys) -> None:
+def test_cli_status_attach_and_stop_are_scriptable_without_start(applications, capsys) -> None:
     runtime = applications["cli"].runtime
+    calls: list[str] = []
     runtime.session = FakeApi(
         status=lambda **_values: {
             "session": "dix",
-            "socket": "/tmp/dix-cockpit/tmux.sock",
+            "state": "stopped",
             "running": False,
-            "windows": [],
+            "owned": False,
         },
-        stop=lambda **_values: False,
+        attach=lambda **_values: calls.append("attach") or 0,
+        stop=lambda **_values: {
+            "session": "dix",
+            "stopped": False,
+            "roba_stopped": False,
+            "tmux_stopped": False,
+        },
     )
     assert runtime.main(["status"]) == 1
     assert '"running":false' in capsys.readouterr().out
+    assert runtime.main(["attach"]) == 0
+    assert calls == ["attach"]
     assert runtime.main(["stop"]) == 0
-    assert '"stopped": false' in capsys.readouterr().out
+    assert '"stopped":false' in capsys.readouterr().out
 
 
 def test_connection_window_resolves_catalog_identity_before_starting_workbench(

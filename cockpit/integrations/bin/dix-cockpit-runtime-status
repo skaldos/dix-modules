@@ -8,4 +8,6 @@ env_file=${DIX_ENV:-$HOME/.dix/env}
 }
 . "$env_file"
 
+export DIX_COCKPIT_ASSET_ROOT="${DIX_COCKPIT_ASSET_ROOT:-$DIX_LAUNCHERS/cockpit/assets}"
+
 exec "$DIX_VENV/bin/python" "$DIX_LAUNCHERS/dix-cockpit-runtime-status.py" "$@"

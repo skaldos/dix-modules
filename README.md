@@ -20,8 +20,7 @@ The separate [VisiData Loom workbench](visidata/README.md) (also
 [in German](visidata/README.de.md)) is a provider-neutral V0 client delivered with a direct
 in-process `dix/roba/loom` application; it is not part of the Sway modules.
 
-The [DIX Cockpit](cockpit/README.md) (also [in German](cockpit/README.de.md)) adds an isolated
-tmux workspace and explicit multi-daemon catalog around that unchanged Loom workbench.
+The [DIX Cockpit](cockpit/README.md) (also [in German](cockpit/README.de.md)) provides an isolated privileged tmux/Zsh workspace with its own Cockpit-owned ROBA runtime.
 
 ## License
 

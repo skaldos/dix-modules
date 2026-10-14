@@ -1,8 +1,8 @@
-# Internal window launcher; arguments contain catalog identity, never capabilities.
+# Installer template. Quoted @...@ values are materialized from the central DIX env.
 [launcher]
-name = "dix-cockpit-control"
+name = "dix-cockpit-runtime-status"
 adapter = "python_cli"
-application = "skaldos/cockpit/control_window"
+application = "skaldos/cockpit/runtime_status"
 function = "main"
 
 [[modules]]

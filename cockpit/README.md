@@ -1,100 +1,90 @@
 # DIX Cockpit
 
-DIX Cockpit is an isolated tmux workspace for several explicit ROBA daemon roots. It reuses the
-existing provider-neutral VisiData Loom workbench in each connection window. The Cockpit is an
-orchestrator, not a daemon manager: starting or stopping the Cockpit never starts or stops a ROBA
-daemon.
+DIX Cockpit is one isolated, privileged terminal runtime owned by a name. Each session combines:
+
+- its own ROBA daemon and native Control capability;
+- one session on a Cockpit-only tmux server;
+- an isolated owner Zsh with private startup files and history;
+- a separate DIX or ROBA logo/status pane.
+
+It does not use DIX Control, a daemon catalog, VisiData, the host tmux server, or host Zsh files for
+its main lifecycle. The retained catalog/provider code is legacy and is not involved in
+`dix-cockpit`.
 
 ## Requirements and installation
 
-- DIX with `dix/state`, `dix/cli`, `dix/norn` and `dix/roba`;
-- this repository with the sibling `visidata` and `cockpit` module roots;
-- `uv`, Python 3.12+, tmux and the normal central DIX environment;
-- VisiData 3.4 (installed into `DIX_VENV` by the installer);
-- optional `chafa`, `wl-copy`/`wl-paste`, or `xclip`.
+DIX must provide `dix/state`, `dix/cli`, `dix/norn`, and `dix/roba`, and its environment must expose
+`DIX_SOURCE_ROOT`, `DIX_VENV`, `DIX_LAUNCHERS`, and `DIX_BIN`. ROBA must already be available in
+that Python environment. The host needs tmux and Zsh. Chafa and Wayland/X11 clipboard tools are
+optional.
 
 ```sh
 export DIX_ENV="$HOME/.dix/env"       # optional; this is the default
 ./cockpit/integrations/install
 ```
 
-The installer builds three normal DIX launchers, installs `dix-cockpit` and its internal window
-helpers in `DIX_BIN`, and copies the Cockpit-owned tmux config below `DIX_LAUNCHERS/cockpit`.
-It creates the default catalog only if it does not exist. It does not edit the central DIX env,
-source a host tmux config, or overwrite an existing catalog.
+The installer is repeatable. It builds only the main, owner-shell, and status launchers, installs
+namespaced wrappers, private tmux/Zsh configs, and both reviewed logos. It neither edits the DIX
+environment nor reads or overwrites host tmux/Zsh configuration.
 
-Useful optional overrides are:
+Optional process-local overrides:
 
 ```sh
-export DIX_COCKPIT_CATALOG="$HOME/.config/skaldos/cockpit/daemons.toml"
 export DIX_COCKPIT_RUNTIME_ROOT="${XDG_RUNTIME_DIR:-/tmp}/dix-cockpit"
+export DIX_COCKPIT_STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/skaldos/cockpit"
 export DIX_COCKPIT_TMUX_CONFIG="$DIX_LAUNCHERS/cockpit/tmux.conf"
-export SKALDOS_VISIDATA_ROOT="$HOME/.dix/src/dix-modules/visidata"
+export DIX_COCKPIT_ZSH_CONFIG="$DIX_LAUNCHERS/cockpit/zsh/.zshrc"
+export DIX_COCKPIT_ASSET_ROOT="$DIX_LAUNCHERS/cockpit/assets"
 ```
 
-Keep `DIX_COCKPIT_RUNTIME_ROOT` short. Unix-domain sockets have a small platform path limit, which
-Cockpit checks before invoking tmux.
+Keep `DIX_COCKPIT_RUNTIME_ROOT` short: Unix-domain socket paths have a strict platform limit, which
+Cockpit validates before creating anything.
 
-## Explicit daemon catalog
-
-```toml
-[daemons.default]
-daemon_id = "default"
-runtime_root = "~/.roba/runtime"
-logs_root = "~/.roba/logs"
-timeout = 5.0
-
-[daemons.lab]
-daemon_id = "lab"
-runtime_root = "/run/user/1000/roba-lab"
-logs_root = "~/.local/state/roba-lab/logs"
-```
-
-The table name is the stable local catalog/window identity. `daemon_id` is the provider identity.
-Relative roots are resolved against the catalog directory; `~` is expanded. Unknown fields,
-duplicates, empty values and invalid timeouts fail visibly. The catalog is not discovery and must
-never contain tokens.
-
-## Commands and lifecycle
+## Commands
 
 ```sh
-dix-cockpit start  [--session NAME] [--catalog PATH] [--logo dix|roba]
+dix-cockpit start  [--session NAME] [--logo dix|roba]
 dix-cockpit attach [--session NAME]
 dix-cockpit status [--session NAME]
 dix-cockpit stop   [--session NAME]
+dix-cockpit reset  [--session NAME] [--logo dix|roba]
 ```
 
-The session and logo default to `dix`. `start` creates or focuses the dedicated Cockpit tmux
-session and attaches. `attach` and `status` never create it. `stop` removes only the named Cockpit
-session and cleans the empty isolated tmux server; it never stops a catalog daemon.
+Session and logo default to `dix`.
 
-The Control window keeps stopped and failed targets visible. Reload the sheet with the normal
-VisiData reload command. Enter opens or focuses one stable connection window without a Loom
-effect. The connection window uses the unchanged Loom workbench controls:
+- `start` creates or reuses the complete runtime and attaches.
+- `attach` and `status` never create or repair resources. Status is JSON and exits non-zero unless
+  the complete runtime is healthy.
+- `stop` first stops only the proven-owned ROBA daemon, removes volatile capability data, and then
+  stops the owned tmux session. The tmux server is killed only after its final session. Logs and
+  shell history remain.
+- `reset` performs an ownership-checked stop, starts a fresh runtime with a new capability, and
+  attaches.
+- Detach or client loss stops nothing. `stop` and `reset` from inside the target session are
+  rejected; detach first.
 
-- **Enter**: inspect/open/drill only;
-- **Space**: explicitly confirm and execute the selected Loom reference;
-- `e` / `r`: edit a scalar or replace a JSON-compatible draft subtree;
-- `B`: show the selected workbench branding where available.
+A running owned daemon with a missing tmux session is rebuilt by `start`. A live tmux session with
+an absent or invalid daemon is not silently repaired; use `reset`. Foreign daemons, malformed
+owner artifacts, and foreign tmux sessions are never adopted or stopped.
 
-A stopped target opens with the basic connection and therefore offers an explicit Loom `start`.
-A running target is resolved through DIX Control in-process. Broken Control credentials are shown
-as an error; they are never replaced by invented or weaker credentials.
+## Owner shell and tmux
 
-## Isolated tmux and clipboard
+The first window contains the owner Zsh and a separate non-blocking logo/status pane. New `|` and
+`-` splits invoke the same owner-shell entry again. Only that shell child loads the private capability into its process environment and receives `ROBA_CONTROL_TOKEN`, `ROBA_DAEMON=id:default`, and
+`ROBA_CONTROL=id:default`. tmux environment, options, pane titles, status, argv, and documentation
+remain secret-free.
 
-Every tmux call uses the same dedicated `-S` socket. Only server creation loads the Cockpit config.
-The host server, host config and plugins are not used. Cockpit provides `C-a` (plus nested `C-b`),
-vi copy mode, h/j/k/l pane navigation, C-h/C-l window navigation, H/J/K/L resizing, `|` and `-`
-splits, Escape copy mode and its own status/header area.
+The owner shell has its own `ZDOTDIR`, history, completion for `dix-cockpit`, `dix-roba-cli`, and
+`roba-ctl`, and a visible Cockpit prompt. Existing navigation, resize, vi copy mode, reload, and
+clipboard adapters remain available. The owner artifact and Zsh files use mode `0600`; private
+directories use `0700`.
 
-Copy/paste uses Wayland first, then Xclip, then the isolated tmux buffer. The helpers pass bytes
-through stdin/stdout and never interpolate clipboard contents as shell commands. The fallback is
-reported in the terminal.
+Useful checks inside the owner shell:
 
-## Secret boundary
+```sh
+dix-roba-cli daemon status
+roba-ctl ctx list
+```
 
-The local connection workbench deliberately shows complete materialized values, including tokens,
-for this pressure-test stage. Those values stay in-process. Tokens are never copied into process
-arguments, tmux names/options, header/status text, logs, documentation or catalog files. A real
-terminal/visual review remains separate from automated verification.
+The status pane renders the selected reviewed PNG with Chafa when available and falls back to text.
+A real visual terminal review remains separate from automated verification.

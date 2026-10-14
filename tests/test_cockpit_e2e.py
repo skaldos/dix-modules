@@ -1,56 +1,27 @@
 from __future__ import annotations
 
+import json
 import shutil
+import subprocess
 import tempfile
 import uuid
 from pathlib import Path
 
+import pytest
 from dix.core import CompositionComponent, ModuleComponent, create_core_component_registry
 from dix.core.composition import CompositionInstanceSpec
 from dix.modules import first_party_module_path
-from roba import daemon_status, start_daemon, stop_daemon
 
 ROOT = Path(__file__).parents[1]
 
 
-def _select(references: object, object_id: str) -> dict[str, object]:
-    assert isinstance(references, list)
-    matches = [item for item in references if item.get("object_id") == object_id]
-    assert len(matches) == 1
-    return matches[0]
-
-
-def _environment(runtime_root: Path, logs_root: Path) -> dict[str, str]:
-    return {"ROBA_RUNTIME_ROOT": str(runtime_root), "ROBA_LOGS_ROOT": str(logs_root)}
-
-
-def test_real_catalog_loom_and_isolated_tmux_lifecycles(monkeypatch) -> None:
-    root = Path(tempfile.mkdtemp(prefix="dxc-e2e-", dir="/tmp"))
-    runtime_root = root / "rt"
-    logs_root = root / "logs"
-    cockpit_root = Path("/tmp") / f"dxc-w-{uuid.uuid4().hex[:8]}"
-    catalog_path = root / "daemons.toml"
-    catalog_path.write_text(
-        f'''[daemons.running]
-daemon_id = "running"
-runtime_root = "{runtime_root}"
-logs_root = "{logs_root}"
-
-[daemons.stopped]
-daemon_id = "stopped"
-runtime_root = "{runtime_root}"
-logs_root = "{logs_root}"
-
-[daemons.broken]
-daemon_id = "broken"
-runtime_root = "{runtime_root}"
-logs_root = "{logs_root}"
-'''
-    )
-    environment = _environment(runtime_root, logs_root)
-    running = start_daemon("running", env=environment)
-    start_daemon("broken", env=environment)
-    monkeypatch.setenv("DIX_COCKPIT_RUNTIME_ROOT", str(cockpit_root))
+@pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
+def test_real_privileged_runtime_reuse_reset_and_two_sessions(monkeypatch) -> None:
+    root = Path(tempfile.gettempdir()) / f"dxe-{uuid.uuid4().hex[:8]}"
+    runtime_root = root / "run"
+    state_root = root / "state"
+    monkeypatch.setenv("DIX_COCKPIT_RUNTIME_ROOT", str(runtime_root))
+    monkeypatch.setenv("DIX_COCKPIT_STATE_ROOT", str(state_root))
     monkeypatch.setenv(
         "DIX_COCKPIT_TMUX_CONFIG", str(ROOT / "cockpit/integrations/tmux/cockpit.conf")
     )
@@ -59,7 +30,7 @@ logs_root = "{logs_root}"
     modules = registry.require("module", ModuleComponent)
     compositions = registry.require("composition", CompositionComponent)
     loaded: list[str] = []
-    created: list[tuple[str, str]] = []
+    instance = None
     try:
         for module_id in ("dix/state", "dix/cli", "dix/norn", "dix/roba"):
             modules.load_module(first_party_module_path(module_id), module_id=module_id)
@@ -68,113 +39,73 @@ logs_root = "{logs_root}"
         loaded.append("skaldos/visidata")
         modules.load_module(ROOT / "cockpit", module_id="skaldos/cockpit")
         loaded.append("skaldos/cockpit")
+        instance = compositions.create_instance(
+            CompositionInstanceSpec(
+                "session", "skaldos/cockpit/cockpit_session", {}, ROOT / "cockpit"
+            ),
+            owner_scope_id="cockpit-real-e2e",
+        )
+        session = instance.api
 
-        def create(instance_id: str, use: str):
-            value = compositions.create_instance(
-                CompositionInstanceSpec(instance_id, use, {}, root),
-                owner_scope_id="cockpit-e2e",
+        def start(name: str, logo: str = "dix") -> dict[str, object]:
+            return session.require("start")(
+                session=name,
+                logo=logo,
+                shell_command=["sleep", "300"],
+                status_command=["sleep", "300"],
+                attach=False,
             )
-            created.append(("cockpit-e2e", instance_id))
-            return value.api
 
-        catalog = create("catalog", "skaldos/cockpit/daemon_catalog")
-        connections = create("connections", "skaldos/cockpit/roba_connections")
-        control = create("control", "dix/roba/control")
-        loom = create("loom", "dix/roba/loom")
-        session = create("session", "skaldos/cockpit/cockpit_session")
+        first = start("dix")
+        assert first["running"] is True
+        assert first["created"] == {"roba": True, "tmux": True}
+        owner_path = Path(first["roba"]["owner_file"])
+        first_owner = json.loads(owner_path.read_text(encoding="utf-8"))
 
-        config = {
-            "daemon_id": "running",
-            "runtime_root": str(runtime_root),
-            "logs_root": str(logs_root),
-            "timeout": 5.0,
-        }
-        control.require("set")(config)
-        control.require("bootstrap")(
-            control_locator=str(running.control_locator),
-            control_token=running.control_token,
-        )
+        reused = start("dix")
+        assert reused["created"] == {"roba": False, "tmux": False}
+        assert reused["roba"]["pid"] == first["roba"]["pid"]
 
-        entries = catalog.require("load")(catalog_path)
-        rows = connections.require("resolve_all")(entries)
-        assert [row["state"] for row in rows] == ["running", "stopped", "error"]
-        assert rows[0]["connection"]["control_token"] == running.control_token
-        assert set(rows[1]["connection"]) == {
-            "daemon_id",
-            "runtime_root",
-            "logs_root",
-            "timeout",
-        }
-        assert rows[2]["connection"] is None and rows[2]["error"]
-        assert daemon_status(daemon="id:running", env=environment)["daemon_id"] == "running"
-        assert daemon_status(daemon="id:broken", env=environment)["daemon_id"] == "broken"
-        assert not (runtime_root / "daemons/stopped").exists()
+        review = start("review", "roba")
+        assert review["running"] is True
+        assert first["tmux"]["socket"] == review["tmux"]["socket"]
+        assert Path(review["roba"]["owner_file"]) != owner_path
 
-        first = session.require("start")(
+        reset = session.require("reset")(
             session="dix",
-            catalog=str(catalog_path),
             logo="dix",
-            count=3,
-            control_command=["sleep", "300"],
-            header_command=["sleep", "300"],
+            shell_command=["sleep", "300"],
+            status_command=["sleep", "300"],
             attach=False,
         )
-        second = session.require("start")(
-            session="review",
-            catalog=str(catalog_path),
-            logo="roba",
-            count=3,
-            control_command=["sleep", "300"],
-            header_command=["sleep", "300"],
-            attach=False,
-        )
-        assert first["socket"] == second["socket"]
-        opened = session.require("open_connection")(
-            session="dix",
-            catalog_id="running",
-            command=["sleep", "300"],
-        )
-        again = session.require("open_connection")(
-            session="dix",
-            catalog_id="running",
-            command=["sleep", "300"],
-        )
-        assert opened["action"] == "created" and again["action"] == "focused"
-        assert session.require("stop")(session="dix") is True
+        reset_owner = json.loads(Path(reset["roba"]["owner_file"]).read_text(encoding="utf-8"))
+        assert reset["running"] is True
+        assert reset_owner["control_token"] != first_owner["control_token"]
         assert session.require("status")(session="review")["running"] is True
-        assert session.require("stop")(session="review") is True
 
-        stopped_seed = rows[1]["connection"]
-        connection = _select(loom.require("execute")(stopped_seed), "connection")
-        daemon = _select(
-            loom.require("execute")(connection["value"], connection["object_id"]), "daemon"
-        )
-        connect = _select(
-            loom.require("execute")(daemon["value"], daemon["object_id"]), "connect"
-        )
-        start = _select(
-            loom.require("execute")(connect["value"], connect["object_id"]), "start"
-        )
-        capability = _select(
-            loom.require("execute")(start["value"], start["object_id"]), "connection"
-        )
-        assert capability["value"]["daemon_id"] == "stopped"
-        assert daemon_status(daemon="id:stopped", env=environment)["daemon_id"] == "stopped"
-        daemon = _select(
-            loom.require("execute")(capability["value"], "connection"), "daemon"
-        )
-        connect = _select(loom.require("execute")(daemon["value"], "daemon"), "connect")
-        stop = _select(loom.require("execute")(connect["value"], "connect"), "stop")
-        _select(loom.require("execute")(stop["value"], "stop"), "connection")
-        assert not (runtime_root / "daemons/stopped").exists()
+        stopped = session.require("stop")(session="dix")
+        assert stopped["roba_stopped"] is True and stopped["tmux_stopped"] is True
+        assert session.require("status")(session="review")["running"] is True
+        assert session.require("stop")(session="review")["stopped"] is True
+        assert not (runtime_root / "tmux.sock").exists()
+        assert (state_root / "sessions/dix/logs").is_dir()
+        assert (state_root / "sessions/review/logs").is_dir()
     finally:
-        for owner, instance_id in reversed(created):
-            compositions.destroy_instance(owner, instance_id)
-        for daemon_id in ("stopped", "broken", "running"):
-            if (runtime_root / "daemons" / daemon_id / "daemon.sock").exists():
-                stop_daemon(daemon=f"id:{daemon_id}", env=environment)
+        if instance is not None:
+            for name in ("dix", "review"):
+                try:
+                    status = instance.api.require("status")(session=name)
+                    if status.get("state") not in {"foreign", "drift"}:
+                        instance.api.require("stop")(session=name)
+                except RuntimeError:
+                    pass
+            compositions.destroy_instance("cockpit-real-e2e", "session")
+        socket = runtime_root / "tmux.sock"
+        subprocess.run(
+            ["tmux", "-S", str(socket), "kill-server"],
+            capture_output=True,
+            check=False,
+        )
         for module_id in reversed(loaded):
             modules.unload_module(module_id)
         shutil.rmtree(root, ignore_errors=True)
-        shutil.rmtree(cockpit_root, ignore_errors=True)
-    assert not cockpit_root.exists()

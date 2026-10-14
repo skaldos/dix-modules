@@ -1,8 +1,8 @@
-# Internal window launcher; each process resolves capabilities from non-secret catalog identity.
+# Installer template. Quoted @...@ values are materialized from the central DIX env.
 [launcher]
-name = "dix-cockpit-connection"
+name = "dix-cockpit-owner-shell"
 adapter = "python_cli"
-application = "skaldos/cockpit/connection_window"
+application = "skaldos/cockpit/owner_shell"
 function = "main"
 
 [[modules]]

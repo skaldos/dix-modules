@@ -4,26 +4,32 @@ id = "cockpit_session"
 [compositions.settings]
 use = "skaldos/cockpit/config"
 
+[compositions.runtime]
+use = "skaldos/cockpit/roba_runtime"
+
 [compositions.tmux]
 use = "skaldos/cockpit/tmux_workspace"
 
 [functions.start]
-description = "Start or focus one named isolated Cockpit session."
+description = "Start or reuse one complete Cockpit-owned ROBA and tmux runtime."
 
 [functions.attach]
-description = "Attach only to an existing named Cockpit session."
+description = "Attach only to one healthy existing Cockpit runtime."
 
 [functions.status]
-description = "Inspect one named Cockpit session without creating anything."
+description = "Inspect one Cockpit runtime without creating or repairing anything."
 
 [functions.stop]
-description = "Stop only one named Cockpit session."
+description = "Stop one provably owned Cockpit runtime in daemon-first order."
+
+[functions.reset]
+description = "Replace one provably owned Cockpit runtime and attach with a fresh capability."
 
 [functions.open_connection]
-description = "Create or focus the stable window for one non-secret catalog identity."
+description = "Create or focus one legacy non-secret connection window."
 
 [functions.update_status]
-description = "Refresh non-secret session status after a catalog reload."
+description = "Refresh legacy non-secret catalog status."
 
 [functions.paths]
-description = "Return the non-secret catalog, runtime, socket and config paths."
+description = "Return all non-secret paths for one named Cockpit runtime."
