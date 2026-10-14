@@ -93,9 +93,7 @@ class Runtime:
         created = False
         if current["running"] is True:
             self._require(
-                self._run(
-                    (*self._base(socket_path), "select-window", "-t", f"={session}:control")
-                ),
+                self._run((*self._base(socket_path), "select-window", "-t", f"={session}:control")),
                 "focus Cockpit control window",
             )
         else:
@@ -116,7 +114,9 @@ class Runtime:
                 probe = self._run((*self._base(socket_path), "list-sessions"))
                 if probe.returncode != 0 and "no server" in probe.stderr.lower():
                     socket_path.unlink(missing_ok=True)
-                    result = self._run(tuple(start[:3] + ["-f", str(self.config_path())] + start[3:]))
+                    result = self._run(
+                        tuple(start[:3] + ["-f", str(self.config_path())] + start[3:])
+                    )
             self._require(result, "start Cockpit session")
             created = True
         if attach:
@@ -222,6 +222,44 @@ class Runtime:
                 "set Cockpit pane title",
             )
 
+    def layout_runtime(
+        self,
+        *,
+        session: str,
+        socket: str | Path,
+        status_command: Sequence[str],
+    ) -> None:
+        session = _name(session, "session")
+        socket_path = self._socket(socket)
+        self._require(
+            self._run(
+                (
+                    *self._base(socket_path),
+                    "split-window",
+                    "-t",
+                    f"={session}:control.1",
+                    "-h",
+                    "-b",
+                    "-l",
+                    "38%",
+                    _shell_command(status_command),
+                )
+            ),
+            "create Cockpit logo/status pane",
+        )
+        self._require(
+            self._run((*self._base(socket_path), "select-pane", "-t", f"={session}:control.2")),
+            "focus Cockpit owner shell",
+        )
+        for target, title in (
+            (f"={session}:control.1", "DIX Cockpit Runtime"),
+            (f"={session}:control.2", "Owner Shell"),
+        ):
+            self._require(
+                self._run((*self._base(socket_path), "select-pane", "-t", target, "-T", title)),
+                "set Cockpit runtime pane title",
+            )
+
     def update_status(
         self,
         *,
@@ -256,6 +294,29 @@ class Runtime:
                 "update Cockpit status",
             )
 
+    def update_runtime_status(
+        self,
+        *,
+        session: str,
+        socket: str | Path,
+        logo: str,
+        daemon_state: str,
+    ) -> None:
+        session = _name(session, "session")
+        socket_path = self._socket(socket)
+        if logo not in {"dix", "roba"}:
+            raise ValueError("logo must be dix or roba")
+        if not isinstance(daemon_state, str) or not daemon_state:
+            raise TypeError("daemon_state must be a non-empty string")
+        for option, value in (
+            ("@cockpit-logo", logo.upper()),
+            ("@cockpit-daemon-state", daemon_state),
+        ):
+            self._require(
+                self._run((*self._base(socket_path), "set-option", "-t", session, option, value)),
+                "update Cockpit runtime status",
+            )
+
     def window_name(self, catalog_id: str) -> str:
         if not isinstance(catalog_id, str) or not catalog_id.strip():
             raise TypeError("catalog_id must be a non-empty string")
@@ -281,8 +342,11 @@ class Runtime:
 
     @staticmethod
     def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
-        environment = dict(os.environ)
-        environment.pop("TMUX", None)
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key != "TMUX" and not _secret_key(key)
+        }
         return subprocess.run(
             list(command),
             env=environment,
@@ -318,7 +382,15 @@ def _string_environment(value: Mapping[str, str]) -> dict[str, str]:
         isinstance(key, str) and key and isinstance(item, str) for key, item in value.items()
     ):
         raise TypeError("Cockpit tmux environment must be a string mapping")
+    secret = next((key for key in value if _secret_key(key)), None)
+    if secret is not None:
+        raise ValueError(f"Cockpit tmux environment must not contain secret key: {secret}")
     return dict(value)
+
+
+def _secret_key(value: str) -> bool:
+    upper = value.upper()
+    return any(marker in upper for marker in ("TOKEN", "SECRET", "PASSWORD", "CREDENTIAL"))
 
 
 def _is_socket(path: Path) -> bool:

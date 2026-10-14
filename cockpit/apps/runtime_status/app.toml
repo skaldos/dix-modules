@@ -1,0 +1,5 @@
+[app]
+id = "runtime_status"
+
+[functions.main]
+description = "Render one non-secret Cockpit runtime logo and status pane."

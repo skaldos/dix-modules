@@ -1,0 +1,8 @@
+[app]
+id = "owner_shell"
+
+[compositions.runtime]
+use = "skaldos/cockpit/roba_runtime"
+
+[functions.main]
+description = "Enter one isolated Cockpit owner Zsh after privately loading its capability."

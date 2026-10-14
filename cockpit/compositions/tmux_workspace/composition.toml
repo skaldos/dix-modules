@@ -25,8 +25,14 @@ description = "Create or focus one stable non-secret Cockpit window."
 [functions.layout_control]
 description = "Add the small Cockpit-owned header pane to a new Control window."
 
+[functions.layout_runtime]
+description = "Add one separate non-secret logo/status pane to a new owner-shell window."
+
 [functions.update_status]
 description = "Update only non-secret Cockpit session status options."
+
+[functions.update_runtime_status]
+description = "Update only the non-secret status options of one privileged Cockpit runtime."
 
 [functions.window_name]
 description = "Derive one stable non-secret connection window name from a catalog ID."

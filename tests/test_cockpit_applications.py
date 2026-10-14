@@ -40,7 +40,13 @@ def applications(tmp_path: Path):
     modules.load_module(ROOT / "cockpit", module_id="skaldos/cockpit")
     loaded.append("skaldos/cockpit")
     created = {}
-    for name in ("cli", "control_window", "connection_window"):
+    for name in (
+        "cli",
+        "control_window",
+        "connection_window",
+        "owner_shell",
+        "runtime_status",
+    ):
         created[name] = apps.create_instance(
             ApplicationInstanceSpec(name, f"skaldos/cockpit/{name}", {}, tmp_path),
             owner_scope_id="cockpit-app-test",
@@ -147,19 +153,22 @@ def test_connection_error_remains_visible_and_does_not_start_workbench(
 def test_header_falls_back_without_chafa(applications, tmp_path: Path, monkeypatch, capsys) -> None:
     runtime = applications["control_window"].runtime
     monkeypatch.setenv("DIX_COCKPIT_ASSET_ROOT", str(tmp_path / "missing"))
-    assert runtime.main(
-        [
-            "--mode",
-            "header",
-            "--once",
-            "--session",
-            "demo",
-            "--catalog",
-            str(tmp_path / "catalog.toml"),
-            "--logo",
-            "dix",
-        ]
-    ) == 0
+    assert (
+        runtime.main(
+            [
+                "--mode",
+                "header",
+                "--once",
+                "--session",
+                "demo",
+                "--catalog",
+                str(tmp_path / "catalog.toml"),
+                "--logo",
+                "dix",
+            ]
+        )
+        == 0
+    )
     assert "DIX Cockpit | session demo" in capsys.readouterr().out
 
 
@@ -176,19 +185,22 @@ def test_header_selects_existing_logo_with_optional_chafa(
     chafa.chmod(0o755)
     monkeypatch.setenv("PATH", f"{tools}:{os.environ['PATH']}")
     monkeypatch.setenv("DIX_COCKPIT_ASSET_ROOT", str(ROOT / "visidata/assets"))
-    assert runtime.main(
-        [
-            "--mode",
-            "header",
-            "--once",
-            "--session",
-            "demo",
-            "--catalog",
-            str(tmp_path / "catalog.toml"),
-            "--logo",
-            logo,
-        ]
-    ) == 0
+    assert (
+        runtime.main(
+            [
+                "--mode",
+                "header",
+                "--once",
+                "--session",
+                "demo",
+                "--catalog",
+                str(tmp_path / "catalog.toml"),
+                "--logo",
+                logo,
+            ]
+        )
+        == 0
+    )
     assert str(ROOT / f"visidata/assets/{logo}.png") in log.read_text()
 
 
@@ -206,3 +218,104 @@ def test_application_graph_is_static_and_reuses_generic_workbench(applications) 
     source = Path(module.__file__).read_text()
     assert "subprocess" not in source
     assert "dix-roba-cli" not in source
+
+
+def test_owner_shell_loads_capability_only_into_isolated_zsh_child(
+    applications, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runtime = applications["owner_shell"].runtime
+    zsh_root = tmp_path / "state/zsh"
+    source = tmp_path / "cockpit.zshrc"
+    source.write_text("umask 077\nPROMPT='cockpit> '\n")
+    runtime.runtime = FakeApi(
+        owner_environment=lambda **_values: {
+            "DIX_COCKPIT_SESSION": "demo",
+            "ROBA_CONTROL_TOKEN": "private-capability",
+        },
+        paths=lambda **_values: {
+            "zsh_root": str(zsh_root),
+            "history_file": str(zsh_root / "history"),
+        },
+    )
+    monkeypatch.setenv("DIX_COCKPIT_ZSH_CONFIG", str(source))
+    runtime_module = importlib.import_module(runtime.__class__.__module__)
+    monkeypatch.setattr(runtime_module.shutil, "which", lambda *_args, **_kwargs: "/bin/zsh")
+    executed: dict[str, object] = {}
+
+    def execvpe(file, arguments, environment):
+        executed.update(file=file, arguments=arguments, environment=environment)
+        raise RuntimeError("exec intercepted")
+
+    monkeypatch.setattr(runtime_module.os, "execvpe", execvpe)
+    assert runtime.main(["--session", "demo"]) == 2
+    environment = executed["environment"]
+    assert isinstance(environment, dict)
+    assert environment["ROBA_CONTROL_TOKEN"] == "private-capability"
+    assert environment["ZDOTDIR"] == str(zsh_root)
+    assert environment["HISTFILE"] == str(zsh_root / "history")
+    assert executed["arguments"] == ["/bin/zsh", "-d", "-i"]
+    assert (zsh_root / ".zshrc").read_text() == source.read_text()
+    assert (zsh_root / ".zshrc").stat().st_mode & 0o777 == 0o600
+    assert (zsh_root / "history").stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize("logo", ("dix", "roba"))
+def test_runtime_status_uses_exact_chafa_contract(
+    applications, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, logo: str
+) -> None:
+    runtime = applications["runtime_status"].runtime
+    runtime_module = importlib.import_module(runtime.__class__.__module__)
+    calls: list[list[str]] = []
+    monkeypatch.setenv("DIX_COCKPIT_ASSET_ROOT", str(ROOT / "cockpit/assets"))
+    monkeypatch.setattr(runtime_module.shutil, "which", lambda _name: "/usr/bin/chafa")
+    monkeypatch.setattr(
+        runtime_module.subprocess,
+        "run",
+        lambda command, **_kwargs: (
+            calls.append(list(command)) or type("Result", (), {"returncode": 0})()
+        ),
+    )
+
+    assert runtime.main(["--session", "demo", "--logo", logo, "--once"]) == 0
+    assert calls == [
+        [
+            "chafa",
+            "-c",
+            "full",
+            "--color-extractor",
+            "median",
+            "--symbols",
+            "block",
+            "--dither-grain",
+            "8x8",
+            "--dither-intensity",
+            "5.0",
+            "--scale",
+            "0.6",
+            str(ROOT / f"cockpit/assets/{logo}.png"),
+        ]
+    ]
+
+
+def test_runtime_status_falls_back_without_chafa(
+    applications, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    runtime = applications["runtime_status"].runtime
+    runtime_module = importlib.import_module(runtime.__class__.__module__)
+    monkeypatch.setenv("DIX_COCKPIT_ASSET_ROOT", str(tmp_path / "missing"))
+    monkeypatch.setattr(runtime_module.shutil, "which", lambda _name: None)
+    assert runtime.main(["--session", "demo", "--logo", "dix", "--once"]) == 0
+    assert "DIX Cockpit" in capsys.readouterr().out
+
+
+def test_cockpit_assets_are_byte_identical_to_reviewed_logos() -> None:
+    import hashlib
+
+    expected = {
+        "dix.png": "3f2c47cdbf876a51453344bf2e6693180116a684b4b88888591c42233793ad87",
+        "roba.png": "921757a4abb2e0e19ef647a2129b3396a29a82c436d4ee5d0eb333e0339c22b8",
+    }
+    for name, digest in expected.items():
+        value = (ROOT / "cockpit/assets" / name).read_bytes()
+        assert hashlib.sha256(value).hexdigest() == digest
+        assert value == (ROOT / "visidata/assets" / name).read_bytes()

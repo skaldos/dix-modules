@@ -157,6 +157,49 @@ def test_fake_plans_use_one_socket_and_only_server_start_uses_config(
     assert fake.sessions == {}
 
 
+def test_runtime_layout_and_tmux_process_environment_are_secret_free(
+    workspace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api, runtime_module = workspace
+    fake = FakeTmux()
+    monkeypatch.setattr(runtime_module.subprocess, "run", fake)
+    monkeypatch.setenv("ROBA_CONTROL_TOKEN", "must-not-reach-tmux")
+    socket = api.require("socket_path")(tmp_path / "runtime")
+    api.require("start")(
+        session="dix",
+        socket=socket,
+        control_command=["dix-cockpit-shell", "--session", "dix"],
+        environment={
+            "DIX_COCKPIT_SESSION": "dix",
+            "DIX_COCKPIT_SHELL": "dix-cockpit-shell",
+        },
+        attach=False,
+    )
+    api.require("layout_runtime")(
+        session="dix",
+        socket=socket,
+        status_command=["dix-cockpit-runtime-status", "--session", "dix"],
+    )
+    api.require("update_runtime_status")(
+        session="dix", socket=socket, logo="dix", daemon_state="running"
+    )
+    assert all("ROBA_CONTROL_TOKEN" not in environment for _call, environment in fake.calls)
+    joined = "\n".join(" ".join(call) for call, _environment in fake.calls)
+    assert "must-not-reach-tmux" not in joined
+    assert "ROBA_CONTROL_TOKEN" not in joined
+    assert "DIX Cockpit Runtime" in joined
+    assert "Owner Shell" in joined
+
+    with pytest.raises(ValueError, match="secret key"):
+        api.require("start")(
+            session="other",
+            socket=socket,
+            control_command=["shell"],
+            environment={"ROBA_CONTROL_TOKEN": "forbidden"},
+            attach=False,
+        )
+
+
 def test_socket_limit_is_checked_before_tmux(workspace, tmp_path: Path) -> None:
     api, _runtime_module = workspace
     with pytest.raises(RuntimeError, match="exceeds platform limit"):
@@ -176,6 +219,7 @@ def test_tmux_config_contains_the_complete_isolated_control_surface() -> None:
         "bind r source-file",
         "bind | split-window -h",
         "bind - split-window -v",
+        '"$DIX_COCKPIT_SHELL" --session "#{session_name}"',
         "bind h select-pane -L",
         "bind C-h previous-window",
         "bind H resize-pane -L 5",
