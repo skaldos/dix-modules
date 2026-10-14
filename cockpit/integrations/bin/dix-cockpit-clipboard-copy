@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+if [ -n "${WAYLAND_DISPLAY:-}" ] && command -v wl-copy >/dev/null 2>&1; then
+    exec wl-copy
+fi
+
+if [ -n "${DISPLAY:-}" ] && command -v xclip >/dev/null 2>&1; then
+    exec xclip -selection clipboard -in
+fi
+
+socket=${DIX_COCKPIT_TMUX_SOCKET:?DIX_COCKPIT_TMUX_SOCKET is required for tmux fallback}
+tmux_bin=${DIX_COCKPIT_TMUX_BIN:-tmux}
+"$tmux_bin" -S "$socket" load-buffer -
+"$tmux_bin" -S "$socket" display-message "System clipboard unavailable; copied to Cockpit tmux buffer"
+printf '%s\n' 'System clipboard unavailable; copied to Cockpit tmux buffer' >&2
