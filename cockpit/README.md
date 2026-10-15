@@ -70,6 +70,12 @@ A running owned daemon with a missing tmux session is rebuilt by `start`. A live
 an absent or invalid daemon is not silently repaired; use `reset`. Foreign daemons, malformed
 owner artifacts, and foreign tmux sessions are never adopted or stopped.
 
+A failed ROBA status request is treated as safely absent only when both expected runtime endpoints
+are absent. If either endpoint still exists, status reports an uncertain runtime and every
+lifecycle mutation fails closed. The dedicated tmux server and every Cockpit session carry
+separate non-secret ownership markers; a reachable unmarked server is never adopted, even when the
+requested session does not exist.
+
 ## Owner shell and tmux
 
 The first window contains the owner Zsh and a separate non-blocking logo/status pane. New `|` and

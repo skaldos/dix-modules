@@ -66,8 +66,8 @@ class Runtime:
             state = "running"
         elif roba.get("running") is False and tmux.get("running") is False:
             state = "stopped" if roba.get("state") == "stopped" else str(roba.get("state"))
-        elif roba.get("state") in {"foreign", "drift"} or (
-            tmux.get("running") is True and tmux.get("owned") is not True
+        elif roba.get("state") in {"foreign", "drift", "uncertain"} or self._tmux_unowned(
+            tmux
         ):
             state = "foreign"
         else:
@@ -231,9 +231,13 @@ class Runtime:
 
     @staticmethod
     def _guard_start(session: str, roba: Mapping[str, object], tmux: Mapping[str, object]) -> None:
-        if tmux.get("running") is True and tmux.get("owned") is not True:
+        if roba.get("state") == "uncertain":
             raise CockpitSessionError(
-                f"tmux session is not Cockpit-owned: {session}; choose another session"
+                f"ROBA runtime status is uncertain: {session}; refusing lifecycle mutation"
+            )
+        if Runtime._tmux_unowned(tmux):
+            raise CockpitSessionError(
+                f"tmux server or session is not Cockpit-owned: {session}; choose another runtime"
             )
         if tmux.get("running") is True and not (
             roba.get("state") == "running" and roba.get("owned") is True
@@ -244,14 +248,20 @@ class Runtime:
 
     @staticmethod
     def _guard_stop(session: str, roba: Mapping[str, object], tmux: Mapping[str, object]) -> None:
-        if roba.get("state") in {"foreign", "drift"}:
+        if roba.get("state") in {"foreign", "drift", "uncertain"}:
             raise CockpitSessionError(
                 f"refusing lifecycle mutation for unowned ROBA runtime: {session}"
             )
-        if tmux.get("running") is True and tmux.get("owned") is not True:
+        if Runtime._tmux_unowned(tmux):
             raise CockpitSessionError(
-                f"refusing lifecycle mutation for unowned tmux session: {session}"
+                f"refusing lifecycle mutation for unowned tmux server or session: {session}"
             )
+
+    @staticmethod
+    def _tmux_unowned(tmux: Mapping[str, object]) -> bool:
+        return (
+            tmux.get("server_running") is True and tmux.get("server_owned") is not True
+        ) or (tmux.get("running") is True and tmux.get("owned") is not True)
 
     @staticmethod
     def _guard_external_lifecycle(session: str, operation: str) -> None:

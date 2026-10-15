@@ -14,7 +14,10 @@ from dix.core.composition import CompositionRuntimeContext
 _SESSION = re.compile(r"[A-Za-z0-9_.-]+\Z")
 _WINDOW = re.compile(r"[A-Za-z0-9_.-]+\Z")
 _SOCKET_LIMIT = 107
-_OWNER_MARKER = "skaldos.dix-cockpit.tmux.v1"
+_SERVER_OWNER_OPTION = "@cockpit-server-owner"
+_SERVER_OWNER_MARKER = "skaldos.dix-cockpit.tmux-server.v1"
+_SESSION_OWNER_OPTION = "@cockpit-owner"
+_SESSION_OWNER_MARKER = "skaldos.dix-cockpit.tmux-session.v1"
 
 
 class TmuxWorkspaceError(RuntimeError):
@@ -56,6 +59,27 @@ class Runtime:
     def status(self, *, session: str, socket: str | Path) -> dict[str, object]:
         session = _name(session, "session")
         socket_path = self._socket(socket)
+        server = self._server_status(socket_path)
+        if server["running"] is not True:
+            return self._public_status(
+                session=session,
+                socket=socket_path,
+                server_running=False,
+                server_owned=False,
+                running=False,
+                session_owned=False,
+                windows=[],
+            )
+        if server["owned"] is not True:
+            return self._public_status(
+                session=session,
+                socket=socket_path,
+                server_running=True,
+                server_owned=False,
+                running=False,
+                session_owned=False,
+                windows=[],
+            )
         result = self._run((*self._base(socket_path), "has-session", "-t", f"={session}"))
         if result.returncode == 0:
             windows = self._run(
@@ -76,23 +100,30 @@ class Runtime:
                     "-v",
                     "-t",
                     session,
-                    "@cockpit-owner",
+                    _SESSION_OWNER_OPTION,
                 )
             )
-            return {
-                "session": session,
-                "socket": str(socket_path),
-                "running": True,
-                "owned": owner.returncode == 0 and owner.stdout.strip() == _OWNER_MARKER,
-                "windows": [line for line in windows.stdout.splitlines() if line],
-            }
-        return {
-            "session": session,
-            "socket": str(socket_path),
-            "running": False,
-            "owned": False,
-            "windows": [],
-        }
+            session_owned = (
+                owner.returncode == 0 and owner.stdout.strip() == _SESSION_OWNER_MARKER
+            )
+            return self._public_status(
+                session=session,
+                socket=socket_path,
+                server_running=True,
+                server_owned=True,
+                running=True,
+                session_owned=session_owned,
+                windows=[line for line in windows.stdout.splitlines() if line],
+            )
+        return self._public_status(
+            session=session,
+            socket=socket_path,
+            server_running=True,
+            server_owned=True,
+            running=False,
+            session_owned=False,
+            windows=[],
+        )
 
     def start(
         self,
@@ -109,6 +140,11 @@ class Runtime:
         env = _string_environment(environment)
         current = self.status(session=session, socket=socket_path)
         created = False
+        created_server = False
+        if current["server_running"] is True and current["server_owned"] is not True:
+            raise TmuxWorkspaceError(
+                f"refusing to reuse a tmux server without Cockpit ownership: {socket_path}"
+            )
         if current["running"] is True:
             if current["owned"] is not True:
                 raise TmuxWorkspaceError(
@@ -122,34 +158,56 @@ class Runtime:
             socket_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             socket_path.parent.chmod(0o700)
             start = [*self._base(socket_path)]
-            if not socket_path.exists():
+            if current["server_running"] is not True:
+                if socket_path.exists() or socket_path.is_symlink():
+                    if not _is_socket(socket_path):
+                        raise TmuxWorkspaceError(
+                            f"refusing to replace non-socket tmux endpoint: {socket_path}"
+                        )
+                    socket_path.unlink()
                 config = self.config_path()
                 if not config.is_file():
                     raise TmuxWorkspaceError(f"Cockpit tmux config does not exist: {config}")
                 start.extend(("-f", str(config)))
+                created_server = True
             start.extend(("new-session", "-d", "-s", session, "-n", "control"))
             for key, value in env.items():
                 start.extend(("-e", f"{key}={value}"))
             start.append(command)
             result = self._run(tuple(start))
-            if result.returncode != 0 and socket_path.exists() and _is_socket(socket_path):
-                probe = self._run((*self._base(socket_path), "list-sessions"))
-                if probe.returncode != 0 and "no server" in probe.stderr.lower():
-                    socket_path.unlink(missing_ok=True)
-                    result = self._run(
-                        tuple(start[:3] + ["-f", str(self.config_path())] + start[3:])
-                    )
             self._require(result, "start Cockpit session")
-            for option, value in (
-                ("@cockpit-owner", _OWNER_MARKER),
-                ("@cockpit-session", session),
-            ):
-                self._require(
-                    self._run(
-                        (*self._base(socket_path), "set-option", "-t", session, option, value)
-                    ),
-                    "mark Cockpit session ownership",
-                )
+            try:
+                if created_server:
+                    self._require(
+                        self._run(
+                            (
+                                *self._base(socket_path),
+                                "set-option",
+                                "-g",
+                                _SERVER_OWNER_OPTION,
+                                _SERVER_OWNER_MARKER,
+                            )
+                        ),
+                        "mark Cockpit tmux server ownership",
+                    )
+                for option, value in (
+                    (_SESSION_OWNER_OPTION, _SESSION_OWNER_MARKER),
+                    ("@cockpit-session", session),
+                ):
+                    self._require(
+                        self._run(
+                            (*self._base(socket_path), "set-option", "-t", session, option, value)
+                        ),
+                        "mark Cockpit session ownership",
+                    )
+            except Exception:
+                if created_server:
+                    self._run((*self._base(socket_path), "kill-server"))
+                    if _is_socket(socket_path):
+                        socket_path.unlink()
+                else:
+                    self._run((*self._base(socket_path), "kill-session", "-t", f"={session}"))
+                raise
             created = True
         if attach:
             self._require(
@@ -161,8 +219,14 @@ class Runtime:
 
     def attach(self, *, session: str, socket: str | Path) -> int:
         status = self.status(session=session, socket=socket)
+        if status["server_running"] is True and status["server_owned"] is not True:
+            raise TmuxWorkspaceError("refusing to attach through an unowned tmux server")
         if status["running"] is not True:
             raise TmuxWorkspaceError(f"Cockpit session does not exist: {session}")
+        if status["owned"] is not True:
+            raise TmuxWorkspaceError(
+                f"refusing to attach a tmux session without Cockpit ownership: {session}"
+            )
         result = self._run(
             (*self._base(Path(str(status["socket"]))), "attach-session", "-t", f"={session}")
         )
@@ -171,6 +235,8 @@ class Runtime:
 
     def stop(self, *, session: str, socket: str | Path) -> bool:
         status = self.status(session=session, socket=socket)
+        if status["server_running"] is True and status["server_owned"] is not True:
+            raise TmuxWorkspaceError("refusing to stop through an unowned tmux server")
         if status["running"] is not True:
             return False
         if status["owned"] is not True:
@@ -183,9 +249,15 @@ class Runtime:
             "stop Cockpit session",
         )
         remaining = self._run((*self._base(socket_path), "list-sessions", "-F", "#{session_name}"))
-        if remaining.returncode != 0 or not remaining.stdout.strip():
-            self._run((*self._base(socket_path), "kill-server"))
-            socket_path.unlink(missing_ok=True)
+        if remaining.returncode == 0 and not remaining.stdout.strip():
+            self._require(
+                self._run((*self._base(socket_path), "kill-server")),
+                "stop empty Cockpit tmux server",
+            )
+        elif remaining.returncode != 0 and not _server_absent(remaining, socket_path):
+            raise TmuxWorkspaceError("cannot prove Cockpit tmux server stopped safely")
+        if (remaining.returncode != 0 or not remaining.stdout.strip()) and _is_socket(socket_path):
+            socket_path.unlink()
         return True
 
     def open_window(
@@ -197,8 +269,14 @@ class Runtime:
         command: Sequence[str],
     ) -> dict[str, object]:
         status = self.status(session=session, socket=socket)
+        if status["server_running"] is True and status["server_owned"] is not True:
+            raise TmuxWorkspaceError("refusing to mutate an unowned tmux server")
         if status["running"] is not True:
             raise TmuxWorkspaceError(f"Cockpit session does not exist: {session}")
+        if status["owned"] is not True:
+            raise TmuxWorkspaceError(
+                f"refusing to mutate a tmux session without Cockpit ownership: {session}"
+            )
         socket_path = Path(str(status["socket"]))
         window = self.window_name(catalog_id)
         if window in status["windows"]:
@@ -229,8 +307,7 @@ class Runtime:
         socket: str | Path,
         header_command: Sequence[str],
     ) -> None:
-        session = _name(session, "session")
-        socket_path = self._socket(socket)
+        session, socket_path = self._owned_session(session, socket)
         result = self._run(
             (
                 *self._base(socket_path),
@@ -265,8 +342,7 @@ class Runtime:
         socket: str | Path,
         status_command: Sequence[str],
     ) -> None:
-        session = _name(session, "session")
-        socket_path = self._socket(socket)
+        session, socket_path = self._owned_session(session, socket)
         self._require(
             self._run(
                 (
@@ -305,8 +381,7 @@ class Runtime:
         count: int,
         logo: str,
     ) -> None:
-        session = _name(session, "session")
-        socket_path = self._socket(socket)
+        session, socket_path = self._owned_session(session, socket)
         if isinstance(count, bool) or not isinstance(count, int) or count < 0:
             raise TypeError("Cockpit daemon count must be a non-negative integer")
         if logo not in {"dix", "roba"}:
@@ -338,8 +413,7 @@ class Runtime:
         logo: str,
         daemon_state: str,
     ) -> None:
-        session = _name(session, "session")
-        socket_path = self._socket(socket)
+        session, socket_path = self._owned_session(session, socket)
         if logo not in {"dix", "roba"}:
             raise ValueError("logo must be dix or roba")
         if not isinstance(daemon_state, str) or not daemon_state:
@@ -375,6 +449,47 @@ class Runtime:
         if not isinstance(binary, str) or not binary.strip():
             raise TypeError("tmux_binary must be a non-empty string")
         return binary, "-S", str(socket)
+
+    def _server_status(self, socket: Path) -> dict[str, bool]:
+        probe = self._run((*self._base(socket), "list-sessions", "-F", "#{session_name}"))
+        if probe.returncode != 0:
+            return {"running": not _server_absent(probe, socket), "owned": False}
+        owner = self._run(
+            (*self._base(socket), "show-options", "-gqv", _SERVER_OWNER_OPTION)
+        )
+        return {
+            "running": True,
+            "owned": owner.returncode == 0 and owner.stdout.strip() == _SERVER_OWNER_MARKER,
+        }
+
+    def _owned_session(self, session: object, socket: str | Path) -> tuple[str, Path]:
+        name = _name(session, "session")
+        status = self.status(session=name, socket=socket)
+        if status["running"] is not True or status["owned"] is not True:
+            raise TmuxWorkspaceError(f"Cockpit session is not provably owned: {name}")
+        return name, Path(str(status["socket"]))
+
+    @staticmethod
+    def _public_status(
+        *,
+        session: str,
+        socket: Path,
+        server_running: bool,
+        server_owned: bool,
+        running: bool,
+        session_owned: bool,
+        windows: list[str],
+    ) -> dict[str, object]:
+        return {
+            "session": session,
+            "socket": str(socket),
+            "server_running": server_running,
+            "server_owned": server_owned,
+            "running": running,
+            "session_owned": session_owned,
+            "owned": server_owned and session_owned,
+            "windows": windows,
+        }
 
     @staticmethod
     def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
@@ -434,3 +549,17 @@ def _is_socket(path: Path) -> bool:
         return stat.S_ISSOCK(path.stat().st_mode)
     except FileNotFoundError:
         return False
+
+
+def _server_absent(result: subprocess.CompletedProcess[str], socket: Path) -> bool:
+    if not socket.exists() and not socket.is_symlink():
+        return True
+    detail = (result.stderr + "\n" + result.stdout).lower()
+    return any(
+        marker in detail
+        for marker in (
+            "no server running",
+            "no such file or directory",
+            "connection refused",
+        )
+    )

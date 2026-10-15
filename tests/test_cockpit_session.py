@@ -245,3 +245,37 @@ def test_attach_and_status_never_create_resources(session_runtime) -> None:
     with pytest.raises(RuntimeError, match="not healthy"):
         session_runtime.attach()
     assert calls == []
+
+
+def test_uncertain_roba_probe_blocks_start_stop_and_reset_before_mutation(
+    session_runtime,
+) -> None:
+    calls: list[str] = []
+    session_runtime.runtime = FakeApi(
+        paths=lambda **_values: _paths(),
+        status=lambda **_values: {"state": "uncertain", "running": False, "owned": False},
+        start=lambda **_values: calls.append("roba-start"),
+        stop=lambda **_values: calls.append("roba-stop"),
+    )
+    session_runtime.tmux = FakeApi(
+        socket_path=lambda _root: Path("/tmp/cockpit/tmux.sock"),
+        config_path=lambda: Path("/tmp/cockpit/tmux.conf"),
+        status=lambda **_values: {
+            "server_running": False,
+            "server_owned": False,
+            "running": False,
+            "owned": False,
+            "windows": [],
+        },
+        start=lambda **_values: calls.append("tmux-start"),
+        stop=lambda **_values: calls.append("tmux-stop"),
+    )
+
+    assert session_runtime.status()["state"] == "uncertain"
+    with pytest.raises(RuntimeError, match="uncertain"):
+        session_runtime.start(shell_command=["shell"], status_command=["status"], attach=False)
+    with pytest.raises(RuntimeError, match="unowned ROBA"):
+        session_runtime.stop()
+    with pytest.raises(RuntimeError, match="unowned ROBA"):
+        session_runtime.reset(shell_command=["shell"], status_command=["status"], attach=False)
+    assert calls == []

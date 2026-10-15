@@ -70,6 +70,12 @@ lebende tmux-Session mit fehlendem oder ungueltigem Daemon wird nicht still repa
 `reset` da. Fremde Daemons, kaputte Owner-Artefakte und fremde tmux-Sessions werden nie adoptiert
 oder gestoppt.
 
+Ein fehlgeschlagener ROBA-Statusrequest gilt nur dann als sicher abwesend, wenn beide erwarteten
+Runtime-Endpunkte fehlen. Existiert noch mindestens ein Endpunkt, meldet der Status eine unklare
+Runtime und jede Lifecycle-Mutation scheitert fail-closed. Der dedizierte tmux-Server und jede
+Cockpit-Session tragen getrennte nicht geheime Ownership-Marker; ein erreichbarer unmarkierter
+Server wird auch ohne vorhandene Zielsession niemals adoptiert.
+
 ## Owner-Shell und tmux
 
 Das erste Window enthaelt die Owner-Zsh und ein separates nicht blockierendes Logo-/Status-Pane.

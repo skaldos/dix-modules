@@ -64,7 +64,16 @@ class Runtime:
 
     def status(self, *, session: str = "dix") -> dict[str, object]:
         paths = self.paths(session=session)
-        daemon_status = self._probe(paths)
+        try:
+            daemon_status = self._probe(paths)
+        except CockpitRuntimeError:
+            return self._public_status(
+                paths,
+                state="uncertain",
+                running=False,
+                owned=False,
+                pid=None,
+            )
         owner_path = Path(paths["owner_file"])
         if daemon_status is None:
             return self._public_status(
@@ -195,11 +204,33 @@ class Runtime:
         self._configure(paths)
         try:
             value = self.daemon.require("status")()
-        except RuntimeError:
+        except RuntimeError as exc:
+            endpoints = self._existing_endpoints(paths)
+            if endpoints:
+                joined = ", ".join(str(path) for path in endpoints)
+                raise CockpitRuntimeError(
+                    "ROBA status failed while expected runtime endpoints still exist: " + joined
+                ) from exc
             return None
         if not isinstance(value, dict):
             raise TypeError("ROBA daemon status must return a dictionary")
         return value
+
+    @staticmethod
+    def _existing_endpoints(paths: Mapping[str, str]) -> tuple[Path, ...]:
+        existing: list[Path] = []
+        for name in ("daemon_socket", "control_socket"):
+            path = Path(paths[name])
+            try:
+                path.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                raise CockpitRuntimeError(
+                    f"cannot inspect expected ROBA runtime endpoint: {path}"
+                ) from exc
+            existing.append(path)
+        return tuple(existing)
 
     def _owner(self, paths: Mapping[str, str]) -> dict[str, object]:
         path = Path(paths["owner_file"])

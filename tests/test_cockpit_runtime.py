@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import stat
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,14 @@ from dix.modules import first_party_module_path
 from roba import start_daemon, stop_daemon
 
 ROOT = Path(__file__).parents[1]
+
+
+class FakeApi:
+    def __init__(self, **functions: Callable[..., object]) -> None:
+        self.functions = functions
+
+    def require(self, function_id: str) -> Callable[..., object]:
+        return self.functions[function_id]
 
 
 @pytest.fixture
@@ -37,7 +46,7 @@ def cockpit_runtime(monkeypatch: pytest.MonkeyPatch):
         owner_scope_id="cockpit-runtime-test",
     )
     try:
-        yield instance.api, root
+        yield instance.api, root, instance.runtime
     finally:
         status = instance.api.require("status")(session="dix")
         if status.get("owned") is True:
@@ -52,7 +61,7 @@ def cockpit_runtime(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_runtime_owns_reuses_and_stops_one_private_daemon(cockpit_runtime) -> None:
-    runtime, root = cockpit_runtime
+    runtime, root, _runtime_object = cockpit_runtime
 
     assert runtime.require("status")(session="dix")["state"] == "stopped"
     first = runtime.require("start")(session="dix")
@@ -90,7 +99,7 @@ def test_runtime_owns_reuses_and_stops_one_private_daemon(cockpit_runtime) -> No
 def test_runtime_rejects_tampered_capability_without_stopping_daemon(
     cockpit_runtime,
 ) -> None:
-    runtime, _ = cockpit_runtime
+    runtime, _, _runtime_object = cockpit_runtime
     started = runtime.require("start")(session="dix")
     owner_path = Path(started["owner_file"])
     owner = json.loads(owner_path.read_text(encoding="utf-8"))
@@ -111,7 +120,7 @@ def test_runtime_rejects_tampered_capability_without_stopping_daemon(
 
 
 def test_runtime_replaces_only_stale_artifacts(cockpit_runtime) -> None:
-    runtime, root = cockpit_runtime
+    runtime, root, _runtime_object = cockpit_runtime
     owner_path = root / "run/sessions/dix/owner.json"
     owner_path.parent.mkdir(parents=True)
     owner_path.write_text("stale", encoding="utf-8")
@@ -140,7 +149,7 @@ def test_session_paths_reject_invalid_names_and_oversized_socket_paths(
 def test_owner_artifact_never_uses_ambient_roba_roots(
     cockpit_runtime, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    runtime, root = cockpit_runtime
+    runtime, root, _runtime_object = cockpit_runtime
     monkeypatch.setenv("ROBA_RUNTIME_ROOT", "/tmp/ambient-roba")
     monkeypatch.setenv("ROBA_LOGS_ROOT", "/tmp/ambient-roba-logs")
 
@@ -152,7 +161,7 @@ def test_owner_artifact_never_uses_ambient_roba_roots(
 
 
 def test_runtime_never_adopts_or_stops_a_foreign_daemon(cockpit_runtime) -> None:
-    runtime, _ = cockpit_runtime
+    runtime, _, _runtime_object = cockpit_runtime
     paths = runtime.require("paths")(session="dix")
     environment = {
         "ROBA_RUNTIME_ROOT": paths["roba_runtime_root"],
@@ -168,3 +177,47 @@ def test_runtime_never_adopts_or_stops_a_foreign_daemon(cockpit_runtime) -> None
             runtime.require("stop")(session="dix")
     finally:
         stop_daemon(daemon="id:default", env=environment)
+
+
+def test_failed_probe_with_endpoint_evidence_is_uncertain_and_never_mutates(
+    cockpit_runtime,
+) -> None:
+    runtime, root, runtime_object = cockpit_runtime
+    paths = runtime.require("paths")(session="dix")
+    endpoint = Path(paths["daemon_socket"])
+    endpoint.parent.mkdir(parents=True)
+    endpoint.write_text("endpoint-evidence", encoding="utf-8")
+    owner = Path(paths["owner_file"])
+    owner.write_text("owner-evidence", encoding="utf-8")
+    before = {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+    calls: list[str] = []
+
+    def status() -> object:
+        calls.append("status")
+        raise RuntimeError("secret-status-detail-must-not-escape")
+
+    runtime_object.daemon = FakeApi(
+        set=lambda _value: calls.append("set") or True,
+        status=status,
+        start=lambda: calls.append("start"),
+        stop=lambda: calls.append("stop"),
+    )
+
+    reported = runtime.require("status")(session="dix")
+    assert reported["state"] == "uncertain"
+    assert reported["running"] is False
+    assert "secret-status-detail" not in json.dumps(reported)
+    for operation in ("start", "stop"):
+        with pytest.raises(RuntimeError, match="expected runtime endpoints"):
+            runtime.require(operation)(session="dix")
+    after = {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+    assert after == before
+    assert "start" not in calls and "stop" not in calls

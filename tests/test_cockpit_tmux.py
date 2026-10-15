@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import shutil
+import socket as socket_module
 import subprocess
 import tempfile
 import uuid
@@ -52,6 +53,7 @@ class FakeTmux:
         self.calls: list[tuple[list[str], dict[str, str]]] = []
         self.sessions: dict[str, list[str]] = {}
         self.options: dict[tuple[str, str], str] = {}
+        self.global_options: dict[str, str] = {}
 
     def __call__(self, command, **kwargs):
         args = list(command)
@@ -84,11 +86,17 @@ class FakeTmux:
             self.sessions[session] = ["control"]
             return _completed(args)
         if operation == "set-option":
+            if "-g" in args:
+                self.global_options[args[-2]] = args[-1]
+                return _completed(args)
             session = args[args.index("-t") + 1].removeprefix("=")
             option = args[-2]
             self.options[(session, option)] = args[-1]
             return _completed(args)
         if operation == "show-options":
+            if "-gqv" in args:
+                value = self.global_options.get(args[-1], "")
+                return _completed(args, stdout=value + "\n")
             session = args[args.index("-t") + 1].removeprefix("=")
             value = self.options.get((session, args[-1]))
             return _completed(args, 0 if value is not None else 1, stdout=(value or "") + "\n")
@@ -103,11 +111,18 @@ class FakeTmux:
             session = args[args.index("-t") + 1].removeprefix("=")
             del self.sessions[session]
             self.options = {key: value for key, value in self.options.items() if key[0] != session}
+            if not self.sessions:
+                self.global_options.clear()
             return _completed(args)
         if operation == "list-sessions":
             if not self.sessions:
-                return _completed(args, 1, stderr="no sessions")
+                return _completed(args, 1, stderr="no server running")
             return _completed(args, stdout="\n".join(self.sessions) + "\n")
+        if operation == "kill-server":
+            self.sessions.clear()
+            self.options.clear()
+            self.global_options.clear()
+            return _completed(args)
         return _completed(args)
 
 
@@ -144,6 +159,10 @@ def test_fake_plans_use_one_socket_and_only_server_start_uses_config(
         attach=False,
     )
     assert first["created"] is True and second["created"] is False
+    assert first["server_owned"] is True and first["session_owned"] is True
+    assert fake.global_options == {
+        "@cockpit-server-owner": "skaldos.dix-cockpit.tmux-server.v1"
+    }
     commands = [call for call, _env in fake.calls]
     assert all(command[:3] == ["tmux", "-S", str(socket)] for command in commands)
     configured = [command for command in commands if "-f" in command]
@@ -168,6 +187,94 @@ def test_fake_plans_use_one_socket_and_only_server_start_uses_config(
     assert "/" not in opened["window"] and " " not in opened["window"]
     assert api.require("stop")(session="dix", socket=socket) is True
     assert fake.sessions == {}
+
+
+def test_fake_rejects_foreign_server_and_foreign_session_without_mutation(
+    workspace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api, runtime_module = workspace
+    fake = FakeTmux()
+    monkeypatch.setattr(runtime_module.subprocess, "run", fake)
+    socket = api.require("socket_path")(tmp_path / "foreign")
+    fake.sessions["foreign"] = ["control"]
+    before_sessions = dict(fake.sessions)
+    before_options = dict(fake.options)
+
+    status = api.require("status")(session="dix", socket=socket)
+    assert status["server_running"] is True
+    assert status["server_owned"] is False
+    with pytest.raises(RuntimeError, match="server without Cockpit ownership"):
+        api.require("start")(
+            session="dix",
+            socket=socket,
+            control_command=["shell"],
+            environment={},
+            attach=False,
+        )
+    with pytest.raises(RuntimeError, match="unowned tmux server"):
+        api.require("stop")(session="dix", socket=socket)
+    assert fake.sessions == before_sessions
+    assert fake.options == before_options
+
+    fake.global_options["@cockpit-server-owner"] = "skaldos.dix-cockpit.tmux-server.v1"
+    fake.sessions["dix"] = ["control"]
+    with pytest.raises(RuntimeError, match="session without Cockpit ownership"):
+        api.require("start")(
+            session="dix",
+            socket=socket,
+            control_command=["shell"],
+            environment={},
+            attach=False,
+        )
+    assert ("dix", "@cockpit-owner") not in fake.options
+
+
+def test_fake_reuses_owned_server_and_stops_only_the_last_session(
+    workspace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api, runtime_module = workspace
+    fake = FakeTmux()
+    monkeypatch.setattr(runtime_module.subprocess, "run", fake)
+    socket = api.require("socket_path")(tmp_path / "shared")
+    for session in ("dix", "review"):
+        result = api.require("start")(
+            session=session,
+            socket=socket,
+            control_command=["shell"],
+            environment={},
+            attach=False,
+        )
+        assert result["owned"] is True
+    assert len([args for args, _env in fake.calls if "-f" in args]) == 1
+    assert api.require("stop")(session="dix", socket=socket) is True
+    assert list(fake.sessions) == ["review"]
+    assert fake.global_options
+    assert api.require("stop")(session="review", socket=socket) is True
+    assert fake.sessions == {}
+    assert fake.global_options == {}
+
+
+def test_fake_recovers_only_a_proven_dead_stale_socket(
+    workspace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api, runtime_module = workspace
+    fake = FakeTmux()
+    monkeypatch.setattr(runtime_module.subprocess, "run", fake)
+    socket = api.require("socket_path")(tmp_path / "stale")
+    socket.parent.mkdir(parents=True)
+    stale = socket_module.socket(socket_module.AF_UNIX)
+    stale.bind(str(socket))
+    stale.close()
+
+    result = api.require("start")(
+        session="dix",
+        socket=socket,
+        control_command=["shell"],
+        environment={},
+        attach=False,
+    )
+    assert result["owned"] is True
+    assert len([args for args, _env in fake.calls if "-f" in args]) == 1
 
 
 def test_runtime_layout_and_tmux_process_environment_are_secret_free(
@@ -274,6 +381,20 @@ def test_real_tmux_smoke_uses_only_the_isolated_socket(workspace) -> None:
             attach=False,
         )
         assert result["created"] is True
+        server_owner = subprocess.run(
+            ["tmux", "-S", str(socket), "show-options", "-gqv", "@cockpit-server-owner"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        session_owner = subprocess.run(
+            ["tmux", "-S", str(socket), "show-options", "-v", "-t", "smoke", "@cockpit-owner"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert server_owner.stdout.strip() == "skaldos.dix-cockpit.tmux-server.v1"
+        assert session_owner.stdout.strip() == "skaldos.dix-cockpit.tmux-session.v1"
         opened = api.require("open_window")(
             session="smoke",
             socket=socket,
@@ -295,3 +416,71 @@ def test_real_tmux_smoke_uses_only_the_isolated_socket(workspace) -> None:
             )
             shutil.rmtree(root, ignore_errors=True)
     assert not socket.exists()
+
+
+@pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
+def test_real_foreign_server_without_target_session_is_never_mutated(workspace) -> None:
+    api, _runtime_module = workspace
+    root = Path(tempfile.gettempdir()) / f"dxf-{uuid.uuid4().hex[:8]}"
+    socket = api.require("socket_path")(root)
+    root.mkdir(parents=True)
+    created = subprocess.run(
+        [
+            "tmux",
+            "-S",
+            str(socket),
+            "-f",
+            "/dev/null",
+            "new-session",
+            "-d",
+            "-s",
+            "foreign",
+            "sleep 300",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert created.returncode == 0, created.stderr
+    try:
+        before = subprocess.run(
+            ["tmux", "-S", str(socket), "list-sessions", "-F", "#{session_name}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert before.stdout.splitlines() == ["foreign"]
+        status = api.require("status")(session="dix", socket=socket)
+        assert status["server_running"] is True and status["server_owned"] is False
+        with pytest.raises(RuntimeError, match="server without Cockpit ownership"):
+            api.require("start")(
+                session="dix",
+                socket=socket,
+                control_command=["sleep", "300"],
+                environment={},
+                attach=False,
+            )
+        with pytest.raises(RuntimeError, match="unowned tmux server"):
+            api.require("stop")(session="dix", socket=socket)
+        after = subprocess.run(
+            ["tmux", "-S", str(socket), "list-sessions", "-F", "#{session_name}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert after.returncode == 0
+        assert after.stdout == before.stdout
+        owner = subprocess.run(
+            ["tmux", "-S", str(socket), "show-options", "-gqv", "@cockpit-server-owner"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert owner.stdout == ""
+    finally:
+        subprocess.run(
+            ["tmux", "-S", str(socket), "kill-server"],
+            capture_output=True,
+            check=False,
+        )
+        shutil.rmtree(root, ignore_errors=True)
