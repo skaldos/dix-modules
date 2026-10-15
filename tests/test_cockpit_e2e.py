@@ -76,8 +76,41 @@ def test_real_privileged_runtime_reuse_reset_and_two_sessions(monkeypatch) -> No
         first = start("dix")
         assert first["running"] is True
         assert first["created"] == {"roba": True, "tmux": True}
+        assert first["tmux"]["server_owned"] is True
+        assert first["tmux"]["session_owned"] is True
         owner_path = Path(first["roba"]["owner_file"])
         first_owner = json.loads(owner_path.read_text(encoding="utf-8"))
+
+        server_marker = subprocess.run(
+            [
+                "tmux",
+                "-S",
+                first["tmux"]["socket"],
+                "show-options",
+                "-gqv",
+                "@cockpit-server-owner",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        session_marker = subprocess.run(
+            [
+                "tmux",
+                "-S",
+                first["tmux"]["socket"],
+                "show-options",
+                "-v",
+                "-t",
+                "dix",
+                "@cockpit-owner",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert server_marker.stdout.strip() == "skaldos.dix-cockpit.tmux-server.v1"
+        assert session_marker.stdout.strip() == "skaldos.dix-cockpit.tmux-session.v1"
 
         reused = start("dix")
         assert reused["created"] == {"roba": False, "tmux": False}
@@ -167,6 +200,8 @@ def test_real_privileged_runtime_reuse_reset_and_two_sessions(monkeypatch) -> No
         review = start("review", "roba")
         assert review["running"] is True
         assert first["tmux"]["socket"] == review["tmux"]["socket"]
+        assert review["tmux"]["server_owned"] is True
+        assert review["tmux"]["session_owned"] is True
         assert Path(review["roba"]["owner_file"]) != owner_path
 
         reset = session.require("reset")(
@@ -183,7 +218,9 @@ def test_real_privileged_runtime_reuse_reset_and_two_sessions(monkeypatch) -> No
 
         stopped = session.require("stop")(session="dix")
         assert stopped["roba_stopped"] is True and stopped["tmux_stopped"] is True
-        assert session.require("status")(session="review")["running"] is True
+        review_status = session.require("status")(session="review")
+        assert review_status["running"] is True
+        assert review_status["tmux"]["server_owned"] is True
         assert session.require("stop")(session="review")["stopped"] is True
         assert not (runtime_root / "tmux.sock").exists()
         assert (state_root / "sessions/dix/logs").is_dir()
