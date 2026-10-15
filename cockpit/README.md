@@ -25,7 +25,10 @@ export DIX_ENV="$HOME/.dix/env"       # optional; this is the default
 
 The installer is repeatable. It builds only the main, owner-shell, and status launchers, installs
 namespaced wrappers, private tmux/Zsh configs, and both reviewed logos. It neither edits the DIX
-environment nor reads or overwrites host tmux/Zsh configuration.
+environment nor reads or overwrites host tmux/Zsh configuration. It assembles an explicit private
+runtime module containing only the three runtime applications and their four Cockpit
+compositions. The launchers therefore neither load nor require the separately retained VisiData
+module.
 
 Optional process-local overrides:
 
@@ -75,9 +78,9 @@ The first window contains the owner Zsh and a separate non-blocking logo/status 
 remain secret-free.
 
 The owner shell has its own `ZDOTDIR`, history, completion for `dix-cockpit`, `dix-roba-cli`, and
-`roba-ctl`, and a visible Cockpit prompt. Existing navigation, resize, vi copy mode, reload, and
-clipboard adapters remain available. The owner artifact and Zsh files use mode `0600`; private
-directories use `0700`.
+`roba-ctl`, and a visible prompt containing both `cockpit` and the concrete session name. Existing
+navigation, resize, vi copy mode, reload, and clipboard adapters remain available. The owner
+artifact and Zsh files use mode `0600`; private directories use `0700`.
 
 Useful checks inside the owner shell:
 

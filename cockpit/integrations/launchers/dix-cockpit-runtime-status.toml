@@ -22,9 +22,5 @@ id = "dix/roba"
 source = "@DIX_ROBA_MODULE@"
 
 [[modules]]
-id = "skaldos/visidata"
-source = "@SKALDOS_VISIDATA_MODULE@"
-
-[[modules]]
 id = "skaldos/cockpit"
 source = "@SKALDOS_COCKPIT_MODULE@"

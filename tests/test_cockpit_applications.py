@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib
 import os
+import shutil
+import subprocess
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
@@ -270,6 +272,45 @@ def test_owner_shell_loads_capability_only_into_isolated_zsh_child(
     assert (zsh_root / ".zshrc").read_text() == source.read_text()
     assert (zsh_root / ".zshrc").stat().st_mode & 0o777 == 0o600
     assert (zsh_root / "history").stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh is not installed")
+@pytest.mark.parametrize("session", ("alpha", "beta"))
+def test_isolated_zsh_prompt_exposes_concrete_session_without_host_startup(
+    tmp_path: Path, session: str
+) -> None:
+    home = tmp_path / "host-home"
+    zdotdir = tmp_path / session / "zsh"
+    home.mkdir()
+    zdotdir.mkdir(parents=True)
+    (home / ".zshrc").write_text("export HOST_ZSHRC_LOADED=yes\n")
+    shutil.copy2(ROOT / "cockpit/integrations/zsh/.zshrc", zdotdir / ".zshrc")
+    history = zdotdir / "history"
+    history.touch(mode=0o600)
+    result = subprocess.run(
+        [
+            "zsh",
+            "-d",
+            "-i",
+            "-c",
+            'print -r -- "$PROMPT|${HOST_ZSHRC_LOADED-}|$HISTFILE"',
+        ],
+        env={
+            **os.environ,
+            "HOME": str(home),
+            "ZDOTDIR": str(zdotdir),
+            "HISTFILE": str(history),
+            "DIX_COCKPIT_SESSION": session,
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    prompt, host_loaded, history_path = result.stdout.strip().split("|", 2)
+    assert "cockpit" in prompt and session in prompt
+    assert host_loaded == ""
+    assert history_path == str(history)
 
 
 @pytest.mark.parametrize("logo", ("dix", "roba"))

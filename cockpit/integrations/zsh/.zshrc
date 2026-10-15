@@ -22,4 +22,4 @@ compdef _dix_cockpit dix-cockpit
 compdef _dix_roba_cli dix-roba-cli
 compdef _roba_ctl roba-ctl
 
-PROMPT='%F{39}[cockpit:%m:%1~]%f %# '
+PROMPT="%F{39}[cockpit:${DIX_COCKPIT_SESSION:?Cockpit session is required}:%1~]%f %# "

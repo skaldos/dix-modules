@@ -50,6 +50,13 @@ def test_delivery_contains_owned_launchers_helpers_config_and_bilingual_docs() -
         assert "ROBA_CONTROL_TOKEN" in text
 
 
+def test_privileged_runtime_launcher_templates_do_not_reference_visidata() -> None:
+    installer = (COCKPIT / "integrations/install").read_text().lower()
+    assert "visidata" not in installer
+    for launcher in (COCKPIT / "integrations/launchers").glob("dix-cockpit*.toml"):
+        assert "visidata" not in launcher.read_text().lower()
+
+
 def test_privileged_surface_uses_in_process_roba_and_secret_free_tmux_plans() -> None:
     cli = (COCKPIT / "apps/cli/runtime.py").read_text()
     session = (COCKPIT / "compositions/cockpit_session/runtime.py").read_text()

@@ -3,8 +3,6 @@ set -eu
 
 integration_root=$(CDPATH='' cd "$(dirname "$0")" && pwd -P)
 module_root=$(CDPATH='' cd "$integration_root/.." && pwd -P)
-modules_root=$(CDPATH='' cd "$module_root/.." && pwd -P)
-visidata_root=${SKALDOS_VISIDATA_ROOT:-$modules_root/visidata}
 env_file=${DIX_ENV:-$HOME/.dix/env}
 
 [ -r "$env_file" ] || {
@@ -30,7 +28,6 @@ for module in \
     "$DIX_SOURCE_ROOT/modules/dix/cli" \
     "$DIX_SOURCE_ROOT/modules/dix/norn" \
     "$DIX_SOURCE_ROOT/modules/dix/roba" \
-    "$visidata_root" \
     "$module_root"
 do
     [ -d "$module" ] || {
@@ -42,6 +39,79 @@ done
 mkdir -p "$DIX_LAUNCHERS/cockpit/assets" "$DIX_LAUNCHERS/cockpit/zsh" "$DIX_BIN"
 chmod 0700 "$DIX_LAUNCHERS/cockpit" "$DIX_LAUNCHERS/cockpit/assets" "$DIX_LAUNCHERS/cockpit/zsh"
 
+runtime_module="$DIX_LAUNCHERS/cockpit/runtime-module"
+"$DIX_VENV/bin/python" - "$module_root" "$runtime_module" <<'PY'
+from __future__ import annotations
+
+import os
+import shutil
+import sys
+import tempfile
+import uuid
+from pathlib import Path
+
+source = Path(sys.argv[1]).resolve(strict=True)
+target = Path(sys.argv[2]).resolve(strict=False)
+files = (
+    "apps/cli/app.toml",
+    "apps/cli/runtime.py",
+    "apps/owner_shell/app.toml",
+    "apps/owner_shell/runtime.py",
+    "apps/runtime_status/app.toml",
+    "apps/runtime_status/runtime.py",
+    "compositions/config/composition.toml",
+    "compositions/config/runtime.py",
+    "compositions/roba_runtime/composition.toml",
+    "compositions/roba_runtime/runtime.py",
+    "compositions/tmux_workspace/composition.toml",
+    "compositions/tmux_workspace/runtime.py",
+    "compositions/cockpit_session/composition.toml",
+    "compositions/cockpit_session/runtime.py",
+    "assets/dix.png",
+    "assets/roba.png",
+    "integrations/tmux/cockpit.conf",
+    "integrations/zsh/.zshrc",
+)
+
+target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+target.parent.chmod(0o700)
+if target.is_symlink() or (target.exists() and not target.is_dir()):
+    raise RuntimeError(f"Cockpit runtime module target must be a directory: {target}")
+
+temporary = Path(tempfile.mkdtemp(prefix=".runtime-module-", dir=target.parent))
+backup: Path | None = None
+try:
+    temporary.chmod(0o700)
+    for relative in files:
+        origin = source / relative
+        if origin.is_symlink() or not origin.is_file():
+            raise RuntimeError(f"Cockpit runtime source must be a regular file: {origin}")
+        destination = temporary / relative
+        destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        destination.parent.chmod(0o700)
+        shutil.copyfile(origin, destination)
+        destination.chmod(0o600)
+
+    if target.exists():
+        backup = target.parent / f".runtime-module-old-{uuid.uuid4().hex}"
+        os.replace(target, backup)
+    try:
+        os.replace(temporary, target)
+    except BaseException:
+        if backup is not None:
+            os.replace(backup, target)
+            backup = None
+        raise
+    if backup is not None:
+        shutil.rmtree(backup)
+        backup = None
+finally:
+    if temporary.exists():
+        shutil.rmtree(temporary)
+    if backup is not None and backup.exists():
+        shutil.rmtree(backup)
+PY
+
 for name in dix-cockpit dix-cockpit-owner-shell dix-cockpit-runtime-status; do
     launcher_spec="$DIX_LAUNCHERS/$name.toml"
     "$DIX_VENV/bin/python" - \
@@ -51,22 +121,20 @@ for name in dix-cockpit dix-cockpit-owner-shell dix-cockpit-runtime-status; do
         "$DIX_SOURCE_ROOT/modules/dix/cli" \
         "$DIX_SOURCE_ROOT/modules/dix/norn" \
         "$DIX_SOURCE_ROOT/modules/dix/roba" \
-        "$visidata_root" \
-        "$module_root" <<'PY'
+        "$runtime_module" <<'PY'
 from __future__ import annotations
 
 import json
 import sys
 from pathlib import Path
 
-source, target, state, cli, norn, roba, visidata, cockpit = map(Path, sys.argv[1:])
+source, target, state, cli, norn, roba, cockpit = map(Path, sys.argv[1:])
 value = source.read_text()
 for marker, path in {
     '"@DIX_STATE_MODULE@"': state,
     '"@DIX_CLI_MODULE@"': cli,
     '"@DIX_NORN_MODULE@"': norn,
     '"@DIX_ROBA_MODULE@"': roba,
-    '"@SKALDOS_VISIDATA_MODULE@"': visidata,
     '"@SKALDOS_COCKPIT_MODULE@"': cockpit,
 }.items():
     value = value.replace(marker, json.dumps(str(path.resolve())))

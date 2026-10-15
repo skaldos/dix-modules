@@ -31,8 +31,13 @@ def test_installer_builds_only_runtime_launchers_and_private_assets(tmp_path: Pa
             )
         )
     )
-    environment = {**os.environ, "DIX_ENV": str(env_file)}
-    for _run in range(2):
+    environment = {
+        **os.environ,
+        "DIX_ENV": str(env_file),
+        "SKALDOS_VISIDATA_ROOT": str(tmp_path / "deliberately-absent-visidata"),
+    }
+    runtime_module = launchers / "cockpit/runtime-module"
+    for run in range(2):
         result = subprocess.run(
             [str(INSTALL)],
             cwd=ROOT,
@@ -42,6 +47,48 @@ def test_installer_builds_only_runtime_launchers_and_private_assets(tmp_path: Pa
             check=False,
         )
         assert result.returncode == 0, result.stderr
+        if run == 0:
+            stale = runtime_module / "apps/stale/app.toml"
+            stale.parent.mkdir(parents=True)
+            stale.write_text("[app]\nid = 'stale'\n")
+
+    assert {path.name for path in (runtime_module / "apps").iterdir()} == {
+        "cli",
+        "owner_shell",
+        "runtime_status",
+    }
+    assert {path.name for path in (runtime_module / "compositions").iterdir()} == {
+        "config",
+        "roba_runtime",
+        "tmux_workspace",
+        "cockpit_session",
+    }
+    assert {path.name for path in (runtime_module / "assets").iterdir()} == {
+        "dix.png",
+        "roba.png",
+    }
+    assert {path.relative_to(runtime_module).as_posix() for path in runtime_module.rglob("*") if path.is_file()} == {
+        "apps/cli/app.toml",
+        "apps/cli/runtime.py",
+        "apps/owner_shell/app.toml",
+        "apps/owner_shell/runtime.py",
+        "apps/runtime_status/app.toml",
+        "apps/runtime_status/runtime.py",
+        "compositions/config/composition.toml",
+        "compositions/config/runtime.py",
+        "compositions/roba_runtime/composition.toml",
+        "compositions/roba_runtime/runtime.py",
+        "compositions/tmux_workspace/composition.toml",
+        "compositions/tmux_workspace/runtime.py",
+        "compositions/cockpit_session/composition.toml",
+        "compositions/cockpit_session/runtime.py",
+        "assets/dix.png",
+        "assets/roba.png",
+        "integrations/tmux/cockpit.conf",
+        "integrations/zsh/.zshrc",
+    }
+    assert not any(path.is_symlink() for path in runtime_module.rglob("*"))
+    assert not (runtime_module / "apps/stale").exists()
 
     for name in (
         "dix-cockpit",
@@ -50,6 +97,9 @@ def test_installer_builds_only_runtime_launchers_and_private_assets(tmp_path: Pa
     ):
         assert (launchers / f"{name}.py").is_file()
         assert "@DIX_" not in (launchers / f"{name}.toml").read_text()
+        assert str(runtime_module) in (launchers / f"{name}.toml").read_text()
+        assert "visidata" not in (launchers / f"{name}.toml").read_text().lower()
+        assert "visidata" not in (launchers / f"{name}.py").read_text().lower()
     for name in (
         "dix-cockpit",
         "dix-cockpit-shell",
@@ -81,3 +131,25 @@ def test_installer_builds_only_runtime_launchers_and_private_assets(tmp_path: Pa
     assert all(
         word in help_result.stdout for word in ("start", "attach", "status", "stop", "reset")
     )
+
+    status_result = subprocess.run(
+        [str(commands / "dix-cockpit"), "status", "--session", "not-running"],
+        env=environment,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert status_result.returncode == 1, status_result.stderr
+    assert '"running":false' in status_result.stdout
+
+    for name in ("dix-cockpit-owner-shell", "dix-cockpit-runtime-status"):
+        internal_help = subprocess.run(
+            [str(fake_venv / "bin/python"), str(launchers / f"{name}.py"), "--help"],
+            env=environment,
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert internal_help.returncode == 0, internal_help.stderr
