@@ -93,6 +93,17 @@ def test_optional_installer_materializes_only_local_workbench_surface(tmp_path: 
     assert help_result.returncode == 0, help_result.stderr
     assert "--file" in help_result.stdout and "--logo" in help_result.stdout
 
+    missing_result = subprocess.run(
+        [str(wrapper), "--file", str(tmp_path / "missing.toml")],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing_result.returncode == 2
+    assert "does not exist" in missing_result.stderr
+
 
 def test_privileged_installer_and_launchers_remain_visidata_free() -> None:
     installer = (ROOT / "cockpit/integrations/install").read_text().lower()
@@ -105,3 +116,27 @@ def test_privileged_installer_and_launchers_remain_visidata_free() -> None:
         assert "visidata" not in (
             ROOT / "cockpit/integrations/launchers" / name
         ).read_text().lower()
+
+
+def test_workbench_source_and_bilingual_docs_preserve_the_local_only_boundary() -> None:
+    launcher = (ROOT / "cockpit/integrations/launchers/dix-cockpit-toml-workbench.toml").read_text()
+    application = (ROOT / "cockpit/apps/toml_workbench/app.toml").read_text()
+    runtime = (ROOT / "cockpit/apps/toml_workbench/runtime.py").read_text()
+    installer = (ROOT / "cockpit/integrations/install-workbench").read_text()
+    assert "skaldos/visidata/value_workbench" in application
+    assert "skaldos/cockpit/toml_file" in application
+    joined = f"{launcher}\n{application}\n{runtime}"
+    for forbidden in ("dix/roba", "dix/control", "loom_workbench", "connection_window"):
+        assert forbidden not in joined
+    assert "toml-workbench-modules" in installer
+    assert "cockpit/integrations/install" not in installer
+
+    english = (ROOT / "cockpit/README.md").read_text()
+    german = (ROOT / "cockpit/README.de.md").read_text()
+    for text in (english, german):
+        assert "./cockpit/integrations/install-workbench" in text
+        assert "dix-cockpit-toml-workbench --file ./value.toml --logo dix" in text
+        for key in ("Enter", "| e |", "| a |", "| i |", "| r |", "| d |", "| y |", "| p |", "| A |", "| I |", "| B |", "| q |"):
+            assert key in text
+        assert "DIRTY" in text and "register" in text.lower()
+        assert "save" in text.lower() and "provider" in text.lower()

@@ -291,6 +291,14 @@ def test_invalid_or_cancelled_ui_input_does_not_mutate(value_ui, monkeypatch) ->
     sheet.deleteRow(sheet.rows[1])
     assert draft.value == before
 
+    class Cancelled(Exception):
+        pass
+
+    monkeypatch.setattr(vd, "input", lambda *_args, **_kwargs: (_ for _ in ()).throw(Cancelled()))
+    with pytest.raises(Cancelled):
+        sheet.editScalar(sheet.rows[0])
+    assert draft.value == before
+
 
 def test_start_builds_one_dirty_capable_sheet_without_provider(value_ui, monkeypatch) -> None:
     from visidata import vd
