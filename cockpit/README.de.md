@@ -143,6 +143,9 @@ Save, Reload, Recovery, Sync, Import/Export und keine Providerausfuehrung.
 | q | In VisiData zurueck/beenden; beim Prozessende werden alle lokalen Aenderungen verworfen |
 
 Der Sheet-Titel zeigt immer `clean` oder `DIRTY` und `empty` oder `set` fuer das lokale Register.
+Eine feste zweiteilige Kopfzeile zeigt Branding und Quelldatei, den live aus dem Draft gelesenen
+Dirty-/Registerzustand sowie den aktuellen Breadcrumb von `value` bis zum sichtbaren Mapping-Key
+oder Listenindex. Sie ist keine selektierbare Datenzeile.
 Ungueltiges TOML, fehlende Pfade, falsche Container, ungueltige Indizes, Key-Kollisionen, ein
 leeres Register und ein abgebrochenes Loeschen lassen Draft und Register unveraendert. Native
 TOML-Dates, Times, Datetimes, Sonderfloats sowie verschachtelte Mappings/Listen bleiben native

@@ -143,6 +143,9 @@ sync, import/export, or provider execution in this command.
 | q | Return/quit through VisiData; all local changes are discarded on process exit |
 
 The sheet title always shows `clean` or `DIRTY` and whether the local register is `empty` or `set`.
+A fixed two-part header shows branding and source file, the dirty/register state read live from the
+draft, and the current breadcrumb from `value` through the visible mapping key or list index. It is
+not a selectable data row.
 Invalid TOML, missing paths, wrong container types, invalid indices, key collisions, an empty
 register, and cancelled deletion leave both draft and register unchanged. Native TOML dates,
 times, datetimes, special floats, and nested mappings/lists remain native values.

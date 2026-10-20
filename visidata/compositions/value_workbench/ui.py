@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 
 from visidata.editor import SuspendCurses
 
-from visidata import ItemColumn, Sheet, vd
+from visidata import ItemColumn, Sheet, clipstr_middle, vd
 
 from .branding import show_logo
 from .draft import ValueDraft, ValuePath, parse_toml_literal
@@ -46,6 +46,45 @@ class ValueSheet(Sheet):
             f"{self.logo.upper()} local | {self.value_title} | {location} | "
             f"{dirty} | register:{register}"
         )
+
+    @property
+    def nHeaderRows(self) -> int:
+        """Reserve one persistent context row above the native column labels."""
+        return 2
+
+    @property
+    def breadcrumb(self) -> str:
+        parts = ["value"]
+        parts.extend(
+            f"[{part}]" if type(part) is int else _single_line(part)
+            for part in self.path
+        )
+        return " › ".join(parts)
+
+    def drawColHeader(self, scr: object, y: int, h: int, vcolidx: int) -> None:
+        """Draw live context without adding a selectable synthetic data row."""
+        column = self.availCols[vcolidx]
+        original_name = column._name
+        width = self._visibleColLayout[vcolidx][1]
+        context = self._context_header(original_name, width)
+        column._name = f"{context}\n{original_name}"
+        try:
+            super().drawColHeader(scr, y, h, vcolidx)
+        finally:
+            column._name = original_name
+
+    def _context_header(self, column_name: str, width: int) -> str:
+        if column_name == "key":
+            text = f"{self.logo.upper()} · {_source_label(self.value_title)}"
+        elif column_name == "type":
+            dirty = "DIRTY" if self.draft.dirty else "clean"
+            register = "set" if self.draft.has_register else "empty"
+            text = f"{dirty} · reg:{register}"
+        elif column_name == "value":
+            text = self.breadcrumb
+        else:
+            text = ""
+        return clipstr_middle(text, max(width - 1, 0))[0]
 
     def reload(self) -> None:
         value = self.draft.at(self.path)
@@ -241,6 +280,15 @@ def _type_name(value: object) -> str:
     if isinstance(value, list):
         return "list"
     return type(value).__name__
+
+
+def _single_line(value: object) -> str:
+    return " ".join(str(value).splitlines())
+
+
+def _source_label(value: object) -> str:
+    normalized = _single_line(value).replace("\\", "/").rstrip("/")
+    return normalized.rsplit("/", 1)[-1] or "value"
 
 
 def _preview(value: object) -> str:

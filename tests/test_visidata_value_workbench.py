@@ -221,6 +221,54 @@ def test_local_ui_recurses_and_exposes_only_local_commands(value_ui) -> None:
         assert root.getCommand(command) is not None
 
 
+def test_local_ui_exposes_live_non_row_breadcrumb_header(
+    value_ui, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api, ui, _branding = value_ui
+    draft = api.require("create_draft")({"project": {"references": [{"path": "dix"}]}})
+    root = ui.ValueSheet(
+        draft,
+        title="/tmp/config/01-project-context.toml",
+        logo="roba",
+    )
+    root.reload()
+    project = root.openRow(root.rows[0])
+    references = project.openRow(project.rows[0])
+    item = references.openRow(references.rows[0])
+
+    assert root.nHeaderRows == 2
+    assert root.breadcrumb == "value"
+    assert project.breadcrumb == "value › project"
+    assert references.breadcrumb == "value › project › references"
+    assert item.breadcrumb == "value › project › references › [0]"
+    assert root._context_header("key", 80) == "ROBA · 01-project-context.toml"
+    assert root._context_header("type", 80) == "clean · reg:empty"
+
+    draft.replace(("project", "references", 0, "path"), "roba")
+    draft.copy_to_register(("project", "references", 0))
+    assert root._context_header("type", 80) == "DIRTY · reg:set"
+
+    narrow = item._context_header("value", 24)
+    assert len(narrow) <= 23
+    assert narrow.startswith("value")
+    assert "…" in narrow
+    assert narrow.endswith("› [0]")
+
+    seen: list[str] = []
+
+    def capture_header(sheet, _scr, _y, height, index):
+        assert height == 2
+        seen.append(sheet.availCols[index].name)
+
+    monkeypatch.setattr(ui.Sheet, "drawColHeader", capture_header)
+    root._visibleColLayout = {0: (0, 26)}
+    root.drawColHeader(object(), 0, root.nHeaderRows, 0)
+    assert len(seen) == 1
+    assert seen[0].startswith("ROBA · 01-pr")
+    assert seen[0].endswith("context.toml\nkey")
+    assert root.availCols[0].name == "key"
+
+
 def test_local_ui_performs_mapping_list_and_register_actions(
     value_ui, monkeypatch: pytest.MonkeyPatch
 ) -> None:
