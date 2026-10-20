@@ -157,6 +157,69 @@ class Runtime:
         paths = self.paths(session=session)
         return self.tmux.require("attach")(session=session, socket=paths["socket"])
 
+    def start_master(
+        self,
+        *,
+        session: str = "dix",
+        logo: str = "dix",
+        shell_command: Sequence[str],
+        status_command: Sequence[str],
+        workbench_command: Sequence[str],
+        attach: bool = True,
+    ) -> dict[str, object]:
+        started = self.start(
+            session=session,
+            logo=logo,
+            shell_command=shell_command,
+            status_command=status_command,
+            attach=False,
+        )
+        try:
+            workbench = self.open_master_workbench(
+                session=session,
+                command=workbench_command,
+            )
+        except Exception as primary_error:
+            created = started.get("created")
+            if isinstance(created, Mapping) and created.get("tmux") is True:
+                paths = self.paths(session=session)
+                try:
+                    self.tmux.require("stop")(session=session, socket=paths["socket"])
+                except RuntimeError as cleanup_error:
+                    primary_error.add_note(f"Cockpit tmux cleanup failed: {cleanup_error}")
+            if isinstance(created, Mapping) and created.get("roba") is True:
+                try:
+                    self.runtime.require("stop")(session=session)
+                except RuntimeError as cleanup_error:
+                    primary_error.add_note(f"Cockpit ROBA cleanup failed: {cleanup_error}")
+            raise
+        if attach:
+            self.attach(session=session)
+        return {**started, "workbench": workbench, "attached": attach}
+
+    def open_master_workbench(
+        self,
+        *,
+        session: str = "dix",
+        command: Sequence[str],
+    ) -> dict[str, str]:
+        status = self.status(session=session)
+        if status["running"] is not True:
+            raise CockpitSessionError(
+                f"Cockpit runtime is not healthy: {session}; use start or reset"
+            )
+        paths = self.paths(session=session)
+        value = self.tmux.require("open_master_workbench")(
+            session=session,
+            socket=paths["socket"],
+            command=command,
+        )
+        if not isinstance(value, dict) or not all(
+            isinstance(key, str) and isinstance(item, str) for key, item in value.items()
+        ):
+            raise TypeError("Cockpit master workbench result must be a string dictionary")
+        return value
+
     def stop(self, *, session: str = "dix") -> dict[str, object]:
         self._guard_external_lifecycle(session, "stop")
         paths = self.paths(session=session)

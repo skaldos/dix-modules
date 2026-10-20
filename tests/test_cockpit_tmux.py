@@ -5,6 +5,7 @@ import shutil
 import socket as socket_module
 import subprocess
 import tempfile
+import time
 import uuid
 from pathlib import Path
 
@@ -54,6 +55,11 @@ class FakeTmux:
         self.sessions: dict[str, list[str]] = {}
         self.options: dict[tuple[str, str], str] = {}
         self.global_options: dict[str, str] = {}
+        self.panes: dict[str, list[str]] = {}
+        self.pane_options: dict[tuple[str, str], str] = {}
+        self.pane_dead: dict[str, bool] = {}
+        self.selected_pane: str | None = None
+        self._next_pane = 1
 
     def __call__(self, command, **kwargs):
         args = list(command)
@@ -73,6 +79,11 @@ class FakeTmux:
                     "kill-server",
                     "set-option",
                     "show-options",
+                    "list-panes",
+                    "split-window",
+                    "select-pane",
+                    "respawn-pane",
+                    "kill-pane",
                 )
                 if item in args
             ),
@@ -84,10 +95,16 @@ class FakeTmux:
         if operation == "new-session":
             session = args[args.index("-s") + 1]
             self.sessions[session] = ["control"]
+            pane = self._new_pane()
+            self.panes[session] = [pane]
             return _completed(args)
         if operation == "set-option":
             if "-g" in args:
                 self.global_options[args[-2]] = args[-1]
+                return _completed(args)
+            if "-p" in args:
+                pane = self._pane(args[args.index("-t") + 1])
+                self.pane_options[(pane, args[-2])] = args[-1]
                 return _completed(args)
             session = args[args.index("-t") + 1].removeprefix("=")
             option = args[-2]
@@ -107,9 +124,44 @@ class FakeTmux:
             session = args[args.index("-t") + 1].removeprefix("=")
             self.sessions[session].append(args[args.index("-n") + 1])
             return _completed(args)
+        if operation == "list-panes":
+            session = args[args.index("-t") + 1].removeprefix("=").split(":", 1)[0]
+            lines = [
+                "\t".join(
+                    (
+                        pane,
+                        self.pane_options.get((pane, "@cockpit-pane-role"), ""),
+                        "1" if self.pane_dead.get(pane, False) else "0",
+                    )
+                )
+                for pane in self.panes[session]
+            ]
+            return _completed(args, stdout="\n".join(lines) + "\n")
+        if operation == "split-window":
+            target = self._pane(args[args.index("-t") + 1])
+            session = self._pane_session(target)
+            pane = self._new_pane()
+            index = self.panes[session].index(target)
+            self.panes[session].insert(index if "-b" in args else index + 1, pane)
+            return _completed(args, stdout=f"{pane}\n" if "-P" in args else "")
+        if operation == "select-pane":
+            self.selected_pane = self._pane(args[args.index("-t") + 1])
+            return _completed(args)
+        if operation == "respawn-pane":
+            pane = self._pane(args[args.index("-t") + 1])
+            self.pane_dead[pane] = False
+            return _completed(args)
+        if operation == "kill-pane":
+            pane = self._pane(args[args.index("-t") + 1])
+            session = self._pane_session(pane)
+            self.panes[session].remove(pane)
+            self._remove_pane(pane)
+            return _completed(args)
         if operation == "kill-session":
             session = args[args.index("-t") + 1].removeprefix("=")
             del self.sessions[session]
+            for pane in self.panes.pop(session, []):
+                self._remove_pane(pane)
             self.options = {key: value for key, value in self.options.items() if key[0] != session}
             if not self.sessions:
                 self.global_options.clear()
@@ -122,8 +174,41 @@ class FakeTmux:
             self.sessions.clear()
             self.options.clear()
             self.global_options.clear()
+            self.panes.clear()
+            self.pane_options.clear()
+            self.pane_dead.clear()
             return _completed(args)
         return _completed(args)
+
+    def mark_dead(self, pane: str) -> None:
+        self.pane_dead[self._pane(pane)] = True
+
+    def _new_pane(self) -> str:
+        pane = f"%{self._next_pane}"
+        self._next_pane += 1
+        self.pane_dead[pane] = False
+        return pane
+
+    def _pane(self, target: str) -> str:
+        if target.startswith("%"):
+            if not any(target in panes for panes in self.panes.values()):
+                raise AssertionError(f"unknown pane target: {target}")
+            return target
+        plain = target.removeprefix("=")
+        session_window, dot, raw_index = plain.rpartition(".")
+        if not dot:
+            raise AssertionError(f"invalid pane target: {target}")
+        session = session_window.split(":", 1)[0]
+        return self.panes[session][int(raw_index) - 1]
+
+    def _pane_session(self, pane: str) -> str:
+        return next(session for session, panes in self.panes.items() if pane in panes)
+
+    def _remove_pane(self, pane: str) -> None:
+        self.pane_dead.pop(pane, None)
+        self.pane_options = {
+            key: value for key, value in self.pane_options.items() if key[0] != pane
+        }
 
 
 def _completed(
@@ -320,6 +405,86 @@ def test_runtime_layout_and_tmux_process_environment_are_secret_free(
         )
 
 
+def test_master_workbench_pane_is_role_driven_focused_and_respawned(
+    workspace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api, runtime_module = workspace
+    fake = FakeTmux()
+    monkeypatch.setattr(runtime_module.subprocess, "run", fake)
+    socket = api.require("socket_path")(tmp_path / "master")
+    api.require("start")(
+        session="dix",
+        socket=socket,
+        control_command=["owner-shell"],
+        environment={},
+        attach=False,
+    )
+    api.require("layout_runtime")(
+        session="dix", socket=socket, status_command=["runtime-status"]
+    )
+
+    created = api.require("open_master_workbench")(
+        session="dix",
+        socket=socket,
+        command=["master-workbench", "--session", "dix"],
+    )
+    focused = api.require("open_master_workbench")(
+        session="dix", socket=socket, command=["must-not-run"]
+    )
+    assert created["action"] == "created"
+    assert focused == {**created, "action": "focused"}
+    assert fake.pane_options[(created["pane_id"], "remain-on-exit")] == "on"
+    assert (
+        fake.pane_options[(created["pane_id"], "@cockpit-pane-role")]
+        == "skaldos.dix-cockpit.master-workbench.v1"
+    )
+    assert len(fake.panes["dix"]) == 3
+
+    fake.mark_dead(created["pane_id"])
+    respawned = api.require("open_master_workbench")(
+        session="dix", socket=socket, command=["master-workbench", "--session", "dix"]
+    )
+    assert respawned == {**created, "action": "respawned"}
+    assert fake.pane_dead[created["pane_id"]] is False
+    assert len(fake.panes["dix"]) == 3
+    joined = "\n".join(" ".join(call) for call, _environment in fake.calls)
+    assert "respawn-pane" in joined
+    assert "ROBA_CONTROL_TOKEN" not in joined
+
+
+def test_master_workbench_rejects_ambiguous_or_missing_roles(
+    workspace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api, runtime_module = workspace
+    fake = FakeTmux()
+    monkeypatch.setattr(runtime_module.subprocess, "run", fake)
+    socket = api.require("socket_path")(tmp_path / "roles")
+    api.require("start")(
+        session="dix", socket=socket, control_command=["shell"], environment={}, attach=False
+    )
+    with pytest.raises(RuntimeError, match="owner shell pane role"):
+        api.require("open_master_workbench")(
+            session="dix", socket=socket, command=["workbench"]
+        )
+
+    api.require("layout_runtime")(
+        session="dix", socket=socket, status_command=["status"]
+    )
+    first = api.require("open_master_workbench")(
+        session="dix", socket=socket, command=["workbench"]
+    )
+    duplicate = fake._new_pane()
+    fake.panes["dix"].append(duplicate)
+    fake.pane_options[(duplicate, "@cockpit-pane-role")] = (
+        "skaldos.dix-cockpit.master-workbench.v1"
+    )
+    with pytest.raises(RuntimeError, match="ambiguous"):
+        api.require("open_master_workbench")(
+            session="dix", socket=socket, command=["workbench"]
+        )
+    assert first["pane_id"] in fake.panes["dix"]
+
+
 def test_socket_limit_is_checked_before_tmux(workspace, tmp_path: Path) -> None:
     api, _runtime_module = workspace
     with pytest.raises(RuntimeError, match="exceeds platform limit"):
@@ -416,6 +581,85 @@ def test_real_tmux_smoke_uses_only_the_isolated_socket(workspace) -> None:
             )
             shutil.rmtree(root, ignore_errors=True)
     assert not socket.exists()
+
+
+@pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")
+def test_real_tmux_master_pane_remains_visible_and_respawns_in_place(workspace) -> None:
+    api, _runtime_module = workspace
+    root = Path(tempfile.gettempdir()) / f"dxm-{uuid.uuid4().hex[:8]}"
+    socket = api.require("socket_path")(root)
+    try:
+        api.require("start")(
+            session="master",
+            socket=socket,
+            control_command=["sleep", "300"],
+            environment={},
+            attach=False,
+        )
+        api.require("layout_runtime")(
+            session="master", socket=socket, status_command=["sleep", "300"]
+        )
+        created = api.require("open_master_workbench")(
+            session="master",
+            socket=socket,
+            command=["sh", "-c", "exit 7"],
+        )
+        assert created["action"] == "created"
+
+        dead = ""
+        for _attempt in range(100):
+            probe = subprocess.run(
+                [
+                    "tmux",
+                    "-S",
+                    str(socket),
+                    "display-message",
+                    "-p",
+                    "-t",
+                    created["pane_id"],
+                    "#{pane_dead}",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            dead = probe.stdout.strip()
+            if dead == "1":
+                break
+            time.sleep(0.01)
+        assert dead == "1"
+        respawned = api.require("open_master_workbench")(
+            session="master", socket=socket, command=["sleep", "300"]
+        )
+        assert respawned == {**created, "action": "respawned"}
+        assert (
+            subprocess.run(
+                [
+                    "tmux",
+                    "-S",
+                    str(socket),
+                    "display-message",
+                    "-p",
+                    "-t",
+                    created["pane_id"],
+                    "#{pane_dead}",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            == "0"
+        )
+    finally:
+        try:
+            api.require("stop")(session="master", socket=socket)
+        finally:
+            subprocess.run(
+                ["tmux", "-S", str(socket), "kill-server"],
+                capture_output=True,
+                check=False,
+            )
+            shutil.rmtree(root, ignore_errors=True)
 
 
 @pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux is not installed")

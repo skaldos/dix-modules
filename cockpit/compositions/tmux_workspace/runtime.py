@@ -18,6 +18,10 @@ _SERVER_OWNER_OPTION = "@cockpit-server-owner"
 _SERVER_OWNER_MARKER = "skaldos.dix-cockpit.tmux-server.v1"
 _SESSION_OWNER_OPTION = "@cockpit-owner"
 _SESSION_OWNER_MARKER = "skaldos.dix-cockpit.tmux-session.v1"
+_PANE_ROLE_OPTION = "@cockpit-pane-role"
+_STATUS_ROLE = "skaldos.dix-cockpit.runtime-status.v1"
+_SHELL_ROLE = "skaldos.dix-cockpit.owner-shell.v1"
+_MASTER_ROLE = "skaldos.dix-cockpit.master-workbench.v1"
 
 
 class TmuxWorkspaceError(RuntimeError):
@@ -371,6 +375,152 @@ class Runtime:
                 self._run((*self._base(socket_path), "select-pane", "-t", target, "-T", title)),
                 "set Cockpit runtime pane title",
             )
+        for target, role in (
+            (f"={session}:control.1", _STATUS_ROLE),
+            (f"={session}:control.2", _SHELL_ROLE),
+        ):
+            self._require(
+                self._run(
+                    (
+                        *self._base(socket_path),
+                        "set-option",
+                        "-p",
+                        "-t",
+                        target,
+                        _PANE_ROLE_OPTION,
+                        role,
+                    )
+                ),
+                "mark Cockpit runtime pane role",
+            )
+
+    def open_master_workbench(
+        self,
+        *,
+        session: str,
+        socket: str | Path,
+        command: Sequence[str],
+    ) -> dict[str, str]:
+        session, socket_path = self._owned_session(session, socket)
+        shell_command = _shell_command(command)
+        panes = self._panes(session, socket_path)
+        masters = [pane for pane in panes if pane["role"] == _MASTER_ROLE]
+        if len(masters) > 1:
+            raise TmuxWorkspaceError("Cockpit master workbench pane role is ambiguous")
+        if masters:
+            pane = masters[0]
+            if pane["dead"] == "0":
+                action = "focused"
+            elif pane["dead"] == "1":
+                self._require(
+                    self._run(
+                        (
+                            *self._base(socket_path),
+                            "respawn-pane",
+                            "-k",
+                            "-t",
+                            pane["id"],
+                            shell_command,
+                        )
+                    ),
+                    "respawn Cockpit master workbench",
+                )
+                action = "respawned"
+            else:
+                raise TmuxWorkspaceError("Cockpit master workbench has invalid pane state")
+            self._focus_master(socket_path, pane["id"])
+            return {"session": session, "pane_id": pane["id"], "action": action}
+
+        shells = [pane for pane in panes if pane["role"] == _SHELL_ROLE]
+        if len(shells) != 1 or shells[0]["dead"] != "0":
+            raise TmuxWorkspaceError("Cockpit owner shell pane role is not healthy and unique")
+        created = self._run(
+            (
+                *self._base(socket_path),
+                "split-window",
+                "-P",
+                "-F",
+                "#{pane_id}",
+                "-t",
+                shells[0]["id"],
+                "-v",
+                "-b",
+                "-p",
+                "72",
+                "sleep 86400",
+            )
+        )
+        self._require(created, "create Cockpit master workbench pane")
+        pane_id = created.stdout.strip()
+        if not re.fullmatch(r"%[0-9]+", pane_id):
+            raise TmuxWorkspaceError("tmux did not return a valid master workbench pane ID")
+        try:
+            for option, value in (
+                (_PANE_ROLE_OPTION, _MASTER_ROLE),
+                ("remain-on-exit", "on"),
+            ):
+                self._require(
+                    self._run(
+                        (
+                            *self._base(socket_path),
+                            "set-option",
+                            "-p",
+                            "-t",
+                            pane_id,
+                            option,
+                            value,
+                        )
+                    ),
+                    "configure Cockpit master workbench pane",
+                )
+            self._require(
+                self._run(
+                    (
+                        *self._base(socket_path),
+                        "respawn-pane",
+                        "-k",
+                        "-t",
+                        pane_id,
+                        shell_command,
+                    )
+                ),
+                "start Cockpit master workbench",
+            )
+            self._focus_master(socket_path, pane_id)
+        except Exception:
+            self._run((*self._base(socket_path), "kill-pane", "-t", pane_id))
+            raise
+        return {"session": session, "pane_id": pane_id, "action": "created"}
+
+    def _panes(self, session: str, socket: Path) -> list[dict[str, str]]:
+        result = self._run(
+            (
+                *self._base(socket),
+                "list-panes",
+                "-t",
+                f"={session}:control",
+                "-F",
+                f"#{{pane_id}}\t#{{{_PANE_ROLE_OPTION}}}\t#{{pane_dead}}",
+            )
+        )
+        self._require(result, "list Cockpit control panes")
+        panes: list[dict[str, str]] = []
+        for line in result.stdout.splitlines():
+            fields = line.split("\t")
+            if len(fields) != 3 or not re.fullmatch(r"%[0-9]+", fields[0]):
+                raise TmuxWorkspaceError("tmux returned invalid Cockpit pane metadata")
+            panes.append({"id": fields[0], "role": fields[1], "dead": fields[2]})
+        return panes
+
+    def _focus_master(self, socket: Path, pane_id: str) -> None:
+        self._require(
+            self._run((*self._base(socket), "select-pane", "-t", pane_id, "-T", "ROBA Loom")),
+            "title Cockpit master workbench pane",
+        )
+        self._require(
+            self._run((*self._base(socket), "select-pane", "-t", pane_id)),
+            "focus Cockpit master workbench pane",
+        )
 
     def update_status(
         self,

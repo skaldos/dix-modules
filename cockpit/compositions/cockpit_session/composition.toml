@@ -13,6 +13,9 @@ use = "skaldos/cockpit/tmux_workspace"
 [functions.start]
 description = "Start or reuse one complete Cockpit-owned ROBA and tmux runtime."
 
+[functions.start_master]
+description = "Start or reuse the runtime, open its master workbench and optionally attach."
+
 [functions.attach]
 description = "Attach only to one healthy existing Cockpit runtime."
 
@@ -27,6 +30,9 @@ description = "Replace one provably owned Cockpit runtime and attach with a fres
 
 [functions.open_connection]
 description = "Create or focus one legacy non-secret connection window."
+
+[functions.open_master_workbench]
+description = "Create, focus or respawn the master workbench in one healthy Cockpit runtime."
 
 [functions.update_status]
 description = "Refresh legacy non-secret catalog status."

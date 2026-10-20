@@ -28,6 +28,9 @@ description = "Add the small Cockpit-owned header pane to a new Control window."
 [functions.layout_runtime]
 description = "Add one separate non-secret logo/status pane to a new owner-shell window."
 
+[functions.open_master_workbench]
+description = "Create, focus or respawn the explicitly marked master workbench pane."
+
 [functions.update_status]
 description = "Update only non-secret Cockpit session status options."
 

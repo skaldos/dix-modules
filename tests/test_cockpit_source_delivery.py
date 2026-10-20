@@ -27,6 +27,8 @@ def test_cockpit_is_one_explicit_external_module_with_privileged_runtime_apps() 
         "skaldos/cockpit/owner_shell",
         "skaldos/cockpit/runtime_status",
         "skaldos/cockpit/toml_workbench",
+        "skaldos/cockpit/master_workbench",
+        "skaldos/cockpit/ui",
     }
 
 

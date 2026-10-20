@@ -1,0 +1,8 @@
+[app]
+id = "ui"
+
+[compositions.session]
+use = "skaldos/cockpit/cockpit_session"
+
+[functions.main]
+description = "Start or focus the optional Cockpit master workspace."
