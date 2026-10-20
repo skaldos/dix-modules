@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from typing import Protocol
 
 from dix.core.composition import CompositionRuntimeContext
 
 from .session import LoomSession
+
+
+class Api(Protocol):
+    def require(self, function_id: str) -> Callable[..., object]: ...
 
 
 class Runtime:
@@ -15,9 +20,11 @@ class Runtime:
         *,
         context: CompositionRuntimeContext,
         config: Mapping[str, object],
+        values: Api,
     ) -> None:
         self.context = context
         self.config = config
+        self.values = values
 
     def create_session(
         self,
@@ -25,7 +32,7 @@ class Runtime:
         seed: object,
     ) -> LoomSession:
         """Bind the local capability and resolve the explicit seed once."""
-        session = LoomSession(execute)
+        session = LoomSession(execute, self.values.require("create_draft"))
         session.resolve(seed)
         return session
 

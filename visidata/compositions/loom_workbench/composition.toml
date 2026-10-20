@@ -1,6 +1,9 @@
 [composition]
 id = "loom_workbench"
 
+[compositions.values]
+use = "skaldos/visidata/value_workbench"
+
 [functions.create_session]
 description = "Resolve one seed through a locally bound synchronous Loom capability."
 

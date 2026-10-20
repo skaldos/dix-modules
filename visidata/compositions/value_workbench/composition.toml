@@ -1,0 +1,8 @@
+[composition]
+id = "value_workbench"
+
+[functions.create_draft]
+description = "Create one detached provider-neutral local value draft."
+
+[functions.parse_toml_literal]
+description = "Parse one complete TOML literal into its native Python value."

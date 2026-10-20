@@ -5,6 +5,7 @@ import json
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 
 class LoomReferenceError(ValueError):
@@ -22,37 +23,45 @@ class ObjectReference:
     value: object
 
 
+class LocalDraft(Protocol):
+    value: object
+
+    @property
+    def dirty(self) -> bool: ...
+
+    def at(self, path: Sequence[str | int] = ()) -> object: ...
+
+    def replace(self, path: Sequence[str | int], value: object) -> None: ...
+
+
 @dataclass
 class LoomDraft:
     """A detached local copy of one complete ObjectReference value."""
 
     reference: ObjectReference
-    value: object
-    _original: object
+    local: LocalDraft
 
     @classmethod
-    def from_reference(cls, reference: ObjectReference) -> LoomDraft:
-        value = copy.deepcopy(reference.value)
-        return cls(reference=reference, value=value, _original=copy.deepcopy(value))
+    def from_reference(
+        cls,
+        reference: ObjectReference,
+        create_draft: Callable[[object], object],
+    ) -> LoomDraft:
+        local = create_draft(reference.value)
+        if not hasattr(local, "value") or not callable(getattr(local, "replace", None)):
+            raise TypeError("local value draft does not implement the required draft contract")
+        return cls(reference=reference, local=local)  # type: ignore[arg-type]
+
+    @property
+    def value(self) -> object:
+        return self.local.value
 
     @property
     def dirty(self) -> bool:
-        return self.value != self._original
+        return self.local.dirty
 
     def at(self, path: Sequence[str | int] = ()) -> object:
-        value = self.value
-        for part in path:
-            if (
-                isinstance(value, dict) and isinstance(part, str) and part in value
-            ) or (
-                isinstance(value, list)
-                and type(part) is int
-                and 0 <= part < len(value)
-            ):
-                value = value[part]
-            else:
-                raise KeyError("path does not identify an existing draft value")
-        return value
+        return self.local.at(path)
 
     def replace_json(self, path: Sequence[str | int], raw_json: str) -> None:
         """Replace one JSON-compatible subtree with one fully parsed JSON value."""
@@ -63,21 +72,7 @@ class LoomDraft:
             replacement = json.loads(raw_json, parse_constant=_reject_json_constant)
         except ValueError as exc:
             raise ValueError("replacement must be one finite JSON value") from exc
-        if not path:
-            self.value = replacement
-            return
-        parent = self.at(path[:-1])
-        part = path[-1]
-        if (
-            isinstance(parent, dict) and isinstance(part, str) and part in parent
-        ) or (
-            isinstance(parent, list)
-            and type(part) is int
-            and 0 <= part < len(parent)
-        ):
-            parent[part] = replacement
-        else:
-            raise KeyError("path does not identify an existing draft value")
+        self.local.replace(path, replacement)
 
 
 @dataclass(frozen=True)
@@ -89,10 +84,17 @@ class SessionSnapshot:
 class LoomSession:
     """Navigate one synchronous Loom while keeping all drafts client-local."""
 
-    def __init__(self, execute: Callable[[object, str | None], object]) -> None:
+    def __init__(
+        self,
+        execute: Callable[[object, str | None], object],
+        create_draft: Callable[[object], object],
+    ) -> None:
         if not callable(execute):
             raise TypeError("execute capability must be callable")
+        if not callable(create_draft):
+            raise TypeError("local draft factory must be callable")
         self._execute = execute
+        self._create_draft = create_draft
         self.references: tuple[ObjectReference, ...] = ()
         self.draft: LoomDraft | None = None
         self.history: list[SessionSnapshot] = []
@@ -115,7 +117,7 @@ class LoomSession:
         """Open one materialized reference without consulting mutable session results."""
         if not isinstance(reference, ObjectReference):
             raise TypeError("reference must be an ObjectReference")
-        self.draft = LoomDraft.from_reference(reference)
+        self.draft = LoomDraft.from_reference(reference, self._create_draft)
         return self.draft
 
     def reference_snapshot(self) -> tuple[ObjectReference, ...]:
