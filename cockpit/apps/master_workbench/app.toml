@@ -1,0 +1,14 @@
+[app]
+id = "master_workbench"
+
+[compositions.runtime]
+use = "skaldos/cockpit/roba_runtime"
+
+[compositions.workbench]
+use = "skaldos/visidata/loom_workbench"
+
+[compositions.loom]
+use = "dix/roba/loom"
+
+[functions.main]
+description = "Run the generic ROBA Loom workbench for one live Cockpit owner runtime."
