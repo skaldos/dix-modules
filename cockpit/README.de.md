@@ -98,6 +98,46 @@ roba-ctl ctx list
 Das Status-Pane rendert das gewaehlte gepruefte PNG mit Chafa und faellt andernfalls auf Text
 zurueck. Eine reale visuelle Terminalabnahme bleibt von der automatischen Verifikation getrennt.
 
+## Optionale Master-UI
+
+Die Master-UI ist eine explizite optionale Schicht ueber der privilegierten Runtime. Zuerst wird
+die Basis-Runtime installiert, danach die UI:
+
+```sh
+./cockpit/integrations/install
+./cockpit/integrations/install-ui
+
+dix-cockpit-ui start --session dix --logo dix
+```
+
+Der zweite Installer ergaenzt VisiData 3.4 und baut eine getrennte statische Sourceprojektion aus
+einer expliziten Allowlist samt `dix-cockpit-ui` und internem Helper
+`dix-cockpit-master-workbench`. Eine Wiederholung ersetzt diese private Projektion und entfernt
+stale Dateien. Der Basis-Installer wird weder verbreitert noch ersetzt; seine drei
+Runtime-Launcher bleiben VisiData-frei.
+
+`dix-cockpit-ui start` verwendet den bestehenden Cockpit-Lifecycle, vervollstaendigt das
+vorhandene `control`-Window und attached. Das Window enthaelt Logo/nicht geheimen Status,
+Owner-Shell und den groessten Pane fuer den generischen ROBA-Loom-Workbench. Jeder Pane besitzt
+einen sichtbaren Titel. Ein wiederholter Start fokussiert den laufenden Workbench. Endete dessen
+Prozess, bleiben Pane und Fehler sichtbar; erst der naechste explizite UI-Start respawnt dieselbe
+Rolle statt ein Duplikat zu erzeugen. Detach laesst alle Prozesse laufen. Fuer Lifecycle-
+Operationen bleiben `dix-cockpit attach|status|stop|reset` zustaendig; die UI dupliziert sie
+bewusst nicht.
+
+Der Master-Helper validiert das lebende Owner-Artefakt im eigenen Prozess und baut dort die
+Loom-Connection. Das Control-Token gelangt nie in argv, Seed-Datei, tmux-Environment, Optionen,
+Rollenmetadaten oder Titel. Innerhalb dieses persoenlichen Owner-Workbenches darf es bewusst
+sichtbar und bearbeitbar sein. Enter inspiziert nur die gewaehlte ObjectReference und oeffnet
+einen lokalen Draft. Space ist der einzige Provider-Ausfuehrungsweg und behaelt die vorhandene
+Bestaetigung. Providerfehler erhalten die Workbench-Session.
+
+tmux behaelt die oben beschriebene isolierte Tastenoberflaeche: `C-a` (oder `C-b`) ist der Prefix,
+`h/j/k/l` navigiert Panes, `C-h`/`C-l` wechselt Windows, `H/J/K/L` aendert die Groesse und
+`Escape` startet den vi-Copy-Mode. Die konfigurierten Copy/Paste-Adapter bevorzugen das
+System-Clipboard und fallen auf den privaten tmux-Buffer zurueck. Locator-Katalog, externes
+Zielwindow, Datei-Import/-Export, Save, Sync und Runner sind nicht Teil dieser UI.
+
 ## Optionale lokale TOML-Value-Workbench
 
 Die lokale TOML-Workbench ist bewusst vom privilegierten Runtime-Installer getrennt. Sie

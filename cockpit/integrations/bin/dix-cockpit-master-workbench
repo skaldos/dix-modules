@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+env_file=${DIX_ENV:-$HOME/.dix/env}
+[ -r "$env_file" ] || {
+    printf 'DIX environment file is not readable: %s\n' "$env_file" >&2
+    exit 1
+}
+. "$env_file"
+
+: "${DIX_VENV:?DIX_VENV is missing from the DIX environment}"
+: "${DIX_LAUNCHERS:?DIX_LAUNCHERS is missing from the DIX environment}"
+
+exec "$DIX_VENV/bin/python" "$DIX_LAUNCHERS/dix-cockpit-master-workbench.py" "$@"

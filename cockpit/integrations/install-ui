@@ -1,0 +1,179 @@
+#!/bin/sh
+set -eu
+
+integration_root=$(CDPATH='' cd "$(dirname "$0")" && pwd -P)
+cockpit_root=$(CDPATH='' cd "$integration_root/.." && pwd -P)
+visidata_root=$(CDPATH='' cd "$cockpit_root/../visidata" && pwd -P)
+env_file=${DIX_ENV:-$HOME/.dix/env}
+
+command -v uv >/dev/null 2>&1 || {
+    printf 'uv is required to install the optional Cockpit UI\n' >&2
+    exit 1
+}
+[ -r "$env_file" ] || {
+    printf 'DIX environment file is not readable: %s\n' "$env_file" >&2
+    exit 1
+}
+. "$env_file"
+
+for variable in DIX_SOURCE_ROOT DIX_VENV DIX_LAUNCHERS DIX_BIN; do
+    eval "value=\${$variable:-}"
+    [ -n "$value" ] || {
+        printf 'DIX environment value is missing: %s\n' "$variable" >&2
+        exit 1
+    }
+done
+[ -x "$DIX_VENV/bin/python" ] || {
+    printf 'DIX environment Python is not executable: %s\n' "$DIX_VENV/bin/python" >&2
+    exit 1
+}
+for command in dix-cockpit dix-cockpit-shell dix-cockpit-runtime-status; do
+    [ -x "$DIX_BIN/$command" ] || {
+        printf 'Install the Cockpit runtime first; command is missing: %s\n' "$DIX_BIN/$command" >&2
+        exit 1
+    }
+done
+for module in \
+    "$DIX_SOURCE_ROOT/modules/dix/state" \
+    "$DIX_SOURCE_ROOT/modules/dix/cli" \
+    "$DIX_SOURCE_ROOT/modules/dix/norn" \
+    "$DIX_SOURCE_ROOT/modules/dix/roba" \
+    "$cockpit_root" \
+    "$visidata_root"
+do
+    [ -d "$module" ] || {
+        printf 'DIX module root is not a directory: %s\n' "$module" >&2
+        exit 1
+    }
+done
+
+mkdir -p "$DIX_LAUNCHERS/cockpit" "$DIX_BIN"
+chmod 0700 "$DIX_LAUNCHERS/cockpit"
+uv pip install --python "$DIX_VENV/bin/python" -r "$visidata_root/requirements.txt"
+
+projection_root="$DIX_LAUNCHERS/cockpit/master-ui-modules"
+"$DIX_VENV/bin/python" - "$cockpit_root" "$visidata_root" "$projection_root" <<'PY'
+from __future__ import annotations
+
+import os
+import shutil
+import sys
+import tempfile
+import uuid
+from pathlib import Path
+
+cockpit = Path(sys.argv[1]).resolve(strict=True)
+visidata = Path(sys.argv[2]).resolve(strict=True)
+target = Path(sys.argv[3]).resolve(strict=False)
+files = {
+    "cockpit": (
+        "apps/ui/app.toml",
+        "apps/ui/runtime.py",
+        "apps/master_workbench/app.toml",
+        "apps/master_workbench/runtime.py",
+        "compositions/config/composition.toml",
+        "compositions/config/runtime.py",
+        "compositions/roba_runtime/composition.toml",
+        "compositions/roba_runtime/runtime.py",
+        "compositions/tmux_workspace/composition.toml",
+        "compositions/tmux_workspace/runtime.py",
+        "compositions/cockpit_session/composition.toml",
+        "compositions/cockpit_session/runtime.py",
+    ),
+    "visidata": (
+        "compositions/loom_workbench/composition.toml",
+        "compositions/loom_workbench/runtime.py",
+        "compositions/loom_workbench/session.py",
+        "compositions/loom_workbench/ui.py",
+        "compositions/loom_workbench/branding.py",
+        "compositions/value_workbench/composition.toml",
+        "compositions/value_workbench/runtime.py",
+        "compositions/value_workbench/draft.py",
+        "compositions/value_workbench/ui.py",
+        "compositions/value_workbench/branding.py",
+        "assets/dix.png",
+        "assets/roba.png",
+    ),
+}
+sources = {"cockpit": cockpit, "visidata": visidata}
+
+target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+target.parent.chmod(0o700)
+if target.is_symlink() or (target.exists() and not target.is_dir()):
+    raise RuntimeError(f"Cockpit UI projection target must be a directory: {target}")
+
+temporary = Path(tempfile.mkdtemp(prefix=".master-ui-", dir=target.parent))
+backup: Path | None = None
+try:
+    temporary.chmod(0o700)
+    for module, relatives in files.items():
+        for relative in relatives:
+            origin = sources[module] / relative
+            if origin.is_symlink() or not origin.is_file():
+                raise RuntimeError(f"Cockpit UI source must be a regular file: {origin}")
+            destination = temporary / module / relative
+            destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            destination.parent.chmod(0o700)
+            shutil.copyfile(origin, destination)
+            destination.chmod(0o600)
+
+    if target.exists():
+        backup = target.parent / f".master-ui-old-{uuid.uuid4().hex}"
+        os.replace(target, backup)
+    try:
+        os.replace(temporary, target)
+    except BaseException:
+        if backup is not None:
+            os.replace(backup, target)
+            backup = None
+        raise
+    if backup is not None:
+        shutil.rmtree(backup)
+        backup = None
+finally:
+    if temporary.exists():
+        shutil.rmtree(temporary)
+    if backup is not None and backup.exists():
+        shutil.rmtree(backup)
+PY
+
+for name in dix-cockpit-ui dix-cockpit-master-workbench; do
+    launcher_spec="$DIX_LAUNCHERS/$name.toml"
+    "$DIX_VENV/bin/python" - \
+        "$integration_root/launchers/$name.toml" \
+        "$launcher_spec" \
+        "$DIX_SOURCE_ROOT/modules/dix/state" \
+        "$DIX_SOURCE_ROOT/modules/dix/cli" \
+        "$DIX_SOURCE_ROOT/modules/dix/norn" \
+        "$DIX_SOURCE_ROOT/modules/dix/roba" \
+        "$projection_root/visidata" \
+        "$projection_root/cockpit" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+source, target, state, cli, norn, roba, visidata, cockpit = map(Path, sys.argv[1:])
+value = source.read_text()
+for marker, path in {
+    '"@DIX_STATE_MODULE@"': state,
+    '"@DIX_CLI_MODULE@"': cli,
+    '"@DIX_NORN_MODULE@"': norn,
+    '"@DIX_ROBA_MODULE@"': roba,
+    '"@SKALDOS_VISIDATA_UI_MODULE@"': visidata,
+    '"@SKALDOS_COCKPIT_UI_MODULE@"': cockpit,
+}.items():
+    value = value.replace(marker, json.dumps(str(path.resolve())))
+target.write_text(value)
+PY
+    "$DIX_VENV/bin/python" -m dix.bootstrap build \
+        "$launcher_spec" \
+        --output "$DIX_LAUNCHERS/$name.py" \
+        --replace
+    cp "$integration_root/bin/$name" "$DIX_BIN/$name"
+    chmod 0755 "$DIX_LAUNCHERS/$name.py" "$DIX_BIN/$name"
+done
+
+printf 'installed optional Cockpit master UI launchers in %s\n' "$DIX_LAUNCHERS"
+printf 'installed optional Cockpit master UI commands in %s\n' "$DIX_BIN"

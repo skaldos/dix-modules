@@ -43,6 +43,8 @@ def test_delivery_contains_owned_launchers_helpers_config_and_bilingual_docs() -
         "dix-cockpit-owner-shell.toml",
         "dix-cockpit-runtime-status.toml",
         "dix-cockpit-toml-workbench.toml",
+        "dix-cockpit-ui.toml",
+        "dix-cockpit-master-workbench.toml",
     }
     assert (COCKPIT / "integrations/tmux/cockpit.conf").is_file()
     english = (COCKPIT / "README.md").read_text()
@@ -53,6 +55,8 @@ def test_delivery_contains_owned_launchers_helpers_config_and_bilingual_docs() -
         assert "DIX_COCKPIT_RUNTIME_ROOT" in text
         assert "DIX_COCKPIT_STATE_ROOT" in text
         assert "ROBA_CONTROL_TOKEN" in text
+        assert "./cockpit/integrations/install-ui" in text
+        assert "dix-cockpit-ui start --session dix --logo dix" in text
 
 
 def test_privileged_runtime_launcher_templates_do_not_reference_visidata() -> None:
