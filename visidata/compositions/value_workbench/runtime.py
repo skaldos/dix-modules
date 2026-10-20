@@ -24,3 +24,17 @@ class Runtime:
 
     def parse_toml_literal(self, raw: str) -> object:
         return parse_toml_literal(raw)
+
+    def start(self, value: object, logo: str = "dix", title: str = "TOML value") -> int:
+        from visidata import vd
+
+        from .branding import show_logo
+        from .ui import ValueSheet
+
+        draft = self.create_draft(value)
+        show_logo(logo)
+        vd.options.disp_menu = False
+        sheet = ValueSheet(draft, logo=logo, title=title)
+        sheet.reload()
+        vd.run(sheet)
+        return 0

@@ -1,0 +1,5 @@
+[composition]
+id = "toml_file"
+
+[functions.load]
+description = "Read one explicit UTF-8 TOML file without metadata injection or writes."

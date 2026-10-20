@@ -97,3 +97,52 @@ roba-ctl ctx list
 
 The status pane renders the selected reviewed PNG with Chafa when available and falls back to text.
 A real visual terminal review remains separate from automated verification.
+
+## Optional local TOML value workbench
+
+The local TOML workbench is deliberately separate from the privileged runtime installer. It needs
+Python 3.12, `uv`, VisiData 3.4, this complete `dix-modules` checkout, and the same central DIX
+environment. It does not need a running Cockpit session, ROBA, DIX Control, a catalog, or a Loom
+provider.
+
+```sh
+export DIX_ENV="$HOME/.dix/env"       # optional; this is the default
+./cockpit/integrations/install-workbench
+
+dix-cockpit-toml-workbench --file ./value.toml --logo dix
+# or: --logo roba
+```
+
+The optional installer creates a fresh private source projection containing only the TOML-file
+reader, the local value workbench, the one Cockpit application, and both logos. It installs only
+`dix-cockpit-toml-workbench`. Repeating it removes stale files from that projection. It does not
+change `cockpit/integrations/install`, its three privileged launchers, the tmux layout, or the
+owner shell.
+
+The explicit path is interpreted relative to the process working directory unless it is absolute.
+The source is read exactly once as UTF-8 TOML. The workbench receives a detached native value;
+path metadata is not injected into that value. The source and its directory are never written.
+Closing the process discards the draft and its local register. There is no save, reload, recovery,
+sync, import/export, or provider execution in this command.
+
+### Local workbench keys
+
+| Key | Effect |
+| --- | --- |
+| Enter | Drill into the selected mapping or list; never execute externally |
+| e | Replace the selected scalar with exactly one TOML literal |
+| a | Add a mapping entry or append a TOML value to the current list |
+| i | Insert a TOML value before the selected list item |
+| r | Rename the selected mapping key without overwriting another key |
+| d | Confirm and delete the selected mapping or list entry |
+| y | Deep-copy the selected complete subtree into the session-local register |
+| p | Replace the selected subtree with a deep copy of the register |
+| A | Add the register to the current mapping or append it to the current list |
+| I | Insert the register before the selected list item |
+| B | Show the selected DIX/ROBA logo again |
+| q | Return/quit through VisiData; all local changes are discarded on process exit |
+
+The sheet title always shows `clean` or `DIRTY` and whether the local register is `empty` or `set`.
+Invalid TOML, missing paths, wrong container types, invalid indices, key collisions, an empty
+register, and cancelled deletion leave both draft and register unchanged. Native TOML dates,
+times, datetimes, special floats, and nested mappings/lists remain native values.

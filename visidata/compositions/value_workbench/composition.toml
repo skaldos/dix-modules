@@ -6,3 +6,6 @@ description = "Create one detached provider-neutral local value draft."
 
 [functions.parse_toml_literal]
 description = "Parse one complete TOML literal into its native Python value."
+
+[functions.start]
+description = "Start the interactive local VisiData value workbench."

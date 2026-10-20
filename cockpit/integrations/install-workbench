@@ -1,0 +1,150 @@
+#!/bin/sh
+set -eu
+
+integration_root=$(CDPATH='' cd "$(dirname "$0")" && pwd -P)
+cockpit_root=$(CDPATH='' cd "$integration_root/.." && pwd -P)
+visidata_root=$(CDPATH='' cd "$cockpit_root/../visidata" && pwd -P)
+env_file=${DIX_ENV:-$HOME/.dix/env}
+
+command -v uv >/dev/null 2>&1 || {
+    printf 'uv is required to install the Cockpit TOML workbench\n' >&2
+    exit 1
+}
+[ -r "$env_file" ] || {
+    printf 'DIX environment file is not readable: %s\n' "$env_file" >&2
+    exit 1
+}
+. "$env_file"
+
+for variable in DIX_VENV DIX_LAUNCHERS DIX_BIN; do
+    eval "value=\${$variable:-}"
+    [ -n "$value" ] || {
+        printf 'DIX environment value is missing: %s\n' "$variable" >&2
+        exit 1
+    }
+done
+[ -x "$DIX_VENV/bin/python" ] || {
+    printf 'DIX environment Python is not executable: %s\n' "$DIX_VENV/bin/python" >&2
+    exit 1
+}
+[ -d "$cockpit_root/apps/toml_workbench" ] || {
+    printf 'Cockpit TOML workbench source is missing: %s\n' "$cockpit_root" >&2
+    exit 1
+}
+[ -d "$visidata_root/compositions/value_workbench" ] || {
+    printf 'VisiData value workbench source is missing: %s\n' "$visidata_root" >&2
+    exit 1
+}
+
+mkdir -p "$DIX_LAUNCHERS/cockpit" "$DIX_BIN"
+chmod 0700 "$DIX_LAUNCHERS/cockpit"
+uv pip install --python "$DIX_VENV/bin/python" -r "$visidata_root/requirements.txt"
+
+projection_root="$DIX_LAUNCHERS/cockpit/toml-workbench-modules"
+"$DIX_VENV/bin/python" - "$cockpit_root" "$visidata_root" "$projection_root" <<'PY'
+from __future__ import annotations
+
+import os
+import shutil
+import sys
+import tempfile
+import uuid
+from pathlib import Path
+
+cockpit = Path(sys.argv[1]).resolve(strict=True)
+visidata = Path(sys.argv[2]).resolve(strict=True)
+target = Path(sys.argv[3]).resolve(strict=False)
+files = {
+    "cockpit": (
+        "apps/toml_workbench/app.toml",
+        "apps/toml_workbench/runtime.py",
+        "compositions/toml_file/composition.toml",
+        "compositions/toml_file/runtime.py",
+    ),
+    "visidata": (
+        "compositions/value_workbench/composition.toml",
+        "compositions/value_workbench/runtime.py",
+        "compositions/value_workbench/draft.py",
+        "compositions/value_workbench/ui.py",
+        "compositions/value_workbench/branding.py",
+        "assets/dix.png",
+        "assets/roba.png",
+    ),
+}
+sources = {"cockpit": cockpit, "visidata": visidata}
+
+target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+target.parent.chmod(0o700)
+if target.is_symlink() or (target.exists() and not target.is_dir()):
+    raise RuntimeError(f"Cockpit workbench projection target must be a directory: {target}")
+
+temporary = Path(tempfile.mkdtemp(prefix=".toml-workbench-", dir=target.parent))
+backup: Path | None = None
+try:
+    temporary.chmod(0o700)
+    for module, relatives in files.items():
+        for relative in relatives:
+            origin = sources[module] / relative
+            if origin.is_symlink() or not origin.is_file():
+                raise RuntimeError(f"Workbench source must be a regular file: {origin}")
+            destination = temporary / module / relative
+            destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            destination.parent.chmod(0o700)
+            shutil.copyfile(origin, destination)
+            destination.chmod(0o600)
+
+    if target.exists():
+        backup = target.parent / f".toml-workbench-old-{uuid.uuid4().hex}"
+        os.replace(target, backup)
+    try:
+        os.replace(temporary, target)
+    except BaseException:
+        if backup is not None:
+            os.replace(backup, target)
+            backup = None
+        raise
+    if backup is not None:
+        shutil.rmtree(backup)
+        backup = None
+finally:
+    if temporary.exists():
+        shutil.rmtree(temporary)
+    if backup is not None and backup.exists():
+        shutil.rmtree(backup)
+PY
+
+launcher_spec="$DIX_LAUNCHERS/dix-cockpit-toml-workbench.toml"
+"$DIX_VENV/bin/python" - \
+    "$integration_root/launchers/dix-cockpit-toml-workbench.toml" \
+    "$launcher_spec" \
+    "$projection_root/visidata" \
+    "$projection_root/cockpit" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+source, target, visidata, cockpit = map(Path, sys.argv[1:])
+value = source.read_text()
+for marker, path in {
+    '"@SKALDOS_VISIDATA_WORKBENCH_MODULE@"': visidata,
+    '"@SKALDOS_COCKPIT_WORKBENCH_MODULE@"': cockpit,
+}.items():
+    value = value.replace(marker, json.dumps(str(path.resolve())))
+target.write_text(value)
+PY
+
+"$DIX_VENV/bin/python" -m dix.bootstrap build \
+    "$launcher_spec" \
+    --output "$DIX_LAUNCHERS/dix-cockpit-toml-workbench.py" \
+    --replace
+
+cp "$integration_root/bin/dix-cockpit-toml-workbench" \
+    "$DIX_BIN/dix-cockpit-toml-workbench"
+chmod 0755 \
+    "$DIX_LAUNCHERS/dix-cockpit-toml-workbench.py" \
+    "$DIX_BIN/dix-cockpit-toml-workbench"
+
+printf 'installed local Cockpit TOML workbench launcher in %s\n' "$DIX_LAUNCHERS"
+printf 'installed local Cockpit TOML workbench command in %s\n' "$DIX_BIN"

@@ -97,3 +97,53 @@ roba-ctl ctx list
 
 Das Status-Pane rendert das gewaehlte gepruefte PNG mit Chafa und faellt andernfalls auf Text
 zurueck. Eine reale visuelle Terminalabnahme bleibt von der automatischen Verifikation getrennt.
+
+## Optionale lokale TOML-Value-Workbench
+
+Die lokale TOML-Workbench ist bewusst vom privilegierten Runtime-Installer getrennt. Sie
+benoetigt Python 3.12, `uv`, VisiData 3.4, diesen vollstaendigen `dix-modules`-Checkout und das
+gleiche zentrale DIX-Environment. Eine laufende Cockpit-Session, ROBA, DIX Control, ein Katalog
+oder ein Loom-Provider sind nicht erforderlich.
+
+```sh
+export DIX_ENV="$HOME/.dix/env"       # optional; das ist der Default
+./cockpit/integrations/install-workbench
+
+dix-cockpit-toml-workbench --file ./value.toml --logo dix
+# alternativ: --logo roba
+```
+
+Der optionale Installer erzeugt eine frische private Sourceprojektion nur aus dem TOML-Dateileser,
+der lokalen Value-Workbench, einer Cockpit-Application und beiden Logos. Er installiert
+ausschliesslich `dix-cockpit-toml-workbench`. Eine Wiederholung entfernt stale Dateien aus dieser
+Projektion. `cockpit/integrations/install`, seine drei privilegierten Launcher, das tmux-Layout und
+die Owner-Shell werden nicht geaendert.
+
+Der explizite Pfad wird relativ zum Prozess-CWD interpretiert, sofern er nicht absolut ist. Die
+Quelle wird exakt einmal als UTF-8-TOML gelesen. Die Workbench erhaelt einen abgeloesten nativen
+Wert; Pfadmetadaten werden nicht in diesen Wert injiziert. Quelle und Quellverzeichnis werden nie
+beschrieben. Das Prozessende verwirft Draft und lokales Register. Dieser Command besitzt kein
+Save, Reload, Recovery, Sync, Import/Export und keine Providerausfuehrung.
+
+### Tasten der lokalen Workbench
+
+| Taste | Wirkung |
+| --- | --- |
+| Enter | In das gewaehlte Mapping oder die Liste drillen; nie extern ausfuehren |
+| e | Gewaehlten Skalar durch exakt ein TOML-Literal ersetzen |
+| a | Mapping-Eintrag anlegen oder einen TOML-Wert an die aktuelle Liste anhaengen |
+| i | TOML-Wert vor dem gewaehlten Listeneintrag einfuegen |
+| r | Gewaehlten Mapping-Key ohne Ueberschreiben eines anderen Keys umbenennen |
+| d | Gewaehlten Mapping-/Listeneintrag bestaetigt loeschen |
+| y | Gewaehlten vollstaendigen Teilbaum tief in das sitzungslokale Register kopieren |
+| p | Gewaehlten Teilbaum durch eine tiefe Kopie des Registers ersetzen |
+| A | Register in das aktuelle Mapping einfuegen oder an die aktuelle Liste anhaengen |
+| I | Register vor dem gewaehlten Listeneintrag einfuegen |
+| B | Gewaehltes DIX-/ROBA-Logo erneut anzeigen |
+| q | In VisiData zurueck/beenden; beim Prozessende werden alle lokalen Aenderungen verworfen |
+
+Der Sheet-Titel zeigt immer `clean` oder `DIRTY` und `empty` oder `set` fuer das lokale Register.
+Ungueltiges TOML, fehlende Pfade, falsche Container, ungueltige Indizes, Key-Kollisionen, ein
+leeres Register und ein abgebrochenes Loeschen lassen Draft und Register unveraendert. Native
+TOML-Dates, Times, Datetimes, Sonderfloats sowie verschachtelte Mappings/Listen bleiben native
+Werte.

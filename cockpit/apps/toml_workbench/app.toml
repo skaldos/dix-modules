@@ -1,0 +1,11 @@
+[app]
+id = "toml_workbench"
+
+[compositions.file]
+use = "skaldos/cockpit/toml_file"
+
+[compositions.workbench]
+use = "skaldos/visidata/value_workbench"
+
+[functions.main]
+description = "Open one explicit TOML file in the read-only-source local value workbench."

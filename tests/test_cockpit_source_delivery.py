@@ -18,6 +18,7 @@ def test_cockpit_is_one_explicit_external_module_with_privileged_runtime_apps() 
         "skaldos/cockpit/tmux_workspace",
         "skaldos/cockpit/cockpit_session",
         "skaldos/cockpit/roba_runtime",
+        "skaldos/cockpit/toml_file",
     }
     assert {value.id for value in inspection.application_definitions} == {
         "skaldos/cockpit/cli",
@@ -25,6 +26,7 @@ def test_cockpit_is_one_explicit_external_module_with_privileged_runtime_apps() 
         "skaldos/cockpit/connection_window",
         "skaldos/cockpit/owner_shell",
         "skaldos/cockpit/runtime_status",
+        "skaldos/cockpit/toml_workbench",
     }
 
 
@@ -38,6 +40,7 @@ def test_delivery_contains_owned_launchers_helpers_config_and_bilingual_docs() -
         "dix-cockpit.toml",
         "dix-cockpit-owner-shell.toml",
         "dix-cockpit-runtime-status.toml",
+        "dix-cockpit-toml-workbench.toml",
     }
     assert (COCKPIT / "integrations/tmux/cockpit.conf").is_file()
     english = (COCKPIT / "README.md").read_text()
@@ -53,7 +56,12 @@ def test_delivery_contains_owned_launchers_helpers_config_and_bilingual_docs() -
 def test_privileged_runtime_launcher_templates_do_not_reference_visidata() -> None:
     installer = (COCKPIT / "integrations/install").read_text().lower()
     assert "visidata" not in installer
-    for launcher in (COCKPIT / "integrations/launchers").glob("dix-cockpit*.toml"):
+    for name in (
+        "dix-cockpit.toml",
+        "dix-cockpit-owner-shell.toml",
+        "dix-cockpit-runtime-status.toml",
+    ):
+        launcher = COCKPIT / "integrations/launchers" / name
         assert "visidata" not in launcher.read_text().lower()
 
 

@@ -116,3 +116,15 @@ uv run --no-project --with /cwd/repos/roba --with visidata==3.4 \
 
 The real test uses a temporary daemon and temporary state only. Interactive visual acceptance still
 requires a real terminal.
+
+## Provider-neutral local value primitives
+
+`skaldos/visidata/value_workbench` is a separate provider-neutral composition used by the local
+Cockpit TOML workbench and by the detached draft inside the Loom workbench. It provides deep-copy
+drafts, mapping/list mutation, a session-local deep-copy register, semantic dirty comparison that
+treats corresponding NaNs as unchanged, and parsing of exactly one TOML literal. It contains no
+file, ROBA, Loom ObjectReference, context, instance, or external-handler semantics.
+
+The Loom UI remains unchanged: its `e`/`r` inputs are still finite JSON replacements and Space is
+still its only provider call. The local TOML UI instead owns the structural commands documented in
+`cockpit/README.md` and has no provider-execution command.

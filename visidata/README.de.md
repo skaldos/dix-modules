@@ -119,3 +119,17 @@ uv run --no-project --with /cwd/repos/roba --with visidata==3.4 \
 
 Der reale Test nutzt nur einen temporaeren Daemon und temporaeren State. Die interaktive
 Sichtabnahme benoetigt weiterhin ein echtes Terminal.
+
+## Providerneutrale lokale Value-Primitiven
+
+`skaldos/visidata/value_workbench` ist eine getrennte providerneutrale Composition, die von der
+lokalen Cockpit-TOML-Workbench und vom abgeloesten Draft der Loom-Workbench verwendet wird. Sie
+liefert tief kopierte Drafts, Mapping-/Listenmutationen, ein sitzungslokales tief kopiertes
+Register, semantischen Dirty-Vergleich mit stabiler Behandlung entsprechender NaNs und das Parsen
+von exakt einem TOML-Literal. Sie kennt keine Datei-, ROBA-, Loom-ObjectReference-, Context-,
+Instance- oder externe Handlersemantik.
+
+Die Loom-UI bleibt unveraendert: Ihre `e`-/`r`-Eingaben sind weiterhin endliche
+JSON-Replacements, und Space bleibt ihr einziger Providercall. Die lokale TOML-UI besitzt
+stattdessen die in `cockpit/README.de.md` dokumentierten strukturellen Commands und keinen Command
+zur Providerausfuehrung.
