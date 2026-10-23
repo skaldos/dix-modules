@@ -1,0 +1,12 @@
+[composition]
+id = "store_workbench"
+[compositions.catalog]
+use = "skaldos/cockpit/store_catalog"
+[compositions.provider]
+use = "skaldos/cockpit/roba_store"
+[compositions.values]
+use = "skaldos/visidata/value_workbench"
+[functions.create_session]
+description = "Create one staged local Store definition session without target transport."
+[functions.start]
+description = "Run the persistent Store catalog and native inline draft workbench."

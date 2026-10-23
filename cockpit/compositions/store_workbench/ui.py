@@ -1,0 +1,162 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import ClassVar
+
+from visidata import Column, ItemColumn, Sheet, clipstr_middle, vd
+
+
+class StoreSheet(Sheet):
+    """A single persistent Sheet/stack owner; its local frames never discard a draft."""
+
+    rowtype = "local Store field"
+    columns: ClassVar[list] = [Column("key", width=24, getter=lambda c, r: r["key"]),
+                              Column("type", width=12, getter=lambda c, r: r["type"]),
+                              ItemColumn("value", width=60, type=str)]
+
+    def __init__(self, session, *, logo="dix"):
+        self.session, self.logo = session, logo
+        super().__init__("Cockpit Stores")
+        self.exiting = False
+
+    @property
+    def nHeaderRows(self):
+        return 2
+
+    @property
+    def breadcrumb(self):
+        return self.session.safe("catalog" if self.session.draft is None else
+                                 "draft / " + " / ".join(map(str, self.session.path)))
+
+    def drawColHeader(self, scr, y, h, vcolidx):
+        col = self.availCols[vcolidx]
+        original = col._name
+        text = (f"{self.logo.upper()} Stores" if vcolidx == 0 else
+                ("DIRTY" if self.session.dirty else "clean") if vcolidx == 1 else
+                self.session.error or self.breadcrumb)
+        col._name = clipstr_middle(text, max(self._visibleColLayout[vcolidx][1]-1, 0))[0] + "\n" + original
+        try:
+            super().drawColHeader(scr, y, h, vcolidx)
+        finally:
+            col._name = original
+
+    def reload(self):
+        try:
+            if self.session.draft is None:
+                self.rows = [{"key": row["store_id"], "type": row["provider"], "value": "",
+                              "store_id": row["store_id"]} for row in self.session.reload_catalog()]
+            else:
+                value = self.session.draft.at(self.session.path)
+                entries = value.items() if isinstance(value, Mapping) else enumerate(value)
+                self.rows = [{"key": str(key), "type": type(item).__name__,
+                              "value": display(item), "native": item,
+                              "path": self.session.path + (key,)} for key, item in entries]
+            self.hasBeenModified = self.session.dirty
+            self.name = "Cockpit Stores | " + ("DIRTY" if self.session.dirty else "clean")
+            self.cursorRowIndex = min(max(self.cursorRowIndex, 0), max(len(self.rows)-1, 0))
+        except Exception as exc:  # noqa: BLE001 - local failure must not kill the pane
+            self.session.error = self.session.safe(f"{type(exc).__name__}: {exc}")
+            vd.status(self.session.error)
+
+    def choose(self):
+        answer = vd.input("Dirty Store: Save / Discard / Cancel [s/d/c]: ",
+                          value="c", record=False).strip().lower()
+        return {"s": "save", "save": "save", "d": "discard", "discard": "discard"}.get(
+            answer, "cancel")
+
+    def enter(self):
+        row = self.cursorRow
+        if row is None:
+            return
+        try:
+            if self.session.draft is None:
+                if self.session.open(row["store_id"], self.choose):
+                    self.cursorRowIndex, self.cursorVisibleColIndex = 0, 2
+                    self.reload()
+            elif isinstance(row["native"], (Mapping, list)):
+                self.session.parents.append((self.session.path, self.cursorRowIndex,
+                                             self.cursorVisibleColIndex))
+                self.session.path = row["path"]
+                self.cursorRowIndex, self.cursorVisibleColIndex = 0, 2
+                self.reload()
+            elif self.cursorCol.name == "value":
+                # Native editor, at the drawn value-cell coordinates, no footer/TOML parser.
+                raw = self.editCell(value=row["value"], record=False)
+                self.session.edit(row["path"], raw)
+                self.reload()
+        except Exception as exc:  # noqa: BLE001 - preserve baseline and redact bad input
+            # Escape is a native ExpectedException; it must not mutate anything.
+            self.session.error = self.session.safe(f"{type(exc).__name__}: {exc}")
+            vd.status(self.session.error)
+
+    def newStore(self):
+        providers = self.session.providers()
+        if not providers:
+            vd.fail("No Store provider is registered")
+        selected = providers[0] if len(providers) == 1 else vd.input(
+            "Store provider (" + ", ".join(providers) + "): ", record=False)
+        if self.session.new(selected, self.choose):
+            self.cursorRowIndex, self.cursorVisibleColIndex = 0, 2
+            self.reload()
+        self._status_error()
+
+    def saveStore(self):
+        if self.session.save():
+            self.reload()
+            vd.status("Store saved locally; no target contacted")
+        self._status_error()
+
+    def parent(self):
+        if self.session.draft is None:
+            vd.status("Store catalog stays open; use gq for explicit exit")
+        elif self.session.parents:
+            path, row, col = self.session.parents.pop()
+            self.session.path = path
+            self.reload()
+            self.cursorRowIndex, self.cursorVisibleColIndex = row, col
+        elif self.session.leave(self.choose):
+            self.cursorRowIndex = 0
+            self.reload()
+        self._status_error()
+
+    def refresh(self):
+        if self.session.leave(self.choose):
+            self.reload()
+        self._status_error()
+
+    def exitStore(self):
+        if self.session.leave(self.choose):
+            self.hasBeenModified = False
+            self.exiting = True
+            # Public quit/remove APIs; never patch VisiData's global quit implementation.
+            vd.remove(self)
+        self._status_error()
+
+    def confirmQuit(self, verb="quit"):
+        if not self.session.leave(self.choose):
+            vd.fail("Store navigation cancelled")
+
+    def _status_error(self):
+        if self.session.error:
+            vd.status(self.session.error)
+
+
+def display(value):
+    if isinstance(value, (Mapping, list)):
+        return f"[{len(value)} items]" if isinstance(value, list) else f"{{{len(value)} fields}}"
+    if type(value) is bool:
+        return "true" if value else "false"
+    return str(value)
+
+
+for keys, name, expr, desc in (
+    ("Enter", "open-row", "sheet.enter()", "open a local Store, drill, or edit its atomic value cell"),
+    ("e", "edit-cell", "sheet.enter()", "edit only the atomic value cell in a local draft"),
+    ("a", "add-row", "sheet.newStore()", "create a provider draft in this persistent Store pane"),
+    ("z^S", "commit-sheet", "sheet.saveStore()", "validate and save the complete local Store once"),
+    ("q", "quit-sheet", "sheet.parent()", "parent; at catalog root keep the Store process alive"),
+    ("Q", "quit-sheet-free", "sheet.parent()", "guarded parent, never free an active draft silently"),
+    ("gq", "quit-all", "sheet.exitStore()", "explicitly exit this Store pane after its dirty guard"),
+    ("^R", "reload-sheet", "sheet.refresh()", "guard the draft before reloading the local catalog"),
+):
+    StoreSheet.addCommand(keys, name, expr, desc, replay=False)
