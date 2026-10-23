@@ -1,0 +1,22 @@
+[composition]
+id = "roba_store"
+[compositions.loom]
+use = "dix/roba/loom"
+[compositions.contexts]
+use = "dix/roba/context"
+[compositions.instances]
+use = "dix/roba/instance"
+[compositions.data]
+use = "dix/roba/data"
+[compositions.access]
+use = "dix/roba/context_access"
+[functions.draft]
+description = "Return a local canonical ROBA Context connection draft."
+[functions.validate]
+description = "Materialize a canonical existing-access connection without transport."
+[functions.root]
+description = "Return the read-only root handle for an existing ROBA access."
+[functions.children]
+description = "Read only allowlisted Context, Instance, key or value children."
+[functions.inspect]
+description = "Inspect one readable value without any mutating operation."
