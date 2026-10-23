@@ -25,6 +25,12 @@ class Runtime:
     def parse_toml_literal(self, raw: str) -> object:
         return parse_toml_literal(raw)
 
+    def create_sheet(self, draft: object, *, logo: str = "dix", title: str = "Local value",
+                     on_commit: object = None) -> object:
+        from .ui import CommitValueSheet
+
+        return CommitValueSheet(draft, logo=logo, title=title, on_commit=on_commit)
+
     def start(self, value: object, logo: str = "dix", title: str = "TOML value") -> int:
         from visidata import vd
 

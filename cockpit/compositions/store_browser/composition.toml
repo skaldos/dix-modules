@@ -1,0 +1,16 @@
+[composition]
+id = "store_browser"
+[compositions.catalog]
+use = "skaldos/cockpit/store_catalog"
+[compositions.provider]
+use = "skaldos/cockpit/roba_store"
+[compositions.values]
+use = "skaldos/visidata/value_workbench"
+[functions.create_session]
+description = "Create a pane-local browser over the shared volatile catalog."
+[functions.new_store]
+description = "Choose a provider and open a local Store definition draft."
+[functions.edit_store]
+description = "Edit one detached Store definition with an explicit catalog commit."
+[functions.start]
+description = "Run one independent read-only VisiData Store browser."

@@ -372,3 +372,30 @@ ValueSheet.addCommand(
 ValueSheet.addCommand(
     "B", "show-brand-logo", "sheet.showBrand()", "show selected DIX/ROBA PNG with chafa"
 )
+
+
+class CommitValueSheet(ValueSheet):
+    """Reuse local value editing; only an explicit callback can commit the complete draft."""
+
+    def __init__(self, draft, *, path=(), logo="dix", title="Local value", on_commit=None):
+        self.on_commit = on_commit
+        super().__init__(draft, path=path, logo=logo, title=title)
+        self.reload()
+
+    def openRow(self, row):
+        if not isinstance(row["native"], (Mapping, list)):
+            vd.fail("scalar value: use e for a TOML-literal replacement")
+        return CommitValueSheet(self.draft, path=row["path"], logo=self.logo,
+                                title=self.value_title, on_commit=self.on_commit)
+
+    def commitValue(self):
+        if self.on_commit is None:
+            vd.fail("No commit callback is bound to this local sheet")
+        if vd.confirm("Commit this complete local definition? "):
+            self.on_commit(self.draft.at())
+
+
+CommitValueSheet.addCommand(
+    "C", "commit-local-definition", "sheet.commitValue()",
+    "explicitly commit the complete local draft to the owner-bound callback",
+)

@@ -1,0 +1,6 @@
+[app]
+id = "store_browser"
+[compositions.browser]
+use = "skaldos/cockpit/store_browser"
+[functions.main]
+description = "Run one read-only browser pane over the shared Cockpit Store catalog."

@@ -9,3 +9,6 @@ description = "Parse one complete TOML literal into its native Python value."
 
 [functions.start]
 description = "Start the interactive local VisiData value workbench."
+
+[functions.create_sheet]
+description = "Create a local editable value sheet with an optional explicit commit callback."
