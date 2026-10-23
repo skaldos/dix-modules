@@ -34,6 +34,9 @@ class Runtime:
         start = commands.add_parser("start", help="start or focus the master workspace")
         start.add_argument("--session", default="dix")
         start.add_argument("--logo", choices=("dix", "roba"), default="dix")
+        stores = commands.add_parser("stores", help="open or focus two read-only Store browsers")
+        stores.add_argument("--session", default="dix")
+        stores.add_argument("--logo", choices=("dix", "roba"), default="dix")
         try:
             arguments = parser.parse_args(list(argv))
         except SystemExit as exc:
@@ -41,6 +44,15 @@ class Runtime:
 
         try:
             binary_root = Path(os.environ["DIX_BIN"])
+            if arguments.command == "stores":
+                self.session.require("open_stores")(
+                    session=arguments.session,
+                    commands={side: [str(binary_root / "dix-cockpit-store-browser"),
+                                     "--session", arguments.session, "--logo", arguments.logo,
+                                     "--side", side] for side in ("A", "B")})
+                if not os.environ.get("TMUX"):
+                    self.session.require("attach")(session=arguments.session)
+                return 0
             self.session.require("start_master")(
                 session=arguments.session,
                 logo=arguments.logo,

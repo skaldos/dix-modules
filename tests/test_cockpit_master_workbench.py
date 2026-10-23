@@ -107,6 +107,8 @@ def test_master_workbench_graph_uses_only_existing_runtime_loom_and_workbench(
         "skaldos/cockpit/roba_runtime",
         "skaldos/visidata/loom_workbench",
         "dix/roba/loom",
+        "skaldos/cockpit/store_browser",
+        "skaldos/cockpit/cockpit_session",
     }
 
 

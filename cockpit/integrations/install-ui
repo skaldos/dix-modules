@@ -67,6 +67,18 @@ visidata = Path(sys.argv[2]).resolve(strict=True)
 target = Path(sys.argv[3]).resolve(strict=False)
 files = {
     "cockpit": (
+        "apps/store_browser/app.toml",
+        "apps/store_browser/runtime.py",
+        "compositions/store_catalog/composition.toml",
+        "compositions/store_catalog/runtime.py",
+        "compositions/store_providers/composition.toml",
+        "compositions/store_providers/runtime.py",
+        "compositions/roba_store/composition.toml",
+        "compositions/roba_store/runtime.py",
+        "compositions/store_browser/composition.toml",
+        "compositions/store_browser/runtime.py",
+        "compositions/store_browser/session.py",
+        "compositions/store_browser/ui.py",
         "apps/ui/app.toml",
         "apps/ui/runtime.py",
         "apps/master_workbench/app.toml",
@@ -137,7 +149,7 @@ finally:
         shutil.rmtree(backup)
 PY
 
-for name in dix-cockpit-ui dix-cockpit-master-workbench; do
+for name in dix-cockpit-ui dix-cockpit-master-workbench dix-cockpit-store-browser; do
     launcher_spec="$DIX_LAUNCHERS/$name.toml"
     "$DIX_VENV/bin/python" - \
         "$integration_root/launchers/$name.toml" \

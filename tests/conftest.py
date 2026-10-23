@@ -41,6 +41,7 @@ def api():
 @pytest.fixture
 def store_graph(monkeypatch):
     import shutil
+    import subprocess
     import tempfile
 
     from dix.core import CompositionComponent, ModuleComponent, create_core_component_registry
@@ -76,6 +77,8 @@ def store_graph(monkeypatch):
     finally:
         for name in ("a", "b"):
             runtime.require("stop")(session=name)
+        subprocess.run(["tmux", "-S", str(root / "r/tmux.sock"), "kill-server"],
+                       capture_output=True, check=False)
         for ident in reversed(instances):
             comp.destroy_instance("store-test", ident)
         for name in reversed(loaded):

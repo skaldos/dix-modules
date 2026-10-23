@@ -39,3 +39,6 @@ description = "Update only the non-secret status options of one privileged Cockp
 
 [functions.window_name]
 description = "Derive one stable non-secret connection window name from a catalog ID."
+
+[functions.open_stores]
+description = "Create, focus or restore two explicitly owned read-only Store browser panes."

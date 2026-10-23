@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+from pathlib import Path
 
 import pytest
 from roba import RobaClient
@@ -55,8 +58,20 @@ def test_real_owner_token_socket_and_instance_navigation_is_read_only(store_grap
     assert provider.require("children")(control, [])[0]["label"] == "data"
     meta = provider.require("children")(control, [["context", "data"]])
     assert "state" not in {x["label"] for x in meta}
-    assert json.dumps(owner.snapshot(), sort_keys=True) == before
+    after = json.dumps(owner.snapshot(), sort_keys=True)
+    assert after == before
     assert RobaClient(env=env).control().contexts() == control_before
+    if os.environ.get("DIX_STORE_EVIDENCE_DIR"):
+        evidence = Path(os.environ["DIX_STORE_EVIDENCE_DIR"])
+        evidence.mkdir(parents=True, exist_ok=True)
+        # Synthetic state only: Context snapshots do not contain credential records.
+        (evidence / "target-before.json").write_text(before + "\n")
+        (evidence / "target-after.json").write_text(after + "\n")
+        (evidence / "state-proof.json").write_text(json.dumps({
+            "before_sha256": hashlib.sha256(before.encode()).hexdigest(),
+            "after_sha256": hashlib.sha256(after.encode()).hexdigest(),
+            "registry_unchanged": True,
+        }, indent=2) + "\n")
 
 
 def test_roba_registration_and_mutation_injection_have_no_transport(store_graph, monkeypatch):
@@ -133,3 +148,15 @@ def test_positive_dispatch_and_registration_record_only_gets_on_external_target(
     provider.require("inspect")(conn, [["key", "settings"]])
     assert calls and set(calls) == {"GET"}
     assert json.dumps(owner.snapshot(), sort_keys=True) == before
+
+
+def test_instance_only_reader_never_exposes_context_values(store_graph):
+    create, _, owner, conn, _, _, _ = external(store_graph)
+    reader = owner.token_create(token_id="instance-only", read=["instance:one"])
+    provider = create("skaldos/cockpit/roba_store").api
+    value = {**conn, "token": reader["token"]}
+    nodes = provider.require("children")(value, [])
+    assert [n["label"] for n in nodes] == ["one"]
+    assert provider.require("inspect")(value, [["instance", "one"], ["key", "name"]]) == "example"
+    with pytest.raises(RuntimeError):
+        provider.require("inspect")(value, [["key", "settings"]])

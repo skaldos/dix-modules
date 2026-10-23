@@ -133,8 +133,8 @@ errors preserve the workbench session.
 tmux keeps the isolated key surface described above: `C-a` (or `C-b`) is the prefix, `h/j/k/l`
 navigates panes, `C-h`/`C-l` changes windows, `H/J/K/L` resizes, and `Escape` enters vi copy mode.
 The configured copy/paste adapters prefer the system clipboard and fall back to the private tmux
-buffer. No locator catalog, external target window, file import/export, save, sync or runner is
-part of this UI.
+buffer. No automatic target provisioning, file import/export, save, sync or runner is
+part of the master Loom; the separate read-only Store catalog is described below.
 
 ## Optional local TOML value workbench
 
@@ -187,3 +187,74 @@ not a selectable data row.
 Invalid TOML, missing paths, wrong container types, invalid indices, key collisions, an empty
 register, and cancelled deletion leave both draft and register unchanged. Native TOML dates,
 times, datetimes, special floats, and nested mappings/lists remain native values.
+
+## Read-only Stores (UP-065)
+
+Re-run `./cockpit/integrations/install-ui` after updating. It also installs the internal
+`dix-cockpit-store-browser` helper; the base runtime remains VisiData-free. Start the master as
+above. In its VisiData pane, `gN` (`cockpit-new-store` in command help) opens **New Store** and
+`gS` (`cockpit-open-stores`) opens/focuses the stable `stores` window. These process-local
+commands do not change the generic Loom. Alternatively, from the owner shell or an activated
+external terminal:
+
+```sh
+dix-cockpit-ui stores --session dix --logo dix
+```
+
+This requires an already healthy owned Cockpit. Outside tmux it attaches; inside it focuses the
+window. The window has exactly two independently navigable browsers, **Stores A** and **Stores B**.
+The isolated tmux prefix and pane/window navigation above still apply. Reopening focuses running
+panes; exited panes remain visible and are respawned only on explicit reopen. Detach preserves
+the workspace; `dix-cockpit stop|reset` remains the only lifecycle cleanup.
+
+### Register an existing access, not a new target
+
+1. Create any target Context, Instance, token, socket or grant separately in your administrative
+   terminal. New Store never creates or repairs these resources.
+2. Press `gN` in the master or `N` in a browser. Choose `roba` (the only provider); Enter accepts
+   the prefilled provider. This opens a detached local draft with `store_id`, `provider` and
+   `connection`. No target is contacted.
+3. Use Enter to drill into `connection`, and `e` to edit scalars as **TOML literals**, for example
+   `"project"`, `"unix:/absolute/existing/ctx.sock"`, `"paste-the-existing-token-here"`, `5.0`.
+   Set a non-empty `store_id` at the root. The default is the existing canonical direct Context
+   variant: `context_id`, `context_locator`, `token`, `timeout`. Add `instance_id` with `a` to scope
+   it to one existing Instance. For an existing capability socket remove the `token` field with
+   `d`; use that socket's direct locator. The provider also accepts the existing complete
+   DIX-ROBA Control capability variants, not an alternative credential schema.
+4. Press `C` (`commit-local-definition`) at any draft depth and confirm once. Only the complete
+   local definition is written to the private Cockpit catalog. `q` returns; reload the browser
+   root with `Ctrl-R`. Closing without `C` discards changes.
+5. Enter on the Store explicitly reads its target. Missing/offline/unauthorized targets fail here,
+   not during registration. Use `h` to return, correct the local access with `e`, then reload.
+
+| Browser key | Effect |
+| --- | --- |
+| Enter | Read selected container or inspect a value; no provider mutation |
+| h | Parent; from a Store root return to the virtual root |
+| g/ | Virtual root |
+| Ctrl-R | Reload only this pane; also refresh the shared catalog |
+| N | New local Store via provider selection and detached draft |
+| e | Edit the selected Store's local definition; C commits explicitly |
+| r | Rename only the local registration |
+| d | Confirm removal of only the local registration |
+| q | VisiData back/quit; no daemon cleanup |
+
+Both browsers read the same live catalog, but selection, cursor, path and errors are pane-local.
+The fixed header shows a breadcrumb or a visible error. Empty/error states remain navigable back
+to `/`. ROBA exposes only Context metadata, readable Instances, keys and values; Control-only
+access does **not** imply a Context owner credential. Use a separately registered Context access
+for its data. A token with only Instance read grants sees only those readable resources.
+Create, delete, write, token, socket, grant and management offers are not available, even through
+manipulated node IDs. The master itself deliberately retains its original broad owner Loom.
+
+The catalog is volatile private ROBA state, serialized per Cockpit session. Other processes in
+the same session see explicit commits on reload; other sessions do not. Local edit/rename/remove
+never contact the external target and never delete or revoke its resources. A full stop/start or
+reset discards the catalog. There is no file persistence, autosave, snapshot, import/export,
+transfer, second provider, sync or runner.
+
+Credentials may be displayed/edited/copied in the personal Owner draft, but are never placed in
+argv, tmux metadata/environment/titles, breadcrumbs, status or normal error logs. Browser helpers
+receive only session/logo/side and obtain the private capability inside their process. Terminal
+recordings can still capture an intentionally displayed token: use short-lived test credentials,
+keep recordings private and inspect/redact before sharing.

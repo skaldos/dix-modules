@@ -220,6 +220,13 @@ class Runtime:
             raise TypeError("Cockpit master workbench result must be a string dictionary")
         return value
 
+    def open_stores(self, *, session: str = "dix",
+                    commands: Mapping[str, Sequence[str]]) -> dict[str, object]:
+        if self.status(session=session)["running"] is not True:
+            raise CockpitSessionError("Cockpit runtime is not healthy; use start or reset")
+        return self.tmux.require("open_stores")(
+            session=session, socket=self.paths(session=session)["socket"], commands=commands)
+
     def stop(self, *, session: str = "dix") -> dict[str, object]:
         self._guard_external_lifecycle(session, "stop")
         paths = self.paths(session=session)

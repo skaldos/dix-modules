@@ -135,8 +135,8 @@ Bestaetigung. Providerfehler erhalten die Workbench-Session.
 tmux behaelt die oben beschriebene isolierte Tastenoberflaeche: `C-a` (oder `C-b`) ist der Prefix,
 `h/j/k/l` navigiert Panes, `C-h`/`C-l` wechselt Windows, `H/J/K/L` aendert die Groesse und
 `Escape` startet den vi-Copy-Mode. Die konfigurierten Copy/Paste-Adapter bevorzugen das
-System-Clipboard und fallen auf den privaten tmux-Buffer zurueck. Locator-Katalog, externes
-Zielwindow, Datei-Import/-Export, Save, Sync und Runner sind nicht Teil dieser UI.
+System-Clipboard und fallen auf den privaten tmux-Buffer zurueck. Automatische Zielerzeugung, Datei-Import/-Export, Save, Sync und Runner sind nicht Teil
+des Master-Looms; der getrennte Read-only-Store-Katalog ist unten beschrieben.
 
 ## Optionale lokale TOML-Value-Workbench
 
@@ -190,3 +190,77 @@ Ungueltiges TOML, fehlende Pfade, falsche Container, ungueltige Indizes, Key-Kol
 leeres Register und ein abgebrochenes Loeschen lassen Draft und Register unveraendert. Native
 TOML-Dates, Times, Datetimes, Sonderfloats sowie verschachtelte Mappings/Listen bleiben native
 Werte.
+
+## Read-only Stores (UP-065)
+
+Nach einem Update `./cockpit/integrations/install-ui` erneut ausfuehren. Der Installer liefert
+auch den internen Helper `dix-cockpit-store-browser`; die Basisruntime bleibt VisiData-frei.
+Master wie oben starten. In dessen VisiData-Pane oeffnet `gN` (`cockpit-new-store` in der
+Command-Hilfe) **New Store**, `gS` (`cockpit-open-stores`) oeffnet/fokussiert das stabile
+`stores`-Window. Diese prozesslokalen Commands aendern den generischen Loom nicht. Alternativ
+im Owner-Terminal oder einem externen aktivierten Terminal:
+
+```sh
+dix-cockpit-ui stores --session dix --logo dix
+```
+
+Voraussetzung ist ein gesundes, besessenes Cockpit. Ausserhalb tmux wird attached, innerhalb das
+Window fokussiert. Es besitzt genau zwei unabhaengige Browser, **Stores A** und **Stores B**.
+Die oben beschriebene isolierte tmux-Prefix-/Pane-/Window-Navigation bleibt gueltig. Erneutes
+Oeffnen fokussiert laufende Panes; beendete Panes bleiben sichtbar und werden erst beim bewussten
+Oeffnen respawnt. Detach erhaelt den Raum; nur `dix-cockpit stop|reset` raeumt die Runtime auf.
+
+### Vorhandenen Zugang registrieren, kein neues Ziel erzeugen
+
+1. Ziel-Context, Instance, Token, Socket und Grant werden vorher separat im administrativen
+   Terminal erzeugt. New Store erzeugt oder repariert keine dieser Ressourcen.
+2. `gN` im Master oder `N` im Browser druecken. `roba` waehlen (einziger Provider); Enter nimmt
+   den vorbelegten Provider. Ein abgeloester lokaler Draft mit `store_id`, `provider` und
+   `connection` oeffnet sich. Das Ziel wird nicht kontaktiert.
+3. Mit Enter in `connection` drillen, mit `e` Skalare als **TOML-Literale** bearbeiten, etwa
+   `"project"`, `"unix:/absoluter/vorhandener/ctx.sock"`, `"hier-vorhandenes-token-einfuegen"`,
+   `5.0`. Am Root einen nicht leeren `store_id` setzen. Default ist die vorhandene kanonische
+   direkte Context-Variante: `context_id`, `context_locator`, `token`, `timeout`. Mit `a`
+   `instance_id` fuer eine vorhandene Instance ergaenzen. Fuer einen vorhandenen Capability-Socket
+   das Feld `token` mit `d` entfernen und den direkten Socket-Locator verwenden. Der Provider
+   akzeptiert auch die vorhandenen vollstaendigen DIX-ROBA-Control-Capability-Varianten, kein
+   alternatives Credentialschema.
+4. Auf beliebiger Drafttiefe `C` (`commit-local-definition`) druecken und einmal bestaetigen.
+   Nur die gesamte lokale Definition wird im privaten Cockpit-Katalog abgelegt. Mit `q` zurueck;
+   den Browser-Root mit `Ctrl-R` neu laden. Schliessen ohne `C` verwirft die Aenderungen.
+5. Erst Enter auf dem Store liest bewusst das Ziel. Fehlende, offline oder unberechtigte Ziele
+   scheitern hier, nicht beim Registrieren. Mit `h` zurueck, lokalen Zugang mit `e` korrigieren,
+   dann neu laden.
+
+| Browsertaste | Wirkung |
+| --- | --- |
+| Enter | Gewaehlten Container lesen oder Wert inspizieren; keine Providermutation |
+| h | Parent; vom Store-Root zum virtuellen Root |
+| g/ | Virtueller Root |
+| Ctrl-R | Nur diesen Pane neu laden; auch gemeinsamen Katalog aktualisieren |
+| N | Neuer lokaler Store ueber Providerwahl und abgeloesten Draft |
+| e | Lokale Store-Definition bearbeiten; C committet bewusst |
+| r | Nur lokale Registrierung umbenennen |
+| d | Nur lokale Registrierung bestaetigt entfernen |
+| q | VisiData zurueck/beenden; kein Daemoncleanup |
+
+Beide Browser lesen denselben lebenden Katalog; Auswahl, Cursor, Pfad und Fehler bleiben aber
+pane-lokal. Die feste Kopfzeile zeigt Breadcrumb oder sichtbaren Fehler. Auch leere/fehlerhafte
+Zustaende haben einen Rueckweg nach `/`. ROBA exponiert nur Context-Metadaten, lesbare Instances,
+Keys und Werte. Control-Zugriff impliziert **kein** Context-Owner-Credential; fuer dessen Daten
+einen separaten Context-Zugang registrieren. Ein Token nur mit Instance-Read sieht nur diese
+lesbaren Ressourcen. Create, Delete, Write, Token, Socket, Grant und Management sind auch mit
+manipulierten Node-IDs unerreichbar. Der Master behaelt bewusst seinen breiten Owner-Loom.
+
+Der Katalog ist fluechtiger privater ROBA-State mit serialisierten Aenderungen pro Cockpit-Session.
+Andere Prozesse derselben Session sehen bewusste Commits beim Reload; andere Sessions nicht.
+Lokales Edit/Rename/Remove kontaktiert das externe Ziel nie und loescht/widerruft dort nichts.
+Vollstaendiges Stop/Start oder Reset verwirft den Katalog. Es gibt weder Dateipersistenz,
+Autosave, Snapshot, Import/Export, Transfer, zweiten Provider, Sync noch Runner.
+
+Credentials duerfen im persoenlichen Owner-Draft angezeigt, bearbeitet und kopiert werden,
+gelangen aber nicht in argv, tmux-Metadaten/-Environment/-Titel, Breadcrumbs, Status oder normale
+Fehlerlogs. Browserhelper erhalten nur Session/Logo/Seite und beziehen die private Capability
+innerhalb ihres Prozesses. Terminalaufzeichnungen koennen bewusst angezeigte Tokens trotzdem
+erfassen: kurzlebige Testcredentials nutzen, Aufzeichnungen privat halten und vor Weitergabe
+pruefen/bereinigen.

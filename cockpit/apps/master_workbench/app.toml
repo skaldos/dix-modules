@@ -12,3 +12,9 @@ use = "dix/roba/loom"
 
 [functions.main]
 description = "Run the generic ROBA Loom workbench for one live Cockpit owner runtime."
+
+[compositions.browser]
+use = "skaldos/cockpit/store_browser"
+
+[compositions.session]
+use = "skaldos/cockpit/cockpit_session"

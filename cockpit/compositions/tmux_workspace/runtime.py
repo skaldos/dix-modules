@@ -22,6 +22,9 @@ _PANE_ROLE_OPTION = "@cockpit-pane-role"
 _STATUS_ROLE = "skaldos.dix-cockpit.runtime-status.v1"
 _SHELL_ROLE = "skaldos.dix-cockpit.owner-shell.v1"
 _MASTER_ROLE = "skaldos.dix-cockpit.master-workbench.v1"
+_STORES_WINDOW_ROLE = "skaldos.dix-cockpit.stores.v1"
+_STORES_ROLES = {"A": "skaldos.dix-cockpit.stores-a.v1",
+                 "B": "skaldos.dix-cockpit.stores-b.v1"}
 
 
 class TmuxWorkspaceError(RuntimeError):
@@ -492,13 +495,96 @@ class Runtime:
             raise
         return {"session": session, "pane_id": pane_id, "action": "created"}
 
-    def _panes(self, session: str, socket: Path) -> list[dict[str, str]]:
+    def open_stores(self, *, session: str, socket: str | Path,
+                    commands: Mapping[str, Sequence[str]]) -> dict[str, object]:
+        session, socket_path = self._owned_session(session, socket)
+        if set(commands) != {"A", "B"}:
+            raise ValueError("Store workspace requires exactly A and B commands")
+        shell_commands = {key: _shell_command(value) for key, value in commands.items()}
+        windows = self._run((*self._base(socket_path), "list-windows", "-t", f"={session}",
+                             "-F", "#{window_name}\t#{@cockpit-window-role}"))
+        self._require(windows, "inspect Cockpit Store window ownership")
+        matches = [line.split("\t") for line in windows.stdout.splitlines()
+                   if line.split("\t")[0] == "stores"]
+        if matches and matches != [["stores", _STORES_WINDOW_ROLE]]:
+            raise TmuxWorkspaceError("Store window is foreign or ambiguous")
+        target = f"={session}:stores"
+        fresh = not matches
+        if fresh:
+            result = self._run((*self._base(socket_path), "new-window", "-d", "-t",
+                                f"={session}", "-n", "stores", "sleep 86400"))
+            self._require(result, "create Cockpit Store window")
+        try:
+            if fresh:
+                self._require(self._run((*self._base(socket_path), "set-option", "-w", "-t",
+                                        target, "@cockpit-window-role", _STORES_WINDOW_ROLE)),
+                              "mark Cockpit Store window")
+            panes = self._panes(session, socket_path, "stores")
+            if fresh:
+                if len(panes) != 1:
+                    raise TmuxWorkspaceError("fresh Store window has unexpected panes")
+                self._mark_store_pane(socket_path, panes[0]["id"], "A")
+                panes[0]["role"] = _STORES_ROLES["A"]
+                # Holder is running but must be replaced below after both roles exist.
+            if (len(panes) > 2 or any(p["role"] not in _STORES_ROLES.values() for p in panes)
+                    or len({p["role"] for p in panes}) != len(panes)):
+                raise TmuxWorkspaceError("Store pane roles are foreign or ambiguous")
+            by_role = {pane["role"]: pane for pane in panes}
+            actions = {}
+            for side, role in _STORES_ROLES.items():
+                pane = by_role.get(role)
+                if pane is None:
+                    result = self._run((*self._base(socket_path), "split-window", "-h", "-P",
+                                        "-F", "#{pane_id}", "-t", target, "sleep 86400"))
+                    self._require(result, "create Cockpit Store browser pane")
+                    ident = result.stdout.strip()
+                    if not re.fullmatch(r"%[0-9]+", ident):
+                        raise TmuxWorkspaceError("invalid Store pane ID")
+                    self._mark_store_pane(socket_path, ident, side)
+                    pane = {"id": ident, "dead": "1"}
+                    action = "created"
+                elif fresh:
+                    action = "created"
+                elif pane["dead"] == "1":
+                    action = "respawned"
+                elif pane["dead"] == "0":
+                    action = "focused"
+                else:
+                    raise TmuxWorkspaceError("invalid Store pane state")
+                if action != "focused":
+                    self._require(self._run((*self._base(socket_path), "respawn-pane", "-k",
+                                            "-t", pane["id"], shell_commands[side])),
+                                  "start Cockpit Store browser")
+                actions[side] = {"pane_id": pane["id"], "action": action}
+            if fresh:
+                self._require(self._run((*self._base(socket_path), "select-layout", "-t",
+                                        target, "even-horizontal")), "layout Store browsers")
+            self._require(self._run((*self._base(socket_path), "select-window", "-t", target)),
+                          "focus Store window")
+            self._require(self._run((*self._base(socket_path), "select-pane", "-t",
+                                    actions["A"]["pane_id"])), "focus Store browser A")
+            return {"session": session, "window": "stores", "panes": actions}
+        except Exception:
+            if fresh:
+                self._run((*self._base(socket_path), "kill-window", "-t", target))
+            raise
+
+    def _mark_store_pane(self, socket: Path, ident: str, side: str) -> None:
+        for option, value in ((_PANE_ROLE_OPTION, _STORES_ROLES[side]),
+                              ("remain-on-exit", "on")):
+            self._require(self._run((*self._base(socket), "set-option", "-p", "-t", ident,
+                                    option, value)), "mark Store browser pane")
+        self._require(self._run((*self._base(socket), "select-pane", "-t", ident,
+                                "-T", f"Stores {side} · read only")), "title Store browser")
+
+    def _panes(self, session: str, socket: Path,
+               window: str = "control") -> list[dict[str, str]]:
         result = self._run(
             (
                 *self._base(socket),
                 "list-panes",
                 "-t",
-                f"={session}:control",
+                f"={session}:{window}",
                 "-F",
                 f"#{{pane_id}}\t#{{{_PANE_ROLE_OPTION}}}\t#{{pane_dead}}",
             )

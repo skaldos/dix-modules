@@ -76,3 +76,26 @@ def test_catalog_invalid_requests_do_not_change_state(store_graph, api):
     with pytest.raises(ValueError):
         catalog.require("provider_call")("test", "write", {})
     assert json.dumps(catalog.require("list")("a"), sort_keys=True) == before
+
+
+def test_catalog_parallel_process_capabilities_do_not_lose_updates(store_graph, api):
+    from concurrent.futures import ThreadPoolExecutor
+
+    create, _, _ = store_graph
+    catalogs = [create("skaldos/cockpit/store_catalog").api for _ in range(4)]
+    for catalog in catalogs:
+        catalog.require("register_provider")("test", api(
+            draft=dict, validate=lambda value: value,
+            root=lambda *_: None, children=lambda *_: None, inspect=lambda *_: None))
+
+    def register(index):
+        catalogs[index].require("create")(
+            {"store_id": str(index), "provider": "test", "connection": {}}, "a")
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(register, range(4)))
+    assert [x["store_id"] for x in catalogs[0].require("list")("a")] == ["0", "1", "2", "3"]
+    # Duplicate rename cannot destroy either entry.
+    with pytest.raises(ValueError, match="already exists"):
+        catalogs[0].require("update")("0", catalogs[0].require("get")("1", "a"), "a")
+    assert len(catalogs[0].require("list")("a")) == 4
