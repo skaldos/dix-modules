@@ -71,6 +71,12 @@ def test_optional_ui_installer_materializes_only_master_surface(tmp_path: Path) 
         if path.is_file()
     }
     assert actual == {
+        "cockpit/apps/store_workbench/app.toml",
+        "cockpit/apps/store_workbench/runtime.py",
+        "cockpit/compositions/store_workbench/composition.toml",
+        "cockpit/compositions/store_workbench/runtime.py",
+        "cockpit/compositions/store_workbench/session.py",
+        "cockpit/compositions/store_workbench/ui.py",
         "cockpit/apps/store_browser/app.toml",
         "cockpit/apps/store_browser/runtime.py",
         "cockpit/compositions/store_catalog/composition.toml",
@@ -122,7 +128,8 @@ def test_optional_ui_installer_materializes_only_master_surface(tmp_path: Path) 
         )
     )
 
-    for name in ("dix-cockpit-ui", "dix-cockpit-master-workbench", "dix-cockpit-store-browser"):
+    for name in ("dix-cockpit-ui", "dix-cockpit-master-workbench", "dix-cockpit-store-browser",
+                 "dix-cockpit-store-workbench"):
         launcher_spec = (launchers / f"{name}.toml").read_text()
         launcher = launchers / f"{name}.py"
         wrapper = commands / name

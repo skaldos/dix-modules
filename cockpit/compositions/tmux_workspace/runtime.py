@@ -22,6 +22,7 @@ _PANE_ROLE_OPTION = "@cockpit-pane-role"
 _STATUS_ROLE = "skaldos.dix-cockpit.runtime-status.v1"
 _SHELL_ROLE = "skaldos.dix-cockpit.owner-shell.v1"
 _MASTER_ROLE = "skaldos.dix-cockpit.master-workbench.v1"
+_STORE_ROLE = "skaldos.dix-cockpit.store-workbench.v1"
 _STORES_WINDOW_ROLE = "skaldos.dix-cockpit.stores.v1"
 _STORES_ROLES = {"A": "skaldos.dix-cockpit.stores-a.v1",
                  "B": "skaldos.dix-cockpit.stores-b.v1"}
@@ -396,6 +397,63 @@ class Runtime:
                 ),
                 "mark Cockpit runtime pane role",
             )
+
+    def open_master_workspace(self, *, session: str, socket: str | Path,
+                              workbench_command: Sequence[str],
+                              store_command: Sequence[str]) -> dict[str, object]:
+        """Complete the owned master, never classify/adopt panes by title or process."""
+        session, socket_path = self._owned_session(session, socket)
+        _shell_command(workbench_command)
+        command = _shell_command(store_command)
+        panes = self._panes(session, socket_path)
+        allowed = {_STATUS_ROLE, _SHELL_ROLE, _MASTER_ROLE, _STORE_ROLE}
+        roles = [pane["role"] for pane in panes]
+        if any(role not in allowed for role in roles) or len(set(roles)) != len(roles):
+            raise TmuxWorkspaceError("foreign or ambiguous Cockpit master pane roles")
+        for role in (_STATUS_ROLE, _SHELL_ROLE):
+            found = [p for p in panes if p["role"] == role]
+            if len(found) != 1 or found[0]["dead"] != "0":
+                raise TmuxWorkspaceError("Cockpit base pane role is not healthy and unique")
+        if any(p["dead"] not in {"0", "1"} for p in panes):
+            raise TmuxWorkspaceError("invalid Cockpit master pane state")
+        master = self.open_master_workbench(session=session, socket=socket_path,
+                                            command=workbench_command)
+        stores = [p for p in panes if p["role"] == _STORE_ROLE]
+        fresh = not stores
+        if fresh:
+            status = next(p for p in panes if p["role"] == _STATUS_ROLE)
+            shell = next(p for p in panes if p["role"] == _SHELL_ROLE)
+            height = self._run((*self._base(socket_path), "display-message", "-p", "-t",
+                                shell["id"], "#{pane_height}"))
+            self._require(height, "measure Cockpit bottom row")
+            if not height.stdout.strip().isdigit():
+                raise TmuxWorkspaceError("invalid Cockpit shell height")
+            result = self._run((*self._base(socket_path), "split-window", "-P", "-F",
+                                "#{pane_id}", "-t", status["id"], "-v", "-l",
+                                height.stdout.strip(), "sleep 86400"))
+            self._require(result, "create Cockpit Store workbench pane")
+            pane = {"id": result.stdout.strip(), "dead": "1"}
+            if not re.fullmatch(r"%[0-9]+", pane["id"]):
+                raise TmuxWorkspaceError("invalid Store workbench pane ID")
+        else:
+            pane = stores[0]
+        action = "created" if fresh else "respawned" if pane["dead"] == "1" else "focused"
+        try:
+            for option, value in ((_PANE_ROLE_OPTION, _STORE_ROLE), ("remain-on-exit", "on")):
+                self._require(self._run((*self._base(socket_path), "set-option", "-p", "-t",
+                                        pane["id"], option, value)), "mark Cockpit Store pane")
+            if action != "focused":
+                self._require(self._run((*self._base(socket_path), "respawn-pane", "-k", "-t",
+                                        pane["id"], command)), "start Cockpit Store workbench")
+            self._require(self._run((*self._base(socket_path), "select-pane", "-t", pane["id"],
+                                    "-T", "Store Workbench")), "title Cockpit Store pane")
+            self._focus_master(socket_path, master["pane_id"])
+        except Exception:
+            if fresh:
+                self._run((*self._base(socket_path), "kill-pane", "-t", pane["id"]))
+            raise
+        return {"workbench": master,
+                "store": {"pane_id": pane["id"], "action": action}}
 
     def open_master_workbench(
         self,

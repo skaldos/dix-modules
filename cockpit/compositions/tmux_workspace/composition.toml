@@ -42,3 +42,6 @@ description = "Derive one stable non-secret connection window name from a catalo
 
 [functions.open_stores]
 description = "Create, focus or restore two explicitly owned read-only Store browser panes."
+
+[functions.open_master_workspace]
+description = "Complete or focus the four explicitly owned master pane roles."

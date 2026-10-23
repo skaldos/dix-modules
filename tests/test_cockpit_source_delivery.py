@@ -23,6 +23,7 @@ def test_cockpit_is_one_explicit_external_module_with_privileged_runtime_apps() 
         "skaldos/cockpit/store_providers",
         "skaldos/cockpit/roba_store",
         "skaldos/cockpit/store_browser",
+        "skaldos/cockpit/store_workbench",
     }
     assert {value.id for value in inspection.application_definitions} == {
         "skaldos/cockpit/cli",
@@ -34,6 +35,7 @@ def test_cockpit_is_one_explicit_external_module_with_privileged_runtime_apps() 
         "skaldos/cockpit/master_workbench",
         "skaldos/cockpit/ui",
         "skaldos/cockpit/store_browser",
+        "skaldos/cockpit/store_workbench",
     }
 
 
@@ -51,6 +53,7 @@ def test_delivery_contains_owned_launchers_helpers_config_and_bilingual_docs() -
         "dix-cockpit-ui.toml",
         "dix-cockpit-master-workbench.toml",
         "dix-cockpit-store-browser.toml",
+        "dix-cockpit-store-workbench.toml",
     }
     assert (COCKPIT / "integrations/tmux/cockpit.conf").is_file()
     english = (COCKPIT / "README.md").read_text()

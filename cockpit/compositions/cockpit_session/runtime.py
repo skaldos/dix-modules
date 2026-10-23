@@ -165,6 +165,7 @@ class Runtime:
         shell_command: Sequence[str],
         status_command: Sequence[str],
         workbench_command: Sequence[str],
+        store_command: Sequence[str] | None = None,
         attach: bool = True,
     ) -> dict[str, object]:
         started = self.start(
@@ -175,10 +176,13 @@ class Runtime:
             attach=False,
         )
         try:
-            workbench = self.open_master_workbench(
-                session=session,
-                command=workbench_command,
-            )
+            if store_command is None:
+                workspace = {"workbench": self.open_master_workbench(
+                    session=session, command=workbench_command)}
+            else:
+                workspace = self.tmux.require("open_master_workspace")(
+                    session=session, socket=self.paths(session=session)["socket"],
+                    workbench_command=workbench_command, store_command=store_command)
         except Exception as primary_error:
             created = started.get("created")
             if isinstance(created, Mapping) and created.get("tmux") is True:
@@ -195,7 +199,7 @@ class Runtime:
             raise
         if attach:
             self.attach(session=session)
-        return {**started, "workbench": workbench, "attached": attach}
+        return {**started, **workspace, "attached": attach}
 
     def open_master_workbench(
         self,

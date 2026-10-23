@@ -77,6 +77,8 @@ class Runtime:
                     "--logo",
                     arguments.logo,
                 ],
+                store_command=[str(binary_root / "dix-cockpit-store-workbench"),
+                               "--session", arguments.session, "--logo", arguments.logo],
                 attach=True,
             )
             return 0
