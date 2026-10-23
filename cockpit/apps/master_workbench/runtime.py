@@ -91,10 +91,10 @@ class Runtime:
 
         # Process-local integration: the generic Loom implementation is unchanged.
         vd.addGlobals({"cockpit_open_stores": open_stores, "cockpit_new_store": new_store})
-        Sheet.addCommand("gS", "cockpit-open-stores", "cockpit_open_stores()",
+        Sheet.addCommand("zS", "cockpit-open-stores", "cockpit_open_stores()",
                          "open or focus the two read-only Cockpit Store browsers")
-        Sheet.addCommand("gN", "cockpit-new-store", "cockpit_new_store()",
-                         "choose a provider and edit a local Store registration (C commits)")
+        Sheet.addCommand("zN", "cockpit-new-store", "cockpit_new_store()",
+                         "choose a provider and edit a local Store registration (zC commits)")
 
     def _seed(
         self,

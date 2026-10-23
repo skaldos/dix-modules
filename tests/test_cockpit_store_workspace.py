@@ -187,7 +187,7 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
                 runtime.require("owner_environment")(session="a")["ROBA_CONTROL_TOKEN"],
                 "[redacted]")
             raise AssertionError("Master did not start: " + screen) from None
-        tmux(sock, "send-keys", "-t", master, "g", "S")
+        tmux(sock, "send-keys", "-t", master, "z", "S")
         wait_for(lambda: "stores" in tmux(sock, "list-windows", "-t", "a", "-F", "#{window_name}"))
         wait_for(lambda: len(tmux(sock, "list-panes", "-t", "a:stores",
                                    "-F", "#{pane_id}").splitlines()) == 2)
@@ -197,6 +197,12 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
             wait_for(lambda pane=pane: "external" in tmux(sock, "capture-pane", "-p", "-t", pane))
             tmux(sock, "send-keys", "-t", pane, "Enter")
             wait_for(lambda pane=pane: "settings" in tmux(sock, "capture-pane", "-p", "-t", pane))
+        # Exercise the actual terminal bindings, not only the controller methods.
+        tmux(sock, "send-keys", "-t", panes[0], "z", "B")
+        wait_for(lambda: "settings" not in tmux(sock, "capture-pane", "-p", "-t", panes[0]))
+        assert "settings" in tmux(sock, "capture-pane", "-p", "-t", panes[1])
+        tmux(sock, "send-keys", "-t", panes[1], "z", "U")
+        wait_for(lambda: "settings" not in tmux(sock, "capture-pane", "-p", "-t", panes[1]))
         assert owner.snapshot() == before
         # No capability is ever put in tmux environment, argv, titles or error/status output.
         owner_secret = runtime.require("owner_environment")(session="a")["ROBA_CONTROL_TOKEN"]
@@ -204,6 +210,10 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
             screen = tmux(sock, "capture-pane", "-p", "-t", pane)
             assert "Traceback" not in screen and "error:" not in screen.lower()
             assert owner_secret not in screen and conn["token"] not in screen
+        for log in (store_graph[2] / "s").rglob("*"):
+            if log.is_file():
+                content = log.read_bytes()
+                assert owner_secret.encode() not in content and conn["token"].encode() not in content
         metadata = tmux(sock, "list-panes", "-a", "-F",
                         "#{pane_pid} #{pane_title} #{pane_start_command}")
         assert owner_secret not in metadata and conn["token"] not in metadata

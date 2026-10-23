@@ -192,8 +192,8 @@ times, datetimes, special floats, and nested mappings/lists remain native values
 
 Re-run `./cockpit/integrations/install-ui` after updating. It also installs the internal
 `dix-cockpit-store-browser` helper; the base runtime remains VisiData-free. Start the master as
-above. In its VisiData pane, `gN` (`cockpit-new-store` in command help) opens **New Store** and
-`gS` (`cockpit-open-stores`) opens/focuses the stable `stores` window. These process-local
+above. In its VisiData pane, `zN` (`cockpit-new-store` in command help) opens **New Store** and
+`zS` (`cockpit-open-stores`) opens/focuses the stable `stores` window. These process-local
 commands do not change the generic Loom. Alternatively, from the owner shell or an activated
 external terminal:
 
@@ -211,7 +211,7 @@ the workspace; `dix-cockpit stop|reset` remains the only lifecycle cleanup.
 
 1. Create any target Context, Instance, token, socket or grant separately in your administrative
    terminal. New Store never creates or repairs these resources.
-2. Press `gN` in the master or `N` in a browser. Choose `roba` (the only provider); Enter accepts
+2. Press `zN` in the master or `zN` in a browser. Choose `roba` (the only provider); Enter accepts
    the prefilled provider. This opens a detached local draft with `store_id`, `provider` and
    `connection`. No target is contacted.
 3. Use Enter to drill into `connection`, and `e` to edit scalars as **TOML literals**, for example
@@ -221,22 +221,22 @@ the workspace; `dix-cockpit stop|reset` remains the only lifecycle cleanup.
    it to one existing Instance. For an existing capability socket remove the `token` field with
    `d`; use that socket's direct locator. The provider also accepts the existing complete
    DIX-ROBA Control capability variants, not an alternative credential schema.
-4. Press `C` (`commit-local-definition`) at any draft depth and confirm once. Only the complete
+4. Press `zC` (`commit-local-definition`) at any draft depth and confirm once. Only the complete
    local definition is written to the private Cockpit catalog. `q` returns; reload the browser
-   root with `Ctrl-R`. Closing without `C` discards changes.
+   root with `Ctrl-R`. Closing without `zC` discards changes.
 5. Enter on the Store explicitly reads its target. Missing/offline/unauthorized targets fail here,
-   not during registration. Use `h` to return, correct the local access with `e`, then reload.
+   not during registration. Use `zB` to return, correct the local access with `zE`, then reload.
 
 | Browser key | Effect |
 | --- | --- |
 | Enter | Read selected container or inspect a value; no provider mutation |
-| h | Parent; from a Store root return to the virtual root |
-| g/ | Virtual root |
+| zB | Parent; from a Store root return to the virtual root |
+| zU | Virtual root |
 | Ctrl-R | Reload only this pane; also refresh the shared catalog |
-| N | New local Store via provider selection and detached draft |
-| e | Edit the selected Store's local definition; C commits explicitly |
-| r | Rename only the local registration |
-| d | Confirm removal of only the local registration |
+| zN | New local Store via provider selection and detached draft |
+| zE | Edit the selected Store's local definition; zC commits explicitly |
+| zR | Rename only the local registration |
+| zX | Confirm removal of only the local registration |
 | q | VisiData back/quit; no daemon cleanup |
 
 Both browsers read the same live catalog, but selection, cursor, path and errors are pane-local.

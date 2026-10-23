@@ -396,6 +396,6 @@ class CommitValueSheet(ValueSheet):
 
 
 CommitValueSheet.addCommand(
-    "C", "commit-local-definition", "sheet.commitValue()",
+    "zC", "commit-local-definition", "sheet.commitValue()",
     "explicitly commit the complete local draft to the owner-bound callback",
 )

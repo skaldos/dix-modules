@@ -90,3 +90,39 @@ def test_inspect_is_local_display_and_commit_cancel_has_no_effect(store_graph, m
     draft = bound.api.require("edit_store")({"arbitrary": []}, session="a")
     draft.commitValue()
     assert bound.runtime.catalog.require("list")("a") == []
+
+
+def test_distinct_stores_and_depths_have_no_shared_navigation(store_graph):
+    create, _, _owner, conn, _, _, _ = external(store_graph)
+    bound, ui = browser_ui(create)
+    catalog = bound.runtime.catalog
+    for name, connection in (("context-store", conn),
+                              ("instance-store", {**conn, "instance_id": "one"})):
+        catalog.require("create")(
+            {"store_id": name, "provider": "roba", "connection": connection}, "a")
+    left = bound.api.require("create_session")("a")
+    right = bound.api.require("create_session")("a")
+    left.reload()
+    right.reload()
+    left.open(next(n for n in left.rows if n["label"] == "context-store"))
+    right.open(next(n for n in right.rows if n["label"] == "instance-store"))
+    left.open(next(n for n in left.rows if n["label"] == "settings"))
+    left.open(left.rows[0])
+    assert left.breadcrumb == "/context-store / settings / nested"
+    assert right.breadcrumb == "/instance-store"
+    assert right.inspect(right.rows[0]) == "example"
+    left.parent()
+    left.reload()
+    assert right.breadcrumb == "/instance-store"
+    right.root()
+    assert left.breadcrumb == "/context-store / settings"
+    assert right.breadcrumb == "/"
+    sheet = ui.StoreSheet(left, bound.runtime)
+    assert sheet.getCommand(ui.vd.prettykeys("zB")).longname == "store-parent"
+    assert sheet.getCommand(ui.vd.prettykeys("zU")).longname == "store-root"
+    assert sheet.getCommand("g/").longname == "search-cols"
+    assert sheet.getCommand("h").longname == "go-left"
+
+    for key, name in (("zN", "new-store"), ("zE", "edit-store"),
+                      ("zR", "rename-store"), ("zX", "remove-store")):
+        assert sheet.getCommand(ui.vd.prettykeys(key)).longname == name

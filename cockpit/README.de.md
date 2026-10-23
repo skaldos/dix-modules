@@ -195,8 +195,8 @@ Werte.
 
 Nach einem Update `./cockpit/integrations/install-ui` erneut ausfuehren. Der Installer liefert
 auch den internen Helper `dix-cockpit-store-browser`; die Basisruntime bleibt VisiData-frei.
-Master wie oben starten. In dessen VisiData-Pane oeffnet `gN` (`cockpit-new-store` in der
-Command-Hilfe) **New Store**, `gS` (`cockpit-open-stores`) oeffnet/fokussiert das stabile
+Master wie oben starten. In dessen VisiData-Pane oeffnet `zN` (`cockpit-new-store` in der
+Command-Hilfe) **New Store**, `zS` (`cockpit-open-stores`) oeffnet/fokussiert das stabile
 `stores`-Window. Diese prozesslokalen Commands aendern den generischen Loom nicht. Alternativ
 im Owner-Terminal oder einem externen aktivierten Terminal:
 
@@ -214,7 +214,7 @@ Oeffnen respawnt. Detach erhaelt den Raum; nur `dix-cockpit stop|reset` raeumt d
 
 1. Ziel-Context, Instance, Token, Socket und Grant werden vorher separat im administrativen
    Terminal erzeugt. New Store erzeugt oder repariert keine dieser Ressourcen.
-2. `gN` im Master oder `N` im Browser druecken. `roba` waehlen (einziger Provider); Enter nimmt
+2. `zN` im Master oder `zN` im Browser druecken. `roba` waehlen (einziger Provider); Enter nimmt
    den vorbelegten Provider. Ein abgeloester lokaler Draft mit `store_id`, `provider` und
    `connection` oeffnet sich. Das Ziel wird nicht kontaktiert.
 3. Mit Enter in `connection` drillen, mit `e` Skalare als **TOML-Literale** bearbeiten, etwa
@@ -225,23 +225,23 @@ Oeffnen respawnt. Detach erhaelt den Raum; nur `dix-cockpit stop|reset` raeumt d
    das Feld `token` mit `d` entfernen und den direkten Socket-Locator verwenden. Der Provider
    akzeptiert auch die vorhandenen vollstaendigen DIX-ROBA-Control-Capability-Varianten, kein
    alternatives Credentialschema.
-4. Auf beliebiger Drafttiefe `C` (`commit-local-definition`) druecken und einmal bestaetigen.
+4. Auf beliebiger Drafttiefe `zC` (`commit-local-definition`) druecken und einmal bestaetigen.
    Nur die gesamte lokale Definition wird im privaten Cockpit-Katalog abgelegt. Mit `q` zurueck;
-   den Browser-Root mit `Ctrl-R` neu laden. Schliessen ohne `C` verwirft die Aenderungen.
+   den Browser-Root mit `Ctrl-R` neu laden. Schliessen ohne `zC` verwirft die Aenderungen.
 5. Erst Enter auf dem Store liest bewusst das Ziel. Fehlende, offline oder unberechtigte Ziele
-   scheitern hier, nicht beim Registrieren. Mit `h` zurueck, lokalen Zugang mit `e` korrigieren,
+   scheitern hier, nicht beim Registrieren. Mit `zB` zurueck, lokalen Zugang mit `zE` korrigieren,
    dann neu laden.
 
 | Browsertaste | Wirkung |
 | --- | --- |
 | Enter | Gewaehlten Container lesen oder Wert inspizieren; keine Providermutation |
-| h | Parent; vom Store-Root zum virtuellen Root |
-| g/ | Virtueller Root |
+| zB | Parent; vom Store-Root zum virtuellen Root |
+| zU | Virtueller Root |
 | Ctrl-R | Nur diesen Pane neu laden; auch gemeinsamen Katalog aktualisieren |
-| N | Neuer lokaler Store ueber Providerwahl und abgeloesten Draft |
-| e | Lokale Store-Definition bearbeiten; C committet bewusst |
-| r | Nur lokale Registrierung umbenennen |
-| d | Nur lokale Registrierung bestaetigt entfernen |
+| zN | Neuer lokaler Store ueber Providerwahl und abgeloesten Draft |
+| zE | Lokale Store-Definition bearbeiten; zC committet bewusst |
+| zR | Nur lokale Registrierung umbenennen |
+| zX | Nur lokale Registrierung bestaetigt entfernen |
 | q | VisiData zurueck/beenden; kein Daemoncleanup |
 
 Beide Browser lesen denselben lebenden Katalog; Auswahl, Cursor, Pfad und Fehler bleiben aber

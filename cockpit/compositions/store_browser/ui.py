@@ -129,12 +129,12 @@ def _preview(value):
 
 for key, name, command, help_text in (
     ("Enter", "open-store-node", "sheet.openNode()", "read a container or inspect a value"),
-    ("h", "store-parent", "sheet.parentNode()", "return to parent or virtual root"),
-    ("g/", "store-root", "sheet.rootNode()", "return to the virtual Store root"),
+    ("zB", "store-parent", "sheet.parentNode()", "return to parent or virtual root"),
+    ("zU", "store-root", "sheet.rootNode()", "return to the virtual Store root"),
     ("^R", "reload-store", "sheet.reload()", "explicitly reload this pane only"),
-    ("N", "new-store", "sheet.newStore()", "choose a provider and edit a local Store draft"),
-    ("e", "edit-store", "sheet.editStore()", "edit a detached local Store definition"),
-    ("r", "rename-store", "sheet.renameStore()", "rename only a local Store registration"),
-    ("d", "remove-store", "sheet.removeStore()", "remove only a local Store registration"),
+    ("zN", "new-store", "sheet.newStore()", "choose a provider and edit a local Store draft"),
+    ("zE", "edit-store", "sheet.editStore()", "edit a detached local Store definition"),
+    ("zR", "rename-store", "sheet.renameStore()", "rename only a local Store registration"),
+    ("zX", "remove-store", "sheet.removeStore()", "remove only a local Store registration"),
 ):
     StoreSheet.addCommand(key, name, command, help_text)
