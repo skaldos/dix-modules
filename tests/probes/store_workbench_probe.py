@@ -89,7 +89,7 @@ def observe(sheet, editing=False):
              'draft': controller.draft.at() if controller.draft else None,
              'baseline': controller.baseline, 'error': controller.error,
              'entries': controller.entries, 'metrics': metrics, 'editing': editing,
-             'exit': sheet.exiting}
+             'exit': sheet.exiting, 'cursor': [sheet.cursorRowIndex, sheet.cursorVisibleColIndex]}
     # Only synthetic draft credentials can appear in this probe, never acquired owner caps.
     temporary = evidence.with_suffix('.tmp')
     temporary.write_text(json.dumps(value))
@@ -116,7 +116,7 @@ class ObservedSheet(ui.StoreSheet):
 sheet = ObservedSheet(controller)
 sheet.reload()
 try:
-    ui.vd.run(sheet)
+    ui.run_store(sheet)
 finally:
     observe(sheet)
     component.destroy_instance('probe', 'probe')

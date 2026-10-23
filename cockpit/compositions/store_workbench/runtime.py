@@ -17,11 +17,8 @@ class Runtime:
         return StoreSession(self.catalog, self.values, session)
 
     def start(self, session: str = "dix", logo: str = "dix") -> int:
-        from visidata import vd
-
-        from .ui import StoreSheet
+        from .ui import StoreSheet, run_store
 
         sheet = StoreSheet(self.create_session(session), logo=logo)
         sheet.reload()
-        vd.run(sheet)
-        return 0
+        return run_store(sheet)

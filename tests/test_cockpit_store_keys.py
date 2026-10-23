@@ -92,8 +92,10 @@ def terminal_store(request, store_graph):
         if destination and evidence.exists():
             target = Path(destination)
             target.mkdir(parents=True, exist_ok=True)
-            (target / (request.param + '-final.json')).write_text(evidence.read_text())
-            (target / (request.param + '-keys.json')).write_text(json.dumps(terminal.trace, indent=2))
+            decision = request.node.callspec.params.get('decision')
+            stem = request.param if decision is None else f'native-{request.param}-{decision}'
+            (target / (stem + '-final.json')).write_text(evidence.read_text())
+            (target / (stem + '-keys.json')).write_text(json.dumps(terminal.trace, indent=2))
         workspace.require('stop')(session='a')
 
 
@@ -213,3 +215,41 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
     t.edit('discard-on-exit')
     t.guard(('g', 'q'), 'd')
     t.wait(lambda s: s['exit'])
+
+
+@pytest.mark.parametrize('decision', ['s', 'd'])
+def test_native_exit_is_guarded_by_local_runtime(terminal_store, decision):
+    t = terminal_store
+    t.keys('a')
+    t.wait(lambda s: s['draft'] is not None)
+    t.edit('invalid-new')
+    cursor = t.state()['cursor']
+    t.guard(('C-q',), 'c')
+    assert t.state()['cursor'] == cursor
+    assert t.state()['dirty'] and not t.state()['exit']
+    t.guard(('C-q',), 's')  # Invalid save must return to the same native Sheet.
+    t.wait(lambda s: bool(s['error']))
+    assert t.state()['dirty'] and not t.state()['exit']
+    assert t.state()['metrics']['success'] == 0
+    t.edit('native-exit-save')
+    if t.mode == 'catalog':
+        t.keys('Down', 'Down', 'Enter')
+        t.wait(lambda s: s['path'] == ['connection'])
+        for text in ('offline', 'unix:/tmp/no-target.sock', 'synthetic-draft'):
+            t.edit(text)
+            t.keys('Down')
+        t.keys('q')
+        t.wait(lambda s: s['path'] == [])
+    # Native auxiliary Sheet uses its original global quit; the owning runtime still guards.
+    t.keys('z', 'F1')
+    wait_for(lambda: 'longname' in t.screen())
+    t.keys('g', 'q')
+    wait_for(lambda: 'Dirty Store after native exit' in t.screen())
+    t.keys('c', 'Enter')
+    assert t.state()['dirty'] and not t.state()['exit']
+    t.guard(('C-q',), decision)
+    t.wait(lambda s: s['exit'])
+    expected = 1 if decision == 's' else 0
+    assert t.state()['metrics']['success'] == expected
+    if t.mode == 'catalog':
+        assert len(t.backend()) == expected

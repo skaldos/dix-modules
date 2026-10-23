@@ -237,7 +237,13 @@ normale Fehlerlogs. Der Katalog bleibt fluechtig: Stop/Start oder Reset verwirft
 „Persistenter Pane“ bedeutet keine Dateipersistenz.
 
 Der unten beschriebene abgeloeste `zN`-/`zE`-/`zC`-Draftflow bleibt kompatibel vorhanden, ist aber
-nicht mehr der fuehrende Store-Editierweg. Read-only-Dual-Browser und oberer rechter breiter
+nicht mehr der fuehrende Store-Editierweg.
+VisiDatas natives `Ctrl+Q` (oder Quit-all aus nativer Hilfe) kann Sheet-Commands umgehen.
+Der Store-Prozess prueft deshalb nach Rueckkehr aus `vd.run()` seinen Draft: Bei dirty State folgt
+nach Curses-Ende dieselbe Save/Discard/Cancel-Auswahl als normaler Terminalprompt. Cancel oder
+fehlgeschlagenes Save kehrt zum selben Draft/Pfad/Cursor zurueck; Save oder Discard beendet
+bewusst. Das patcht VisiData nicht und beeinflusst keine andere Workbench. Erzwungene Zerstoerung
+durch OS, Prozess-Kill oder Terminalende ist kein geschuetzter Navigationsbefehl. Read-only-Dual-Browser und oberer rechter breiter
 ROBA-Loom behalten ihre bisherigen Tasten und Vertraege. Globale VisiData-Key-/Quit-Semantik
 wird nicht veraendert.
 

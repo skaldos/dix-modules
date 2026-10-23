@@ -161,3 +161,27 @@ for keys, name, expr, desc in (
     ("^R", "reload-sheet", "sheet.refresh()", "guard the draft before reloading the local catalog"),
 ):
     StoreSheet.addCommand(keys, name, expr, desc, replay=False)
+
+
+def run_store(sheet):
+    """Keep the local draft owned even when native VisiData bypasses Sheet quit commands.
+
+    VisiData 3.4 handles Ctrl+Q directly in its mainloop. Its public run() boundary
+    has ended curses at this point; an ordinary terminal prompt is deliberately
+    local to this Store application, never a global key/quit monkeypatch.
+    """
+    while True:
+        vd.run(sheet)
+        if sheet.exiting or not sheet.session.dirty:
+            return 0
+        try:
+            answer = input("Dirty Store after native exit: Save / Discard / Cancel [s/d/c]: ")
+        except KeyboardInterrupt:
+            answer = "c"
+        decision = {"s": "save", "save": "save", "d": "discard", "discard": "discard"}.get(
+            answer.strip().lower(), "cancel")
+        if sheet.session.leave(lambda decision=decision: decision):
+            sheet.exiting = True
+            return 0
+        # The same controller, path and cursor survive Cancel and failed Save.
+        sheet.reload()

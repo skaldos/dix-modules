@@ -147,3 +147,35 @@ def test_guards_commit_errors_counts_and_provider_choices(store_graph, api, monk
         atomic = importlib.import_module(obj.runtime.__class__.__module__ + '.session').atomic
         with pytest.raises(ValueError):
             atomic(old, invalid)
+
+
+def test_local_runtime_retains_draft_after_native_return_and_interrupt(store_graph, monkeypatch):
+    import builtins
+
+    obj, ui = workbench(store_graph[0])
+    s = obj.api.require('create_session')('a')
+    s.new('roba', lambda: 'discard')
+    s.edit(('store_id',), 'invalid-new')
+    sheet = ui.StoreSheet(s)
+    sheet.reload()
+    baseline = copy.deepcopy(s.baseline)
+    calls = []
+
+    def run(current):
+        assert current is sheet and s.dirty and s.baseline == baseline
+        calls.append(current)
+
+    answers = iter([KeyboardInterrupt(), 'c', 's', 'd'])
+
+    def prompt(text):
+        assert 'Save / Discard / Cancel' in text
+        value = next(answers)
+        if isinstance(value, BaseException):
+            raise value
+        return value
+
+    monkeypatch.setattr(ui.vd, 'run', run)
+    monkeypatch.setattr(builtins, 'input', prompt)
+    assert ui.run_store(sheet) == 0
+    assert len(calls) == 4 and sheet.exiting and s.draft is None
+    assert s.reload_catalog() == []

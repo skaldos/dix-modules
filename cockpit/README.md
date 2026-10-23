@@ -229,7 +229,13 @@ arguments, tmux metadata/titles, breadcrumbs, status or ordinary error logs. The
 volatile: stop/start or reset discards it. “Persistent pane” does not mean file persistence.
 
 The old `zN`/`zE`/`zC` detached-draft interface below remains available for compatibility; it is
-not the primary Store editing flow. The read-only dual browser and the top-right broad ROBA Loom
+not the primary Store editing flow.
+VisiData's native `Ctrl+Q` (or quitting all sheets from native help) can bypass Sheet commands.
+The Store process therefore checks its draft after `vd.run()` returns: a dirty draft gets the
+same Save/Discard/Cancel choice as a plain terminal prompt after curses ends. Cancel or failed
+Save returns to the same draft/path/cursor; Save or Discard exits explicitly. This does not patch
+VisiData or affect the other workbenches. Forced OS/process/terminal destruction is not a guarded
+navigation command. The read-only dual browser and the top-right broad ROBA Loom
 retain their existing keys and behavior. No global VisiData keys or quit behavior are changed.
 
 ## Read-only Stores (UP-065)
