@@ -1,0 +1,9 @@
+[composition]
+id = "store_providers"
+
+[functions.register]
+description = "Register one local read-only Store provider capability."
+[functions.list]
+description = "List the locally registered provider IDs."
+[functions.call]
+description = "Call only an explicit member of the local read-only provider surface."

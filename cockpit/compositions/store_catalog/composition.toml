@@ -1,0 +1,26 @@
+[composition]
+id = "store_catalog"
+[compositions.runtime]
+use = "skaldos/cockpit/roba_runtime"
+[compositions.contexts]
+use = "dix/roba/context"
+[compositions.providers]
+use = "skaldos/cockpit/store_providers"
+[functions.register_provider]
+description = "Register a local read-only provider without contacting a target."
+[functions.providers_list]
+description = "List available local provider IDs."
+[functions.draft]
+description = "Create one detached provider-supplied Store draft."
+[functions.provider_call]
+description = "Use only the positive read-only provider surface."
+[functions.list]
+description = "Read the volatile session-local Store catalog."
+[functions.get]
+description = "Read one detached Store definition."
+[functions.create]
+description = "Register a Store locally without any target access."
+[functions.update]
+description = "Edit or rename a Store locally without target access."
+[functions.remove]
+description = "Remove only the local Store entry, never its target capability."
