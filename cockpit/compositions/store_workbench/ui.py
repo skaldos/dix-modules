@@ -10,7 +10,8 @@ class StoreSheet(Sheet):
     """A single persistent Sheet/stack owner; its local frames never discard a draft."""
 
     rowtype = "local Store field"
-    columns: ClassVar[list] = [Column("key", width=24, getter=lambda c, r: r["key"]),
+    nKeys = 1
+    columns: ClassVar[list] = [Column("key", width=24, keycol=1, getter=lambda c, r: r["key"]),
                               Column("type", width=12, getter=lambda c, r: r["type"]),
                               ItemColumn("value", width=60, type=str)]
 
@@ -31,7 +32,7 @@ class StoreSheet(Sheet):
     def drawColHeader(self, scr, y, h, vcolidx):
         col = self.availCols[vcolidx]
         original = col._name
-        text = (f"{self.logo.upper()} Stores" if vcolidx == 0 else
+        text = (f"{self.logo.upper()} Stores" + (" DIRTY" if self.session.dirty else "") if vcolidx == 0 else
                 ("DIRTY" if self.session.dirty else "clean") if vcolidx == 1 else
                 self.session.error or self.breadcrumb)
         col._name = clipstr_middle(text, max(self._visibleColLayout[vcolidx][1]-1, 0))[0] + "\n" + original

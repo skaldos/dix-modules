@@ -117,8 +117,9 @@ stale Dateien. Der Basis-Installer wird weder verbreitert noch ersetzt; seine dr
 Runtime-Launcher bleiben VisiData-frei.
 
 `dix-cockpit-ui start` verwendet den bestehenden Cockpit-Lifecycle, vervollstaendigt das
-vorhandene `control`-Window und attached. Das Window enthaelt Logo/nicht geheimen Status,
-Owner-Shell und den groessten Pane fuer den generischen ROBA-Loom-Workbench. Jeder Pane besitzt
+vorhandene `control`-Window und attached. Seine vier besessenen Rollen sind Logo/nicht geheimer
+Status (oben links), breiter ROBA-Loom (oben rechts), gestagte Store-Workbench (unten links) und
+Owner-Shell (unten rechts). Jeder Pane besitzt
 einen sichtbaren Titel. Ein wiederholter Start fokussiert den laufenden Workbench. Endete dessen
 Prozess, bleiben Pane und Fehler sichtbar; erst der naechste explizite UI-Start respawnt dieselbe
 Rolle statt ein Duplikat zu erzeugen. Detach laesst alle Prozesse laufen. Fuer Lifecycle-
@@ -128,7 +129,7 @@ bewusst nicht.
 Der Master-Helper validiert das lebende Owner-Artefakt im eigenen Prozess und baut dort die
 Loom-Connection. Das Control-Token gelangt nie in argv, Seed-Datei, tmux-Environment, Optionen,
 Rollenmetadaten oder Titel. Innerhalb dieses persoenlichen Owner-Workbenches darf es bewusst
-sichtbar und bearbeitbar sein. Enter inspiziert nur die gewaehlte ObjectReference und oeffnet
+sichtbar und bearbeitbar sein. Im oberen rechten Loom inspiziert Enter nur die gewaehlte ObjectReference und oeffnet
 einen lokalen Draft. Space ist der einzige Provider-Ausfuehrungsweg und behaelt die vorhandene
 Bestaetigung. Providerfehler erhalten die Workbench-Session.
 
@@ -190,6 +191,55 @@ Ungueltiges TOML, fehlende Pfade, falsche Container, ungueltige Indizes, Key-Kol
 leeres Register und ein abgebrochenes Loeschen lassen Draft und Register unveraendert. Native
 TOML-Dates, Times, Datetimes, Sonderfloats sowie verschachtelte Mappings/Listen bleiben native
 Werte.
+
+## Gestagte Store-Workbench (UP-066)
+
+Nach einem Source-Update `./cockpit/integrations/install-ui` erneut ausfuehren. Der Installer
+liefert auch den internen Helper `dix-cockpit-store-workbench --session dix --logo dix`.
+Der normale Einstieg bleibt `dix-cockpit-ui start --session dix --logo dix`. Start ist idempotent:
+er vervollstaendigt fehlende eigene Rollen, fokussiert den vorhandenen Loom und respawnt bewusst
+beendete Loom-/Store-Panes. Fremde oder mehrdeutige Rollen werden nie adoptiert. Detach laesst
+alle vier Prozesse weiterlaufen.
+
+Der **untere linke Store-Pane** ist jetzt das fuehrende lokale Registrierungs-/Editierinterface:
+
+| Taste | Wirkung ausschliesslich in diesem Store-Pane |
+| --- | --- |
+| a | Neuer Provider-Draft; ein Provider direkt, mehrere mit expliziter Auswahl |
+| Enter auf Katalogzeile | Lokale Definition oeffnen, nicht das Ziel |
+| Enter auf Container | Innerhalb desselben Drafts drillen |
+| Enter auf atomarem value | Nativer Inline-Zelleditor am Zellort, kein Footer-TOML-Prompt |
+| Enter / Esc im Editor | Lokal annehmen / nur diese Zellbearbeitung abbrechen |
+| z Ctrl+S | Vollstaendigen Store validieren und genau einmal im lokalen Katalog speichern |
+| q / Q | Parent; am Katalog-Root aktiv bleiben |
+| Ctrl+R | Draft schuetzen, danach Katalog neu laden |
+| gq | Draft schuetzen, danach diese Store-Workbench bewusst beenden |
+
+Strings brauchen keine Quotes; Tippen ersetzt den initialen Zellwert (natives VisiData-Verhalten).
+Vorhandene Integer/Floats behalten ihren Typ; Floats muessen endlich sein. Booleans akzeptieren
+`true` oder `false` (Gross-/Kleinschreibung egal), nicht `yes`/`no` oder `0`/`1`. Ungueltige Eingabe
+bewahrt den alten Wert und zeigt einen lokalen Fehler. Der einzige ausgelieferte ROBA-Draft hat
+kein Boolean-Feld; diese Typgrenze ist ueber eine reine Terminal-Testfixture belegt, nicht ueber
+einen zusaetzlich installierten Provider.
+
+Angenommene Zellen aendern nur den Draft und seinen sichtbaren **DIRTY**-/Modified-Marker. Vor
+`z` gefolgt von **Ctrl+S** (nicht einfach `zS`) erfolgt kein Katalogaufruf. Neuanlagen verwenden
+ein `create`, bestehende Definitionen ein `update`. Doppelte IDs, unbekannte Provider, ungueltige
+Definitionen oder lokale Transportfehler bewahren Baseline und Katalog. Derselbe dirty Draft
+bleibt fuer Korrektur und erneuten Commit erhalten.
+
+Beim Verlassen dirty Drafts (Root-Zurueck, New/Wechsel, Reload oder expliziter Exit) fragt
+**Save / Discard / Cancel**: `s` speichert einmal und geht nur bei Erfolg weiter; `d` verwirft ohne
+Schreiben; `c` oder Esc bleibt im selben Draft. Navigation zwischen Containern fragt nie.
+Credentials duerfen im persoenlichen Editor bewusst sichtbar sein; kein Ziel wird kontaktiert
+und kein Credential gelangt in Prozessargumente, tmux-Metadaten/-Titel, Breadcrumbs, Status oder
+normale Fehlerlogs. Der Katalog bleibt fluechtig: Stop/Start oder Reset verwirft ihn.
+„Persistenter Pane“ bedeutet keine Dateipersistenz.
+
+Der unten beschriebene abgeloeste `zN`-/`zE`-/`zC`-Draftflow bleibt kompatibel vorhanden, ist aber
+nicht mehr der fuehrende Store-Editierweg. Read-only-Dual-Browser und oberer rechter breiter
+ROBA-Loom behalten ihre bisherigen Tasten und Vertraege. Globale VisiData-Key-/Quit-Semantik
+wird nicht veraendert.
 
 ## Read-only Stores (UP-065)
 

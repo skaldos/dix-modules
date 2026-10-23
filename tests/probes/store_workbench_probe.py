@@ -31,7 +31,7 @@ original_connect = socket.socket.connect
 
 def connect(sock, address):
     # Catalog transport is allowed; even an attempted external target call fails this probe.
-    if isinstance(address, str) and not address.startswith(os.environ['DIX_COCKPIT_RUNTIME_ROOT'] + '/'):
+    if not isinstance(address, str) or not address.startswith(os.environ['DIX_COCKPIT_RUNTIME_ROOT'] + '/'):
         metrics['target_transport'] += 1
         raise AssertionError('external target transport is forbidden')
     return original_connect(sock, address)

@@ -166,6 +166,7 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
     started = workspace.require("start_master")(
         session="a", shell_command=["sleep", "300"], status_command=["sleep", "300"],
         workbench_command=[str(binary / "dix-cockpit-master-workbench"), "--session", "a"],
+        store_command=[str(binary / "dix-cockpit-store-workbench"), "--session", "a"],
         attach=False)
     sock, master = started["tmux"]["socket"], started["workbench"]["pane_id"]
     # Attach a real client: VisiData needs a practical screen size, not tmux's tiny default.
@@ -187,6 +188,31 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
                 runtime.require("owner_environment")(session="a")["ROBA_CONTROL_TOKEN"],
                 "[redacted]")
             raise AssertionError("Master did not start: " + screen) from None
+        store = started["store"]["pane_id"]
+        wait_for(lambda: "external" in tmux(sock, "capture-pane", "-p", "-t", store))
+        tmux(sock, "send-keys", "-t", store, "Enter")
+        try:
+            wait_for(lambda: "store_id" in tmux(sock, "capture-pane", "-p", "-t", store))
+        except AssertionError:
+            screen = tmux(sock, "capture-pane", "-p", "-S", "-", "-t", store)
+            for secret in (conn["token"], runtime.require("owner_environment")(
+                    session="a")["ROBA_CONTROL_TOKEN"]):
+                screen = screen.replace(secret, "[redacted]")
+            raise AssertionError("Store did not open: " + screen) from None
+        tmux(sock, "send-keys", "-t", store, "q")
+        wait_for(lambda: "store_id" not in tmux(sock, "capture-pane", "-p", "-t", store))
+        tmux(sock, "send-keys", "-t", store, "q")
+        assert tmux(sock, "display-message", "-p", "-t", store, "#{pane_dead}") == "0"
+        tmux(sock, "send-keys", "-t", store, "g", "q")
+        wait_for(lambda: tmux(sock, "display-message", "-p", "-t", store, "#{pane_dead}") == "1")
+        restored = workspace.require("start_master")(
+            session="a", shell_command=["sleep", "300"], status_command=["sleep", "300"],
+            workbench_command=[str(binary / "dix-cockpit-master-workbench"), "--session", "a"],
+            store_command=[str(binary / "dix-cockpit-store-workbench"), "--session", "a"],
+            attach=False)
+        assert restored["store"] == {"pane_id": store, "action": "respawned"}
+        wait_for(lambda: "external" in tmux(sock, "capture-pane", "-p", "-t", store))
+        assert len(tmux(sock, "list-panes", "-t", "a:control").splitlines()) == 4
         tmux(sock, "send-keys", "-t", master, "z", "S")
         wait_for(lambda: "stores" in tmux(sock, "list-windows", "-t", "a", "-F", "#{window_name}"))
         wait_for(lambda: len(tmux(sock, "list-panes", "-t", "a:stores",

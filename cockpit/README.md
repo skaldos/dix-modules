@@ -116,8 +116,8 @@ that private projection and removes stale files. It does not broaden or replace 
 installer; the three runtime launchers remain VisiData-free.
 
 `dix-cockpit-ui start` uses the existing Cockpit lifecycle, completes the existing `control`
-window and attaches. The window contains the logo/non-secret status, the owner shell and the
-largest pane for the generic ROBA Loom workbench. Every pane has a visible title. A repeated start
+window and attaches. Its four owned roles are logo/non-secret status (top left), the broad
+ROBA Loom (top right), the staged Store workbench (bottom left) and Owner Shell (bottom right). Every pane has a visible title. A repeated start
 focuses the running workbench. If that process exited, its pane and error remain visible; the next
 explicit UI start respawns that same role instead of creating a duplicate. Detach leaves all
 processes alive. Continue to use `dix-cockpit attach|status|stop|reset` for lifecycle operations;
@@ -126,7 +126,7 @@ the UI intentionally duplicates none of them.
 The master helper validates the live owner artifact inside its own process and creates the Loom
 connection there. Its Control token is never passed in argv, a seed file, tmux environment,
 options, role metadata or titles. The token is intentionally visible and editable inside this
-personal owner workbench. Enter only inspects the selected ObjectReference and opens a local
+personal owner workbench. In the top-right Loom, Enter only inspects the selected ObjectReference and opens a local
 draft. Space is the sole provider execution path and keeps the existing confirmation. Provider
 errors preserve the workbench session.
 
@@ -187,6 +187,50 @@ not a selectable data row.
 Invalid TOML, missing paths, wrong container types, invalid indices, key collisions, an empty
 register, and cancelled deletion leave both draft and register unchanged. Native TOML dates,
 times, datetimes, special floats, and nested mappings/lists remain native values.
+
+## Staged Store workbench (UP-066)
+
+Re-run `./cockpit/integrations/install-ui` after updating the sources. It also installs the
+internal `dix-cockpit-store-workbench --session dix --logo dix` helper. The normal entry stays
+`dix-cockpit-ui start --session dix --logo dix`. Start is idempotent: it completes missing owned
+roles, focuses the existing Loom and deliberately respawns exited Loom/Store panes; it never
+adopts foreign or ambiguous pane roles. Detach keeps all four processes alive.
+
+The **bottom-left Store pane** is now the primary local registration/editor interface:
+
+| Key | Effect in this Store pane only |
+| --- | --- |
+| a | New provider draft; one provider opens directly, multiple providers require a choice |
+| Enter on a catalog row | Open its local definition, not its target |
+| Enter on a container | Drill within the same draft |
+| Enter on an atomic value cell | Native inline cell editor at the cell, not a footer TOML prompt |
+| Enter / Esc in the editor | Accept locally / cancel only this cell |
+| z Ctrl+S | Validate and commit the complete Store once to the local catalog |
+| q / Q | Parent; at the catalog root remain alive |
+| Ctrl+R | Guard the draft, then reload the catalog |
+| gq | Guard the draft, then explicitly exit this Store workbench |
+
+Strings need no quotes; typing replaces the initial cell value (native VisiData behavior).
+Existing integers/floats remain their original types; floats must be finite. Booleans accept
+`true` or `false` (case-insensitive), not `yes`/`no` or `0`/`1`. Invalid input preserves the old
+value and shows a local error. The sole shipped ROBA draft has no Boolean field; that type boundary
+is verified with a test-only terminal fixture, not an extra installed provider.
+
+Accepted cells only change the draft and its visible **DIRTY**/modified marker. No catalog call
+occurs until `z` then **Ctrl+S** (not plain `zS`). New drafts use one `create`; existing definitions
+use one `update`. Duplicate IDs, unknown providers, invalid definitions or local transport failures
+preserve the old baseline and catalog. Correct the same dirty draft and retry.
+
+Leaving a dirty draft (root back, New/switch, Reload or explicit exit) asks **Save / Discard /
+Cancel**: `s` commits once and continues only on success; `d` discards without writing; `c` or Esc
+stays in the same draft. Navigation inside containers never asks. Credentials may intentionally be
+visible in the personal editor, but no target is contacted and no credential goes into process
+arguments, tmux metadata/titles, breadcrumbs, status or ordinary error logs. The catalog remains
+volatile: stop/start or reset discards it. “Persistent pane” does not mean file persistence.
+
+The old `zN`/`zE`/`zC` detached-draft interface below remains available for compatibility; it is
+not the primary Store editing flow. The read-only dual browser and the top-right broad ROBA Loom
+retain their existing keys and behavior. No global VisiData keys or quit behavior are changed.
 
 ## Read-only Stores (UP-065)
 

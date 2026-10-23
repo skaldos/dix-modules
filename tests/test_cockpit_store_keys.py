@@ -42,6 +42,8 @@ def terminal_store(request, store_graph):
 
     class Terminal:
         mode = request.param
+        def __init__(self):
+            self.trace = []
 
         def state(self):
             return json.loads(evidence.read_text())
@@ -52,6 +54,8 @@ def terminal_store(request, store_graph):
         def keys(self, *keys):
             tmux(sock, 'send-keys', '-t', pane, *keys)
             time.sleep(.12)
+            if evidence.exists():
+                self.trace.append({'keys': list(keys), 'state': self.state()})
 
         def screen(self):
             return tmux(sock, 'capture-pane', '-p', '-t', pane)
@@ -89,6 +93,7 @@ def terminal_store(request, store_graph):
             target = Path(destination)
             target.mkdir(parents=True, exist_ok=True)
             (target / (request.param + '-final.json')).write_text(evidence.read_text())
+            (target / (request.param + '-keys.json')).write_text(json.dumps(terminal.trace, indent=2))
         workspace.require('stop')(session='a')
 
 
@@ -179,5 +184,32 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
     assert len(t.state()['entries']) == 1
     t.keys('q')
     assert not t.state()['exit']
-    t.keys('g', 'q')
+    # Successful guarded Save for an existing draft through Reload.
+    t.keys('Enter')
+    t.wait(lambda s: s['draft'] is not None)
+    t.edit('saved-by-reload')
+    t.guard(('C-r',), 's')
+    t.wait(lambda s: s['draft'] is None)
+    assert t.state()['metrics']['update'] == 2
+    # Successful guarded Save for a new draft, then guarded Discard on explicit exit.
+    t.keys('a')
+    t.wait(lambda s: s['draft'] is not None)
+    t.edit('new-via-guard')
+    if t.mode == 'catalog':
+        t.keys('Down', 'Down', 'Enter')
+        t.wait(lambda s: s['path'] == ['connection'])
+        for text in ('offline', 'unix:/tmp/no-target.sock', 'synthetic-draft'):
+            t.edit(text)
+            t.keys('Down')
+        t.keys('q')
+        t.wait(lambda s: s['path'] == [])
+    t.guard(('q',), 's')
+    t.wait(lambda s: s['draft'] is None)
+    assert t.state()['metrics']['success'] == 4
+    if t.mode == 'catalog':
+        assert {r['store_id'] for r in t.backend()} == {'saved-by-reload', 'new-via-guard'}
+    t.keys('a')
+    t.wait(lambda s: s['draft'] is not None)
+    t.edit('discard-on-exit')
+    t.guard(('g', 'q'), 'd')
     t.wait(lambda s: s['exit'])
