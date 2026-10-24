@@ -44,6 +44,8 @@ class StoreSheet(Sheet):
     def reload(self):
         try:
             if self.session.draft is None:
+                # The catalog must show provider IDs again after a narrow value-cell view.
+                self.cursorVisibleColIndex = self.leftVisibleColIndex = 0
                 self.rows = [{"key": row["store_id"], "type": row["provider"], "value": "",
                               "store_id": row["store_id"]} for row in self.session.reload_catalog()]
             else:

@@ -73,6 +73,9 @@ def test_sheet_keys_are_local_and_non_value_enter_does_not_edit(store_graph, mon
     # A real draw clears this cache; headless construction has not drawn yet.
     vd.clearCaches()
     assert [column.name for column in sheet.keyCols] == ["key"]
+    sheet.cursorVisibleColIndex = sheet.leftVisibleColIndex = 2
+    sheet.reload()
+    assert sheet.cursorVisibleColIndex == sheet.leftVisibleColIndex == 0
     sheet.parent()
     assert not sheet.exiting
     sheet.newStore()

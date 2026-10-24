@@ -201,6 +201,7 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
             raise AssertionError("Store did not open: " + screen) from None
         tmux(sock, "send-keys", "-t", store, "q")
         wait_for(lambda: "store_id" not in tmux(sock, "capture-pane", "-p", "-t", store))
+        wait_for(lambda: "roba" in tmux(sock, "capture-pane", "-p", "-t", store))
         tmux(sock, "send-keys", "-t", store, "q")
         assert tmux(sock, "display-message", "-p", "-t", store, "#{pane_dead}") == "0"
         tmux(sock, "send-keys", "-t", store, "g", "q")
