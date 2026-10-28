@@ -76,12 +76,15 @@ def test_master_workbench_materializes_live_capability_only_in_process(applicati
     calls: list[tuple[object, object, str, bool]] = []
     runtime.runtime = _healthy_runtime()
     runtime.loom = FakeApi(execute=execute)
-    runtime.workbench = FakeApi(start=lambda *values: calls.append(values) or 0)
+    runtime.workbench = FakeApi(
+        start=lambda *values, **options: calls.append((values, options)) or 0)
     argv = ["--session", "private", "--logo", "roba"]
 
     assert runtime.main(argv) == 0
     assert len(calls) == 1
-    bound_execute, seed, logo, confirm = calls[0]
+    values, options = calls[0]
+    assert options == {"show_branding": False}
+    bound_execute, seed, logo, confirm = values
     assert bound_execute is execute
     assert seed == {
         "daemon_id": "default",
@@ -156,7 +159,7 @@ def test_unhealthy_runtime_fails_before_visidata_and_redacts_capability(
         paths=lambda **_values: paths,
     )
     runtime.workbench = FakeApi(
-        start=lambda *_values: pytest.fail("VisiData must not start")
+        start=lambda *_values, **_options: pytest.fail("VisiData must not start")
     )
     assert runtime.main([]) == 2
     error = capsys.readouterr().err
@@ -169,7 +172,7 @@ def test_downstream_error_cannot_echo_owner_capability(application, capsys) -> N
     runtime = application.runtime
     runtime.runtime = _healthy_runtime(secret)
     runtime.workbench = FakeApi(
-        start=lambda *_values: (_ for _ in ()).throw(
+        start=lambda *_values, **_options: (_ for _ in ()).throw(
             RuntimeError(f"provider rejected {secret}")
         )
     )

@@ -62,6 +62,7 @@ class Runtime:
                 seed,
                 arguments.logo,
                 True,
+                show_branding=False,
             )
             if type(result) is not int:
                 raise TypeError("Cockpit master workbench must return an integer exit code")

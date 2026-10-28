@@ -194,3 +194,21 @@ def test_provider_error_remains_visible_and_keeps_draft(
     with pytest.raises(ValueError, match="RuntimeError: visible provider error"):
         draft.executeDraft()
     assert session.draft.value["scalar"] == 9
+
+
+def test_additive_start_option_preserves_default_branding_and_bindings(ui_runtime, monkeypatch):
+    api, ui = ui_runtime
+    branding = importlib.import_module(ui.__name__.rsplit('.', 1)[0] + '.branding')
+    logos, runs = [], []
+    before = {key: ui.vd.bindkeys._get(ui.vd.prettykeys(key)) for key in ('i', '-', ':', '^S')}
+    monkeypatch.setattr(branding, 'show_logo', lambda logo: logos.append(logo))
+    monkeypatch.setattr(ui.vd, 'run', lambda sheet: runs.append(sheet))
+    menu = ui.vd.options.disp_menu
+    try:
+        assert api.require('start')(FakeLoom(), {}, 'roba') == 0
+        assert logos == ['roba'] and len(runs) == 1
+        assert api.require('start')(FakeLoom(), {}, show_branding=False) == 0
+        assert logos == ['roba'] and len(runs) == 2
+        assert {key: ui.vd.bindkeys._get(ui.vd.prettykeys(key)) for key in before} == before
+    finally:
+        ui.vd.options.disp_menu = menu

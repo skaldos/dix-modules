@@ -42,6 +42,7 @@ class Runtime:
         seed: object,
         logo: str = "dix",
         confirm_execute: bool = True,
+        show_branding: bool = True,
     ) -> int:
         """Resolve the seed and run VisiData without exposing provider selection."""
         from visidata import vd
@@ -50,7 +51,8 @@ class Runtime:
         from .ui import ReferenceSheet
 
         session = self.create_session(execute, seed)
-        show_logo(logo)
+        if show_branding:
+            show_logo(logo)
         vd.options.disp_menu = False
         sheet = ReferenceSheet(
             session,
