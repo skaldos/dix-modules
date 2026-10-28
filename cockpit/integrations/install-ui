@@ -72,6 +72,7 @@ files = {
         "compositions/store_workbench/composition.toml",
         "compositions/store_workbench/runtime.py",
         "compositions/store_workbench/session.py",
+        "compositions/store_workbench/keymap.py",
         "compositions/store_workbench/ui.py",
         "apps/store_browser/app.toml",
         "apps/store_browser/runtime.py",

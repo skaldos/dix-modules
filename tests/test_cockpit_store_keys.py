@@ -68,6 +68,18 @@ def terminal_store(request, store_graph):
             self.wait(lambda s: not s['editing'])
             time.sleep(.1)
 
+        def command(self, token):
+            self.keys(':')
+            self.wait(lambda s: s['prompt'])
+            tmux(sock, 'send-keys', '-t', pane, '-l', token)
+            self.trace.append({'literal_prompt': token, 'state': self.state()})
+            self.keys('Enter')
+
+        def guard_command(self, token, decision):
+            self.command(token)
+            wait_for(lambda: 'Save / Discard / Cancel' in self.screen())
+            self.keys(decision, 'Enter')
+
         def guard(self, key, decision):
             self.keys(*key)
             wait_for(lambda: 'Save / Discard / Cancel' in self.screen())
@@ -93,7 +105,12 @@ def terminal_store(request, store_graph):
             target = Path(destination)
             target.mkdir(parents=True, exist_ok=True)
             decision = request.node.callspec.params.get('decision')
-            stem = request.param if decision is None else f'native-{request.param}-{decision}'
+            if request.node.originalname == 'test_real_native_inline_enter_escape_types_save_and_guards':
+                stem = request.param
+            elif request.node.originalname == 'test_native_exit_is_guarded_by_local_runtime':
+                stem = f'native-{request.param}-{decision}'
+            else:
+                stem = request.node.name.replace('[', '-').replace(']', '')
             (target / (stem + '-final.json')).write_text(evidence.read_text())
             (target / (stem + '-keys.json')).write_text(json.dumps(terminal.trace, indent=2))
         workspace.require('stop')(session='a')
@@ -103,7 +120,7 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
     t = terminal_store
     t.keys('q')
     assert t.state()['draft'] is None
-    t.keys('a')
+    t.command('n')
     t.wait(lambda s: s['draft'] is not None)
     t.edit('local-store')
     t.wait(lambda s: s['dirty'])
@@ -144,7 +161,7 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
     t.wait(lambda s: s['path'] == [])
     t.guard(('q',), 'c')
     assert t.state()['dirty']
-    t.keys('z', 'C-s')
+    t.keys('C-s')
     t.wait(lambda s: not s['dirty'])
     assert t.state()['metrics'] == {'create': 1, 'update': 0, 'success': 1, 'target_transport': 0}
     assert len(t.state()['entries']) == 1
@@ -154,7 +171,7 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
         assert backend[0]['connection']['timeout'] == 1.25
         assert backend[0]['connection']['token'] == 'synthetic-draft'
     # Existing draft: Cancel, Discard, Save are distinct, with no per-cell writes.
-    t.keys('Home')
+    t.keys('g', 'g')
     t.edit('discarded-rename')
     t.guard(('q',), 'c')
     assert t.state()['dirty']
@@ -169,7 +186,7 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
     assert t.state()['metrics']['update'] == 1 and t.state()['metrics']['success'] == 2
     assert t.state()['entries'][0]['store_id'] == 'saved-rename'
     # New dirty draft: invalid commit preserves dirty, Cancel preserves, Discard writes nothing.
-    t.keys('a')
+    t.command('n')
     t.wait(lambda s: s['draft'] is not None)
     t.edit('invalid-new')
     t.guard(('q',), 's')
@@ -177,11 +194,11 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
     assert t.state()['metrics']['success'] == 2
     t.guard(('C-r',), 'c')
     assert t.state()['dirty']
-    t.guard(('a',), 'c')
+    t.guard_command('n', 'c')
     assert t.state()['draft']['store_id'] == 'invalid-new'
-    t.guard(('g', 'q'), 'c')
+    t.guard_command('q', 'c')
     assert not t.state()['exit']
-    t.guard(('Q',), 'd')
+    t.guard(('q',), 'd')
     t.wait(lambda s: s['draft'] is None)
     assert len(t.state()['entries']) == 1
     t.keys('q')
@@ -194,7 +211,7 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
     t.wait(lambda s: s['draft'] is None)
     assert t.state()['metrics']['update'] == 2
     # Successful guarded Save for a new draft, then guarded Discard on explicit exit.
-    t.keys('a')
+    t.command('n')
     t.wait(lambda s: s['draft'] is not None)
     t.edit('new-via-guard')
     if t.mode == 'catalog':
@@ -210,17 +227,17 @@ def test_real_native_inline_enter_escape_types_save_and_guards(terminal_store):
     assert t.state()['metrics']['success'] == 4
     if t.mode == 'catalog':
         assert {r['store_id'] for r in t.backend()} == {'saved-by-reload', 'new-via-guard'}
-    t.keys('a')
+    t.command('n')
     t.wait(lambda s: s['draft'] is not None)
     t.edit('discard-on-exit')
-    t.guard(('g', 'q'), 'd')
+    t.guard_command('q', 'd')
     t.wait(lambda s: s['exit'])
 
 
 @pytest.mark.parametrize('decision', ['s', 'd'])
 def test_native_exit_is_guarded_by_local_runtime(terminal_store, decision):
     t = terminal_store
-    t.keys('a')
+    t.command('n')
     t.wait(lambda s: s['draft'] is not None)
     t.edit('invalid-new')
     cursor = t.state()['cursor']
@@ -240,16 +257,127 @@ def test_native_exit_is_guarded_by_local_runtime(terminal_store, decision):
             t.keys('Down')
         t.keys('q')
         t.wait(lambda s: s['path'] == [])
-    # Native auxiliary Sheet uses its original global quit; the owning runtime still guards.
-    t.keys('z', 'F1')
-    wait_for(lambda: 'longname' in t.screen())
-    t.keys('g', 'q')
-    wait_for(lambda: 'Dirty Store after native exit' in t.screen())
-    t.keys('c', 'Enter')
-    assert t.state()['dirty'] and not t.state()['exit']
     t.guard(('C-q',), decision)
     t.wait(lambda s: s['exit'])
     expected = 1 if decision == 's' else 0
     assert t.state()['metrics']['success'] == expected
     if t.mode == 'catalog':
         assert len(t.backend()) == expected
+
+
+@pytest.mark.parametrize('route', ['q', 'n', 'r'])
+@pytest.mark.parametrize('choice', ['s', 'd', 'c'])
+def test_prompt_dirty_decisions(terminal_store, route, choice):
+    t = terminal_store
+    fill_valid(t, 'guarded')
+    assert t.state()['metrics']['success'] == 0
+    t.guard_command(route, choice)
+    if choice == 'c':
+        assert t.state()['dirty'] and t.state()['draft']['store_id'] == 'guarded'
+        assert not t.state()['exit'] and t.state()['metrics']['success'] == 0
+    else:
+        t.wait(lambda s: not s['dirty'])
+        assert t.state()['metrics']['success'] == int(choice == 's')
+        if route == 'q':
+            assert t.state()['exit']
+        elif route == 'n':
+            assert t.state()['draft']['store_id'] == ''
+        else:
+            assert t.state()['draft'] is None
+    if not t.state()['exit']:
+        t.command('q!')
+        t.wait(lambda s: s['exit'])
+
+
+def fill_valid(t, name):
+    t.command('n')
+    t.wait(lambda s: s['draft'] is not None)
+    t.edit(name)
+    if t.mode == 'catalog':
+        t.keys('Down', 'Down', 'Enter')
+        t.wait(lambda s: s['path'] == ['connection'])
+        for text in ('offline', 'unix:/tmp/no-target.sock', 'synthetic-draft'):
+            t.edit(text)
+            t.keys('Down')
+        t.keys('q')
+        t.wait(lambda s: s['path'] == [])
+        t.keys('g', 'g')
+
+
+def test_prompt_w_wq_unknown_and_exact_surface(terminal_store):
+    from visidata import vd
+
+    t = terminal_store
+    t.wait(lambda s: s['registry'] is not None)
+    proof = t.state()['registry']
+    expected = ['h', 'j', 'k', 'l', 'Left', 'Down', 'Up', 'Right', 'PgUp', 'PgDn',
+                'gg', 'G', 'Enter', 'q', ':', '^S', '^R']
+    assert proof['cleared'] == 0 and len(proof['bindings']) == 17
+    assert set(proof['bindings']) == {vd.prettykeys(k) for k in expected}
+    assert not t.state()['menu'] and 'File  Edit  View' not in t.screen()
+    t.command('n')
+    t.wait(lambda s: s['draft'] is not None)
+    t.edit('invalid-new')
+    for route in ('wq', 'w'):
+        t.command(route)
+        t.wait(lambda s: bool(s['error']))
+        assert t.state()['dirty'] and not t.state()['exit']
+        assert t.state()['metrics']['success'] == 0
+    for route in ('n', 'q', 'r'):
+        t.guard_command(route, 's')  # Invalid Save must cancel all destructive routes.
+        assert t.state()['dirty'] and not t.state()['exit']
+        assert t.state()['metrics']['success'] == 0
+    old = t.state()['draft']
+    for keys in (('i',), ('-',), ('a',), ('z', 'C-s'), ('g', 'q'), ('F12',), ('C-f',), ('e',)):
+        t.keys(*keys)
+        assert t.state()['draft'] == old and not t.state()['exit']
+        assert t.state()['columns'] == ['key', 'type', 'value']
+        assert t.state()['metrics']['success'] == 0
+        assert 'future default ran' not in t.state()['error']
+    for token in ('', 'unknown', 's/a/b/', 'w file.toml', 'q | sh'):
+        t.command(token)
+        t.wait(lambda s: 'Unknown Cockpit command' in s['error'])
+        assert t.state()['draft'] == old and not t.state()['exit']
+    t.command('q!')
+    t.wait(lambda s: s['exit'])
+    assert t.state()['metrics']['success'] == 0
+
+
+def test_prompt_successful_w_and_wq_and_navigation(terminal_store):
+    t = terminal_store
+    fill_valid(t, 'saved')
+    # Every direct navigation family uses the unchanged native navigation commands.
+    t.keys('g', 'g')
+    t.keys('j'); assert t.state()['cursor'][0] == 1
+    t.keys('k'); assert t.state()['cursor'][0] == 0
+    t.keys('Down'); assert t.state()['cursor'][0] == 1
+    t.keys('Up'); assert t.state()['cursor'][0] == 0
+    t.keys('h'); assert t.state()['cursor'][1] == 1
+    t.keys('l'); assert t.state()['cursor'][1] == 2
+    t.keys('Left'); assert t.state()['cursor'][1] == 1
+    t.keys('Right'); assert t.state()['cursor'][1] == 2
+    t.keys('G'); assert t.state()['cursor'][0] == 2
+    t.keys('g', 'g'); assert t.state()['cursor'][0] == 0
+    t.keys('PageDown'); assert t.state()['cursor'][0] > 0
+    t.keys('PageUp')
+    t.keys('g', 'g')
+    if t.mode == 'types':
+        t.keys('G', 'Enter')
+        t.wait(lambda s: s['path'] == ['connection'])
+        t.keys('G', 'Enter')
+        t.wait(lambda s: s['path'] == ['connection', 'nested'])
+        t.keys('g', 'g')
+        t.keys('PageDown'); assert 0 < t.state()['cursor'][0] < 79
+        t.keys('PageUp'); assert t.state()['cursor'][0] == 0
+        t.keys('G'); assert t.state()['cursor'][0] == 79
+        t.keys('q', 'q')
+        t.wait(lambda s: s['path'] == [])
+        t.keys('g', 'g')
+    t.command('w')
+    t.wait(lambda s: not s['dirty'])
+    assert t.state()['metrics']['success'] == 1
+    t.edit('renamed')
+    t.command('wq')
+    t.wait(lambda s: s['exit'])
+    assert t.state()['metrics']['success'] == 2
+    assert t.state()['entries'][0]['store_id'] == 'renamed'

@@ -64,7 +64,7 @@ if mode == 'types':
     controller.catalog = Api(
         providers_list=lambda: ['fixture'],
         draft=lambda provider: {'store_id': '', 'provider': 'fixture', 'connection': {
-            'text': 'initial', 'count': 1, 'timeout': 5.0, 'enabled': True, 'nested': [1, 2]}},
+            'text': 'initial', 'count': 1, 'timeout': 5.0, 'enabled': True, 'nested': list(range(80))}},
         list=lambda session: list(copy.deepcopy(rows).values()),
         get=lambda ident, session: copy.deepcopy(rows[ident]), create=create, update=update)
 
@@ -89,7 +89,10 @@ def observe(sheet, editing=False):
              'draft': controller.draft.at() if controller.draft else None,
              'baseline': controller.baseline, 'error': controller.error,
              'entries': controller.entries, 'metrics': metrics, 'editing': editing,
-             'exit': sheet.exiting, 'cursor': [sheet.cursorRowIndex, sheet.cursorVisibleColIndex]}
+             'exit': sheet.exiting, 'cursor': [sheet.cursorRowIndex, sheet.cursorVisibleColIndex],
+             'registry': getattr(sheet, 'keymap_proof', None),
+             'columns': [c.name for c in sheet.columns],
+             'menu': bool(ui.vd.options.disp_menu), 'prompt': getattr(sheet, 'in_prompt', False)}
     # Only synthetic draft credentials can appear in this probe, never acquired owner caps.
     temporary = evidence.with_suffix('.tmp')
     temporary.write_text(json.dumps(value))
@@ -97,6 +100,21 @@ def observe(sheet, editing=False):
 
 
 class ObservedSheet(ui.StoreSheet):
+    def execCommand(self, *args, **kwargs):
+        try:
+            return super().execCommand(*args, **kwargs)
+        finally:
+            observe(self)
+
+    def promptStore(self):
+        self.in_prompt = True
+        observe(self)
+        try:
+            return super().promptStore()
+        finally:
+            self.in_prompt = False
+            observe(self)
+
     def reload(self):
         super().reload()
         observe(self)
@@ -113,6 +131,7 @@ class ObservedSheet(ui.StoreSheet):
         observe(self)
 
 
+ui.Sheet.addCommand('F12', 'up067-future-default', 'sheet.session.error = \"future default ran\"', 'test-only injected default')
 sheet = ObservedSheet(controller)
 sheet.reload()
 try:

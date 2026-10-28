@@ -6,6 +6,18 @@ import importlib
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def preserve_process_keymap():
+    from visidata import vd
+
+    bindings = copy.deepcopy(dict(vd.bindkeys))
+    menu = vd.options.disp_menu
+    yield
+    vd.bindkeys.clear()
+    vd.bindkeys.update(bindings)
+    vd.options.disp_menu = menu
+
+
 def workbench(create):
     obj = create("skaldos/cockpit/store_workbench")
     ui = importlib.import_module(obj.runtime.__class__.__module__ + ".ui")
@@ -87,7 +99,7 @@ def test_sheet_keys_are_local_and_non_value_enter_does_not_edit(store_graph, mon
     sheet.cursorVisibleColIndex = 2
     sheet.enter()
     assert s.dirty and s.draft.at(('store_id',)) == 'plain-name'
-    assert sheet.getCommand(vd.prettykeys('z^S')).longname == 'commit-sheet'
+    assert sheet.getCommand('cockpit-store-save') is not None
     for k, expr in original.items():
         assert Sheet('unrelated').getCommand(vd.prettykeys(k)).execstr == expr
 
@@ -182,3 +194,56 @@ def test_local_runtime_retains_draft_after_native_return_and_interrupt(store_gra
     assert ui.run_store(sheet) == 0
     assert len(calls) == 4 and sheet.exiting and s.draft is None
     assert s.reload_catalog() == []
+
+
+def test_allowlist_reset_gate_and_closed_prompt(store_graph, monkeypatch):
+    from visidata import vd
+
+    obj, ui = workbench(store_graph[0])
+    keys = importlib.import_module(obj.runtime.__class__.__module__ + '.keymap')
+    s = obj.api.require('create_session')('a')
+    sheet = ui.StoreSheet(s)
+    sheet.reload()
+    before = copy.deepcopy(dict(vd.bindkeys))
+    with monkeypatch.context() as m:
+        m.setattr(keys, 'version', lambda name: '3.5')
+        with pytest.raises(keys.StoreKeymapCompatibilityError, match='VisiData 3.4'):
+            keys.configure_store(sheet)
+        assert dict(vd.bindkeys) == before
+    with monkeypatch.context() as m:
+        m.setattr(vd, 'bindkeys', {})
+        with pytest.raises(keys.StoreKeymapCompatibilityError):
+            keys.configure_store(sheet)
+    with monkeypatch.context() as m:
+        m.setattr(vd, 'editText', None)
+        with pytest.raises(keys.StoreKeymapCompatibilityError):
+            keys.configure_store(sheet)
+        assert dict(vd.bindkeys) == before
+    vd.bindkey('UP067_future_default', 'go-down')
+    vd.bindkey('UP067_instance_default', 'go-up', sheet)
+    proof = keys.configure_store(sheet)
+    assert proof['cleared'] == 0 and len(vd.bindkeys) == 17
+    assert set(vd.bindkeys) == {vd.prettykeys(k) for k in keys.BINDINGS}
+    assert all(sheet.getCommand(key).longname == command for key, command in
+               ((vd.prettykeys(k), v) for k, v in keys.BINDINGS.items()))
+    assert not vd.options.disp_menu
+    for key in ('i', '-', 'a', 'z^S', 'gq', '^H', '^F', 'UP067_future_default',
+                'UP067_instance_default'):
+        assert vd.bindkeys._get(vd.prettykeys(key), obj=sheet) is None
+    for token in ('', 'bogus', 'w file.toml', 'q | anything', ':w', '!sh'):
+        sheet.dispatchStore(token)
+        assert s.draft is None and not sheet.exiting and s.reload_catalog() == []
+    sheet.dispatchStore(' n ')
+    assert s.draft is not None
+    s.edit(('store_id',), 'invalid-new')
+    sheet.dispatchStore('wq')
+    assert s.dirty and not sheet.exiting
+    monkeypatch.setattr(sheet, 'choose', lambda: 'cancel')
+    for token in ('n', 'r', 'q'):
+        old = s.draft.at()
+        sheet.dispatchStore(token)
+        assert s.draft.at() == old and s.dirty and not sheet.exiting
+    removed = []
+    monkeypatch.setattr(vd, 'remove', lambda sh: removed.append(sh))
+    sheet.dispatchStore('q!')
+    assert removed == [sheet] and sheet.exiting and s.draft is None

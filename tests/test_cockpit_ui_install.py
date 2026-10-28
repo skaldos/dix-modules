@@ -76,6 +76,7 @@ def test_optional_ui_installer_materializes_only_master_surface(tmp_path: Path) 
         "cockpit/compositions/store_workbench/composition.toml",
         "cockpit/compositions/store_workbench/runtime.py",
         "cockpit/compositions/store_workbench/session.py",
+        "cockpit/compositions/store_workbench/keymap.py",
         "cockpit/compositions/store_workbench/ui.py",
         "cockpit/apps/store_browser/app.toml",
         "cockpit/apps/store_browser/runtime.py",

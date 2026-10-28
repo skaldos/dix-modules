@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping
 from typing import ClassVar
 
@@ -104,14 +105,36 @@ class StoreSheet(Sheet):
         self._status_error()
 
     def saveStore(self):
-        if self.session.save():
+        saved = self.session.save()
+        if saved:
             self.reload()
             vd.status("Store saved locally; no target contacted")
+        elif self.session.draft is None:
+            vd.status("No Store draft to save")
         self._status_error()
+        return saved
+
+    def promptStore(self):
+        self.dispatchStore(vd.input(":", record=False))
+
+    def dispatchStore(self, token):
+        token = token.strip()
+        commands = {"n": self.newStore, "w": self.saveStore, "q": self.exitStore,
+                    "r": self.refresh}
+        if token in commands:
+            commands[token]()
+        elif token == "wq":
+            if self.saveStore():
+                self.exitStore()
+        elif token == "q!":
+            self.exitStore(discard=True)
+        else:
+            self.session.error = "Unknown Cockpit command; use n, w, q, wq, q!, r"
+            self._status_error()
 
     def parent(self):
         if self.session.draft is None:
-            vd.status("Store catalog stays open; use gq for explicit exit")
+            vd.status("Store catalog stays open; use :q for explicit exit")
         elif self.session.parents:
             path, row, col = self.session.parents.pop()
             self.session.path = path
@@ -127,8 +150,8 @@ class StoreSheet(Sheet):
             self.reload()
         self._status_error()
 
-    def exitStore(self):
-        if self.session.leave(self.choose):
+    def exitStore(self, *, discard=False):
+        if self.session.leave((lambda: "discard") if discard else self.choose):
             self.hasBeenModified = False
             self.exiting = True
             # Public quit/remove APIs; never patch VisiData's global quit implementation.
@@ -152,17 +175,17 @@ def display(value):
     return str(value)
 
 
-for keys, name, expr, desc in (
-    ("Enter", "open-row", "sheet.enter()", "open a local Store, drill, or edit its atomic value cell"),
-    ("e", "edit-cell", "sheet.enter()", "edit only the atomic value cell in a local draft"),
-    ("a", "add-row", "sheet.newStore()", "create a provider draft in this persistent Store pane"),
-    ("z^S", "commit-sheet", "sheet.saveStore()", "validate and save the complete local Store once"),
-    ("q", "quit-sheet", "sheet.parent()", "parent; at catalog root keep the Store process alive"),
-    ("Q", "quit-sheet-free", "sheet.parent()", "guarded parent, never free an active draft silently"),
-    ("gq", "quit-all", "sheet.exitStore()", "explicitly exit this Store pane after its dirty guard"),
-    ("^R", "reload-sheet", "sheet.refresh()", "guard the draft before reloading the local catalog"),
+# Commands remain local and may be called by the native editor internally. None binds a key
+# during import; only configure_store's explicit, process-local allowlist exposes keys.
+for name, expr, desc in (
+    ("cockpit-store-enter", "sheet.enter()", "drill or edit an atomic value"),
+    ("edit-cell", "sheet.enter()", "native editor continuation within the Store"),
+    ("cockpit-store-parent", "sheet.parent()", "parent, keep the catalog alive"),
+    ("cockpit-store-prompt", "sheet.promptStore()", "closed Cockpit command prompt"),
+    ("cockpit-store-save", "sheet.saveStore()", "save the complete local Store"),
+    ("cockpit-store-reload", "sheet.refresh()", "guard then reload the catalog"),
 ):
-    StoreSheet.addCommand(keys, name, expr, desc, replay=False)
+    StoreSheet.addCommand(None, name, expr, desc, replay=False)
 
 
 def run_store(sheet):
@@ -172,7 +195,15 @@ def run_store(sheet):
     has ended curses at this point; an ordinary terminal prompt is deliberately
     local to this Store application, never a global key/quit monkeypatch.
     """
+    from .keymap import StoreKeymapCompatibilityError, configure_store
+
     while True:
+        try:
+            sheet.keymap_proof = configure_store(sheet)
+        except StoreKeymapCompatibilityError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        sheet._status_error()
         vd.run(sheet)
         if sheet.exiting or not sheet.session.dirty:
             return 0
