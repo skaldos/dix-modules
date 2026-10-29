@@ -250,3 +250,48 @@ def test_allowlist_reset_gate_and_closed_prompt(store_graph, monkeypatch):
     monkeypatch.setattr(vd, 'remove', lambda sh: removed.append(sh))
     sheet.dispatchStore('q!')
     assert removed == [sheet] and sheet.exiting and s.draft is None
+
+
+def test_open_store_only_uses_saved_root_selection_without_saving(store_graph):
+    obj, ui = workbench(store_graph[0])
+    session = obj.api.require('create_session')('a')
+    calls = []
+    sheet = ui.StoreSheet(session, opener=lambda ident: calls.append(ident))
+    sheet.reload(); sheet.dispatchStore('o')
+    assert not calls and 'saved Store' in session.error
+    session.new('roba', lambda: 'cancel')
+    sheet.reload(); sheet.dispatchStore('o')
+    assert not calls and session.draft is not None
+    session.edit(('store_id',),'unsaved')
+    session.path=('connection',);sheet.reload();sheet.dispatchStore('o')
+    assert not calls and session.dirty and 'saved Store' in session.error
+    session.leave(lambda:'discard')
+    obj.runtime.catalog.require('create')({'store_id':'saved','provider':'roba','connection':{
+        'context_id':'offline','context_locator':'unix:/tmp/none.sock','token':'synthetic-open','timeout':1.0}}, 'a')
+    sheet.reload();sheet.dispatchStore('o')
+    assert calls == ['saved'] and session.draft is None and not session.error
+    assert len(session.reload_catalog()) == 1 and not sheet.exiting
+    def fail(ident):
+        raise RuntimeError('cannot use synthetic-open')
+    sheet.opener=fail; sheet.dispatchStore('o')
+    assert 'synthetic-open' not in session.error and '[redacted]' in session.error
+    assert len(session.reload_catalog()) == 1
+
+
+def test_removed_root_store_is_rejected_before_workspace_effect(store_graph, monkeypatch, api):
+    obj, ui = workbench(store_graph[0])
+    catalog = obj.runtime.catalog
+    catalog.require('create')({'store_id':'gone','provider':'roba','connection':{
+        'context_id':'offline','context_locator':'unix:/tmp/none.sock','token':'synthetic-open','timeout':1.0}}, 'a')
+    calls=[]
+    obj.runtime.workspace=api(open_store=lambda **values:calls.append(values))
+    def local_run(sheet):
+        assert sheet.rows[0]['store_id']=='gone'
+        catalog.require('remove')('gone','a')
+        sheet.dispatchStore('o')
+        assert 'does not exist' in sheet.session.error
+        assert not sheet.exiting and sheet.session.draft is None
+        return 0
+    monkeypatch.setattr(ui,'run_store',local_run)
+    assert obj.api.require('start')('a')==0
+    assert not calls and catalog.require('list')('a')==[]

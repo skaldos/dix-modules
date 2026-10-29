@@ -110,8 +110,6 @@ def test_master_workbench_graph_uses_only_existing_runtime_loom_and_workbench(
         "skaldos/cockpit/roba_runtime",
         "skaldos/visidata/loom_workbench",
         "dix/roba/loom",
-        "skaldos/cockpit/store_browser",
-        "skaldos/cockpit/cockpit_session",
     }
 
 
@@ -190,3 +188,7 @@ def test_help_and_argument_errors_never_touch_runtime(application, capsys) -> No
     assert runtime.main(["--help"]) == 0
     assert "--session" in capsys.readouterr().out
     assert runtime.main(["--logo", "invalid"]) == 2
+
+
+def test_master_has_no_legacy_store_command_binding_hook(application):
+    assert not hasattr(application.runtime, '_bind_store_commands')

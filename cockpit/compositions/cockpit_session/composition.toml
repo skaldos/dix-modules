@@ -42,3 +42,6 @@ description = "Return all non-secret paths for one named Cockpit runtime."
 
 [functions.open_stores]
 description = "Open or focus the dual-pane Store window of a healthy owned runtime."
+
+[functions.open_store]
+description = "Open one owned Store workspace from non-secret saved Store identity and revision."

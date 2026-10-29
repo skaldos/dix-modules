@@ -16,8 +16,8 @@ class StoreSheet(Sheet):
                               Column("type", width=12, getter=lambda c, r: r["type"]),
                               ItemColumn("value", width=60, type=str)]
 
-    def __init__(self, session, *, logo="dix"):
-        self.session, self.logo = session, logo
+    def __init__(self, session, *, logo="dix", opener=None):
+        self.session, self.logo, self.opener = session, logo, opener
         super().__init__("Cockpit Stores")
         self.exiting = False
         # Native vd.input subtracts the entire right status from prompt width. General
@@ -123,7 +123,7 @@ class StoreSheet(Sheet):
 
     def dispatchStore(self, token):
         token = token.strip()
-        commands = {"n": self.newStore, "w": self.saveStore, "q": self.exitStore,
+        commands = {"o": self.openStore, "n": self.newStore, "w": self.saveStore, "q": self.exitStore,
                     "r": self.refresh}
         if token in commands:
             commands[token]()
@@ -133,8 +133,22 @@ class StoreSheet(Sheet):
         elif token == "q!":
             self.exitStore(discard=True)
         else:
-            self.session.error = "Unknown Cockpit command; use n, w, q, wq, q!, r"
+            self.session.error = "Unknown Cockpit command; use n, w, q, wq, q!, r, o"
             self._status_error()
+
+    def openStore(self):
+        if self.session.draft is not None or self.session.path or self.cursorRow is None:
+            self.session.error = "Open requires a saved Store selected at the catalog root"
+        else:
+            try:
+                if self.opener is None:
+                    raise RuntimeError("Store workspace opener is unavailable")
+                self.opener(self.cursorRow["store_id"])
+                self.session.error = ""
+                vd.status("Store workspace opened")
+            except Exception as exc:  # noqa: BLE001 - never echo credentials at a launch boundary
+                self.session.error = self.session.safe(f"Store open failed: {type(exc).__name__}: {exc}")
+        self._status_error()
 
     def parent(self):
         if self.session.draft is None:

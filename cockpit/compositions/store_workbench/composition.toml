@@ -10,3 +10,6 @@ use = "skaldos/visidata/value_workbench"
 description = "Create one staged local Store definition session without target transport."
 [functions.start]
 description = "Run the persistent Store catalog and native inline draft workbench."
+
+[compositions.workspace]
+use = "skaldos/cockpit/cockpit_session"

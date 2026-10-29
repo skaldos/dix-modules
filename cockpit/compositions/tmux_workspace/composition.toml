@@ -45,3 +45,6 @@ description = "Create, focus or restore two explicitly owned read-only Store bro
 
 [functions.open_master_workspace]
 description = "Complete or focus the four explicitly owned master pane roles."
+
+[functions.open_store]
+description = "Create, focus, repair or rebuild one provably owned selected Store window."

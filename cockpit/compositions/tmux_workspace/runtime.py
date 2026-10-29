@@ -23,6 +23,9 @@ _STATUS_ROLE = "skaldos.dix-cockpit.runtime-status.v1"
 _SHELL_ROLE = "skaldos.dix-cockpit.owner-shell.v1"
 _MASTER_ROLE = "skaldos.dix-cockpit.master-workbench.v1"
 _STORE_ROLE = "skaldos.dix-cockpit.store-workbench.v1"
+_SELECTED_WINDOW_ROLE = "skaldos.dix-cockpit.store-window.v1"
+_SELECTED_ROLES = {"status": "skaldos.dix-cockpit.store-status.v1",
+                   "browser": "skaldos.dix-cockpit.selected-browser.v1"}
 _STORES_WINDOW_ROLE = "skaldos.dix-cockpit.stores.v1"
 _STORES_ROLES = {"A": "skaldos.dix-cockpit.stores-a.v1",
                  "B": "skaldos.dix-cockpit.stores-b.v1"}
@@ -626,6 +629,156 @@ class Runtime:
             if fresh:
                 self._run((*self._base(socket_path), "kill-window", "-t", target))
             raise
+
+    def open_store(self, *, session: str, socket: str | Path, store_id: str,
+                   revision: str, commands: Mapping[str, Sequence[str]]) -> dict[str, object]:
+        import fcntl
+
+        session, socket_path = self._owned_session(session, socket)
+        if (not isinstance(store_id, str) or not store_id.strip()
+                or any(ord(c) < 32 for c in store_id)):
+            raise ValueError("Store ID must be a non-empty single-line name")
+        if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{32}", revision):
+            raise ValueError("Store revision must be opaque catalog identity")
+        if set(commands) != {"status", "browser"}:
+            raise ValueError("Store workspace requires status and browser commands")
+        plans = {role: _shell_command(value) for role, value in commands.items()}
+        fd = os.open(socket_path.parent / "store-windows.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            self._owned_session(session, socket_path)
+            return self._open_store(session, socket_path, store_id, revision, plans)
+        finally:
+            os.close(fd)
+
+    def _open_store(self, session, socket, store_id, revision, plans):
+        base = self._base(socket)
+        listing = self._run((*base, "list-windows", "-t", f"={session}", "-F",
+            "#{window_id}\t#{@cockpit-window-role}\t#{@cockpit-store-id}\t#{@cockpit-store-revision}\t#{@cockpit-store-session}\t#{window_linked}"))
+        self._require(listing, "inspect owned Store windows")
+        matches, seen = [], set()
+        for line in listing.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) != 6 or not re.fullmatch(r"@[0-9]+", parts[0]):
+                raise TmuxWorkspaceError("invalid Store window metadata")
+            ident, role, sid, rev, owner, linked = parts
+            if role == _SELECTED_WINDOW_ROLE:
+                if (not sid or sid in seen or owner != session or linked != "0"
+                        or not re.fullmatch(r"[0-9a-f]{32}", rev)):
+                    raise TmuxWorkspaceError("foreign, duplicate or inconsistent Store window metadata")
+                seen.add(sid)
+                if sid == store_id:
+                    matches.append((ident, rev))
+            elif sid or rev or owner:
+                raise TmuxWorkspaceError("foreign Store window metadata")
+        fresh = not matches
+        created_panes = []
+        if fresh:
+            result = self._run((*base, "new-window", "-d", "-P", "-F", "#{window_id}",
+                "-t", f"={session}", "-n", f"Store {store_id}", "sleep 86400"))
+            self._require(result, "create owned Store window")
+            window, previous = result.stdout.strip(), revision
+            if not re.fullmatch(r"@[0-9]+", window):
+                raise TmuxWorkspaceError("invalid new Store window identity")
+        else:
+            window, previous = matches[0]
+        drift = not fresh and previous != revision
+        try:
+            if fresh:
+                for option, value in (("@cockpit-window-role", _SELECTED_WINDOW_ROLE),
+                    ("@cockpit-store-id", store_id), ("@cockpit-store-revision", revision),
+                    ("@cockpit-store-session", session)):
+                    self._require(self._run((*base, "set-option", "-w", "-t", window, option, value)),
+                                  "mark owned Store window")
+            panes = self._selected_store_panes(socket, window)
+            if fresh:
+                if len(panes) != 1:
+                    raise TmuxWorkspaceError("fresh Store window has unexpected panes")
+                self._mark_selected_pane(socket, panes[0]["id"], "status", store_id, revision, session)
+                panes[0].update(role=_SELECTED_ROLES["status"], sid=store_id, rev=revision, owner=session)
+            if (not panes or len(panes) > 2 or len({p["role"] for p in panes}) != len(panes)
+                    or any(p["role"] not in _SELECTED_ROLES.values() or p["sid"] != store_id
+                           or p["rev"] != previous or p["owner"] != session or p["dead"] not in {"0", "1"}
+                           for p in panes)):
+                raise TmuxWorkspaceError("foreign, duplicate or inconsistent Store pane metadata")
+            by_role = {p["role"]: p for p in panes}
+            if drift:
+                # Stop old access first. On any subsequent failure no old browser remains live.
+                for key in ("browser", "status"):
+                    old = by_role.get(_SELECTED_ROLES[key])
+                    if old is not None:
+                        held = self._run((*base, "respawn-pane", "-k", "-t", old["id"], "sleep 86400"))
+                        if held.returncode:
+                            self._run((*base, "kill-pane", "-t", old["id"]))
+                            self._require(held, "stop stale Store view")
+            actions = {}
+            for key, role in _SELECTED_ROLES.items():
+                pane = by_role.get(role)
+                if pane is None:
+                    anchor = panes[0]["id"]
+                    flags = ("-b",) if key == "status" else ()
+                    result = self._run((*base, "split-window", "-d", "-v", *flags, "-P", "-F",
+                                        "#{pane_id}", "-t", anchor, "sleep 86400"))
+                    self._require(result, "create owned Store pane")
+                    ident = result.stdout.strip()
+                    if not re.fullmatch(r"%[0-9]+", ident):
+                        raise TmuxWorkspaceError("invalid new Store pane identity")
+                    created_panes.append(ident)
+                    pane = {"id": ident, "dead": "1"}
+                    action = "created"
+                elif fresh:
+                    action = "created"
+                elif drift:
+                    action = "rebuilt"
+                elif pane["dead"] == "1":
+                    action = "respawned"
+                else:
+                    action = "focused"
+                if action != "focused":
+                    self._mark_selected_pane(socket, pane["id"], key, store_id, revision, session)
+                    self._require(self._run((*base, "respawn-pane", "-k", "-t", pane["id"], plans[key])),
+                                  "start owned Store view")
+                actions[key] = {"pane_id": pane["id"], "action": action}
+            if fresh or created_panes:
+                self._require(self._run((*base, "select-layout", "-t", window, "even-vertical")),
+                              "layout owned Store views")
+            self._require(self._run((*base, "set-option", "-w", "-t", window,
+                                    "@cockpit-store-revision", revision)), "commit Store window revision")
+            self._require(self._run((*base, "select-window", "-t", window)), "focus owned Store window")
+            self._require(self._run((*base, "select-pane", "-t", actions["browser"]["pane_id"])),
+                          "focus selected Store browser")
+            return {"session": session, "store_id": store_id, "revision": revision,
+                    "window_id": window, "panes": actions,
+                    "action": "created" if fresh else "rebuilt" if drift else
+                              "repaired" if any(p["action"] != "focused" for p in actions.values()) else "focused"}
+        except Exception:
+            if fresh:
+                self._run((*base, "kill-window", "-t", window))
+            else:
+                for ident in created_panes:
+                    self._run((*base, "kill-pane", "-t", ident))
+            raise
+
+    def _selected_store_panes(self, socket, window):
+        result = self._run((*self._base(socket), "list-panes", "-t", window, "-F",
+            "#{pane_id}\t#{@cockpit-pane-role}\t#{pane_dead}\t#{@cockpit-view-store-id}\t#{@cockpit-view-store-revision}\t#{@cockpit-view-store-session}"))
+        self._require(result, "inspect owned Store pane metadata")
+        panes = []
+        for line in result.stdout.splitlines():
+            values = line.split("\t")
+            if len(values) != 6 or not re.fullmatch(r"%[0-9]+", values[0]):
+                raise TmuxWorkspaceError("invalid Store pane metadata")
+            panes.append(dict(zip(("id", "role", "dead", "sid", "rev", "owner"), values)))
+        return panes
+
+    def _mark_selected_pane(self, socket, ident, key, store_id, revision, session):
+        for option, value in ((_PANE_ROLE_OPTION, _SELECTED_ROLES[key]),
+            ("@cockpit-view-store-id", store_id), ("@cockpit-view-store-revision", revision),
+            ("@cockpit-view-store-session", session), ("remain-on-exit", "on")):
+            self._require(self._run((*self._base(socket), "set-option", "-p", "-t", ident, option, value)),
+                          "mark selected Store pane")
+        self._require(self._run((*self._base(socket), "select-pane", "-t", ident,
+                                "-T", f"Store {key}")), "title selected Store pane")
 
     def _mark_store_pane(self, socket: Path, ident: str, side: str) -> None:
         for option, value in ((_PANE_ROLE_OPTION, _STORES_ROLES[side]),

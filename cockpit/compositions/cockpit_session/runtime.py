@@ -231,6 +231,21 @@ class Runtime:
         return self.tmux.require("open_stores")(
             session=session, socket=self.paths(session=session)["socket"], commands=commands)
 
+    def open_store(self, *, store_id: str, revision: str, session: str = "dix",
+                   logo: str = "dix") -> dict[str, object]:
+        if self.status(session=session)["running"] is not True:
+            raise CockpitSessionError("Cockpit runtime is not healthy; use start or reset")
+        if logo not in {"dix", "roba"}:
+            raise ValueError("logo must be dix or roba")
+        binary = Path(os.environ.get("DIX_BIN", ""))
+        commands = {key: [str(binary / name), "--session", session,
+                           "--store-id", store_id, "--logo", logo]
+                    for key, name in (("status", "dix-cockpit-store-status"),
+                                      ("browser", "dix-cockpit-store-browser"))}
+        return self.tmux.require("open_store")(
+            session=session, socket=self.paths(session=session)["socket"],
+            store_id=store_id, revision=revision, commands=commands)
+
     def stop(self, *, session: str = "dix") -> dict[str, object]:
         self._guard_external_lifecycle(session, "stop")
         paths = self.paths(session=session)

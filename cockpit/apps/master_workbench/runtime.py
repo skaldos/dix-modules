@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
-from pathlib import Path
 from typing import Protocol
 
 from dix.core.application import ApplicationRuntimeContext
@@ -25,15 +23,12 @@ class Runtime:
         runtime: Api,
         workbench: Api,
         loom: Api,
-        browser: Api,
-        session: Api,
     ) -> None:
         self.context = context
         self.config = config
         self.runtime = runtime
         self.workbench = workbench
         self.loom = loom
-        self.browser, self.session = browser, session
 
     def main(self, argv: Sequence[str]) -> int:
         parser = argparse.ArgumentParser(
@@ -56,7 +51,6 @@ class Runtime:
                 raise TypeError("Cockpit owner environment must be a string mapping")
             secret = _required_string(environment, "ROBA_CONTROL_TOKEN")
             seed = self._seed(arguments.session, environment, secret)
-            self._bind_store_commands(arguments.session, arguments.logo)
             result = self.workbench.require("start")(
                 self.loom.require("execute"),
                 seed,
@@ -76,26 +70,6 @@ class Runtime:
                 file=sys.stderr,
             )
             return 2
-
-    def _bind_store_commands(self, session: str, logo: str) -> None:
-        from visidata import Sheet, vd
-
-        def open_stores():
-            binary = Path(os.environ.get("DIX_BIN", "")) / "dix-cockpit-store-browser"
-            self.session.require("open_stores")(
-                session=session, commands={side: [str(binary), "--session", session,
-                                                "--logo", logo, "--side", side]
-                                           for side in ("A", "B")})
-
-        def new_store():
-            vd.push(self.browser.require("new_store")(session, logo))
-
-        # Process-local integration: the generic Loom implementation is unchanged.
-        vd.addGlobals({"cockpit_open_stores": open_stores, "cockpit_new_store": new_store})
-        Sheet.addCommand("zS", "cockpit-open-stores", "cockpit_open_stores()",
-                         "open or focus the two read-only Cockpit Store browsers")
-        Sheet.addCommand("zN", "cockpit-new-store", "cockpit_new_store()",
-                         "choose a provider and edit a local Store registration (zC commits)")
 
     def _seed(
         self,
