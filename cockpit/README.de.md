@@ -192,7 +192,7 @@ leeres Register und ein abgebrochenes Loeschen lassen Draft und Register unverae
 TOML-Dates, Times, Datetimes, Sonderfloats sowie verschachtelte Mappings/Listen bleiben native
 Werte.
 
-## Gestagte Store-Workbench (UP-066)
+## Gestagte Store-Workbench (UP-066 / UP-067)
 
 Nach einem Source-Update `./cockpit/integrations/install-ui` erneut ausfuehren. Der Installer
 liefert auch den internen Helper `dix-cockpit-store-workbench --session dix --logo dix`.
@@ -205,15 +205,30 @@ Der **untere linke Store-Pane** ist jetzt das fuehrende lokale Registrierungs-/E
 
 | Taste | Wirkung ausschliesslich in diesem Store-Pane |
 | --- | --- |
-| a | Neuer Provider-Draft; ein Provider direkt, mehrere mit expliziter Auswahl |
+| :n | Neuer Provider-Draft; ein Provider direkt, mehrere mit expliziter Auswahl |
 | Enter auf Katalogzeile | Lokale Definition oeffnen, nicht das Ziel |
 | Enter auf Container | Innerhalb desselben Drafts drillen |
 | Enter auf atomarem value | Nativer Inline-Zelleditor am Zellort, kein Footer-TOML-Prompt |
 | Enter / Esc im Editor | Lokal annehmen / nur diese Zellbearbeitung abbrechen |
-| z Ctrl+S | Vollstaendigen Store validieren und genau einmal im lokalen Katalog speichern |
-| q / Q | Parent; am Katalog-Root aktiv bleiben |
-| Ctrl+R | Draft schuetzen, danach Katalog neu laden |
-| gq | Draft schuetzen, danach diese Store-Workbench bewusst beenden |
+| :w / Ctrl+S | Vollstaendigen Store validieren und genau einmal im lokalen Katalog speichern |
+| q | Parent; am Katalog-Root aktiv bleiben |
+| :r / Ctrl+R | Draft schuetzen, danach Katalog neu laden |
+| :q | Draft schuetzen, danach diese Store-Workbench bewusst beenden |
+| :wq | Speichern; nur bei Erfolg den Pane verlassen |
+| :q! | Draft bewusst ohne Nachfrage verwerfen und Pane verlassen |
+| h j k l / Pfeile | Native Zeilen-/Spaltennavigation |
+| PageUp / PageDown | Seitenweise bewegen |
+| gg / G | Erste / letzte Zeile |
+
+`:` oeffnet ausschliesslich den Cockpit-Prompt fuer `n`, `w`, `q`, `wq`, `q!`, `r`.
+Die Tokens werden getrimmt; leere oder unbekannte Tokens zeigen eine lokale Meldung und tun
+sonst nichts. Keine Parameter, Shellbefehle, Regex- oder Ex-Sprache. Der Store importiert
+VisiData **3.4** vollstaendig, prueft die SettingsMgr-/Command-/Input-Grenze vor curses,
+leert seine gesamte prozesslokale Binding-Registry und registriert nur diese 17 Tasten.
+Der kompakte sheet-lokale rechte Status reserviert Eingabebreite fuer Prompts im geteilten Pane.
+Bei inkompatibler Version oder Registry bricht der Start mit Exitcode 2 und einer festen,
+credentialfreien Meldung ab. Menue, `i`, `-`, Datei-Save und allgemeine Spreadsheet-Shortcuts
+bleiben unerreichbar. **`a`, `z Ctrl+S` und `gq` haben keine Kompatibilitaetsaliase.**
 
 Strings brauchen keine Quotes; Tippen ersetzt den initialen Zellwert (natives VisiData-Verhalten).
 Vorhandene Integer/Floats behalten ihren Typ; Floats muessen endlich sein. Booleans akzeptieren
@@ -223,7 +238,7 @@ kein Boolean-Feld; diese Typgrenze ist ueber eine reine Terminal-Testfixture bel
 einen zusaetzlich installierten Provider.
 
 Angenommene Zellen aendern nur den Draft und seinen sichtbaren **DIRTY**-/Modified-Marker. Vor
-`z` gefolgt von **Ctrl+S** (nicht einfach `zS`) erfolgt kein Katalogaufruf. Neuanlagen verwenden
+`:w` oder **Ctrl+S** erfolgt kein Katalogaufruf. Neuanlagen verwenden
 ein `create`, bestehende Definitionen ein `update`. Doppelte IDs, unbekannte Provider, ungueltige
 Definitionen oder lokale Transportfehler bewahren Baseline und Katalog. Derselbe dirty Draft
 bleibt fuer Korrektur und erneuten Commit erhalten.
@@ -238,14 +253,15 @@ normale Fehlerlogs. Der Katalog bleibt fluechtig: Stop/Start oder Reset verwirft
 
 Der unten beschriebene abgeloeste `zN`-/`zE`-/`zC`-Draftflow bleibt kompatibel vorhanden, ist aber
 nicht mehr der fuehrende Store-Editierweg.
-VisiDatas natives `Ctrl+Q` (oder Quit-all aus nativer Hilfe) kann Sheet-Commands umgehen.
+VisiDatas in der Mainloop fest behandeltes `Ctrl+Q` liegt ausserhalb der Binding-Registry.
 Der Store-Prozess prueft deshalb nach Rueckkehr aus `vd.run()` seinen Draft: Bei dirty State folgt
 nach Curses-Ende dieselbe Save/Discard/Cancel-Auswahl als normaler Terminalprompt. Cancel oder
 fehlgeschlagenes Save kehrt zum selben Draft/Pfad/Cursor zurueck; Save oder Discard beendet
 bewusst. Das patcht VisiData nicht und beeinflusst keine andere Workbench. Erzwungene Zerstoerung
 durch OS, Prozess-Kill oder Terminalende ist kein geschuetzter Navigationsbefehl. Read-only-Dual-Browser und oberer rechter breiter
-ROBA-Loom behalten ihre bisherigen Tasten und Vertraege. Globale VisiData-Key-/Quit-Semantik
-wird nicht veraendert.
+ROBA-Loom behalten ihre bisherigen Tasten. Nur der Master-Loom startet jetzt direkt ohne
+Enter-Vorspann; Logo/Status bleiben im eigenen Pane sichtbar. Andere Workbenches behalten
+Branding und Startvertrag. VisiDatas globale Quit-Semantik wird nicht gepatcht.
 
 ## Read-only Stores (UP-065)
 

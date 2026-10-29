@@ -188,7 +188,7 @@ Invalid TOML, missing paths, wrong container types, invalid indices, key collisi
 register, and cancelled deletion leave both draft and register unchanged. Native TOML dates,
 times, datetimes, special floats, and nested mappings/lists remain native values.
 
-## Staged Store workbench (UP-066)
+## Staged Store workbench (UP-066 / UP-067)
 
 Re-run `./cockpit/integrations/install-ui` after updating the sources. It also installs the
 internal `dix-cockpit-store-workbench --session dix --logo dix` helper. The normal entry stays
@@ -200,15 +200,30 @@ The **bottom-left Store pane** is now the primary local registration/editor inte
 
 | Key | Effect in this Store pane only |
 | --- | --- |
-| a | New provider draft; one provider opens directly, multiple providers require a choice |
+| :n | New provider draft; one provider opens directly, multiple providers require a choice |
 | Enter on a catalog row | Open its local definition, not its target |
 | Enter on a container | Drill within the same draft |
 | Enter on an atomic value cell | Native inline cell editor at the cell, not a footer TOML prompt |
 | Enter / Esc in the editor | Accept locally / cancel only this cell |
-| z Ctrl+S | Validate and commit the complete Store once to the local catalog |
-| q / Q | Parent; at the catalog root remain alive |
-| Ctrl+R | Guard the draft, then reload the catalog |
-| gq | Guard the draft, then explicitly exit this Store workbench |
+| :w / Ctrl+S | Validate and commit the complete Store once to the local catalog |
+| q | Parent; at the catalog root remain alive |
+| :r / Ctrl+R | Guard the draft, then reload the catalog |
+| :q | Guard the draft, then explicitly exit this Store workbench |
+| :wq | Save; leave the pane only after success |
+| :q! | Deliberately discard the draft and leave without a prompt |
+| h j k l / arrows | Native row/column navigation |
+| PageUp / PageDown | Page through longer sheets |
+| gg / G | First / last row |
+
+`:` opens only the Cockpit prompt for `n`, `w`, `q`, `wq`, `q!`, `r`.
+Tokens are trimmed; empty or unknown tokens show a local message and otherwise do nothing.
+No parameters, shell commands, regex or Ex language. The Store fully imports VisiData **3.4**,
+checks its SettingsMgr/command/input boundary before curses, clears its entire process-local
+binding registry and registers only these 17 keys. Its compact sheet-local right status
+reserves input space for prompts in the split master pane. An incompatible version or registry aborts
+startup with exit code 2 and a fixed credential-free message. Menus, `i`, `-`, generic file
+save and general spreadsheet shortcuts are unreachable.
+**`a`, `z Ctrl+S` and `gq` have no compatibility aliases.**
 
 Strings need no quotes; typing replaces the initial cell value (native VisiData behavior).
 Existing integers/floats remain their original types; floats must be finite. Booleans accept
@@ -217,7 +232,7 @@ value and shows a local error. The sole shipped ROBA draft has no Boolean field;
 is verified with a test-only terminal fixture, not an extra installed provider.
 
 Accepted cells only change the draft and its visible **DIRTY**/modified marker. No catalog call
-occurs until `z` then **Ctrl+S** (not plain `zS`). New drafts use one `create`; existing definitions
+occurs until `:w` or **Ctrl+S**. New drafts use one `create`; existing definitions
 use one `update`. Duplicate IDs, unknown providers, invalid definitions or local transport failures
 preserve the old baseline and catalog. Correct the same dirty draft and retry.
 
@@ -230,13 +245,16 @@ volatile: stop/start or reset discards it. “Persistent pane” does not mean f
 
 The old `zN`/`zE`/`zC` detached-draft interface below remains available for compatibility; it is
 not the primary Store editing flow.
-VisiData's native `Ctrl+Q` (or quitting all sheets from native help) can bypass Sheet commands.
+VisiData handles native `Ctrl+Q` in its main loop, outside the binding registry.
+
 The Store process therefore checks its draft after `vd.run()` returns: a dirty draft gets the
 same Save/Discard/Cancel choice as a plain terminal prompt after curses ends. Cancel or failed
 Save returns to the same draft/path/cursor; Save or Discard exits explicitly. This does not patch
 VisiData or affect the other workbenches. Forced OS/process/terminal destruction is not a guarded
 navigation command. The read-only dual browser and the top-right broad ROBA Loom
-retain their existing keys and behavior. No global VisiData keys or quit behavior are changed.
+retain their existing keys. Only the master Loom now starts directly without an Enter prelude;
+logo/status remain visible in their own pane. Other workbenches keep their branding and start
+contract. VisiData's global quit behavior is not patched.
 
 ## Read-only Stores (UP-065)
 

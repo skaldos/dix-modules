@@ -178,8 +178,7 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
     os.close(child)
     drain_terminal(main)
     try:
-        wait_for(lambda: "Press Enter" in tmux(sock, "capture-pane", "-p", "-t", master))
-        tmux(sock, "send-keys", "-t", master, "Enter")
+        assert "Press Enter" not in tmux(sock, "capture-pane", "-p", "-t", master)
         try:
             wait_for(lambda: "connection" in tmux(sock, "capture-pane", "-p", "-t", master))
         except AssertionError:
@@ -204,7 +203,9 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
         wait_for(lambda: "roba" in tmux(sock, "capture-pane", "-p", "-t", store))
         tmux(sock, "send-keys", "-t", store, "q")
         assert tmux(sock, "display-message", "-p", "-t", store, "#{pane_dead}") == "0"
-        tmux(sock, "send-keys", "-t", store, "g", "q")
+        tmux(sock, "send-keys", "-t", store, ":")
+        time.sleep(.15)
+        tmux(sock, "send-keys", "-t", store, "q", "Enter")
         wait_for(lambda: tmux(sock, "display-message", "-p", "-t", store, "#{pane_dead}") == "1")
         restored = workspace.require("start_master")(
             session="a", shell_command=["sleep", "300"], status_command=["sleep", "300"],

@@ -67,6 +67,12 @@ gelieferten PNGs behalten ihre dokumentierten SHA-256-Werte:
 Branding nutzt `chafa --fill block -c full --scale 0.5`. Fehlendes Chafa, umgeleitete Ein-/Ausgabe
 oder ein kleines Terminal blockieren den Workbench nie.
 
+Die Composition `loom_workbench.start(execute, seed, logo="dix", confirm_execute=True,
+show_branding=True)` besitzt eine additive Startoption. Der Default behaelt Logo und
+Enter-Vorspann im passenden TTY. Nur Cockpits Master-Assembly setzt `show_branding=False`,
+weil sie bereits einen eigenen Logo-/Status-Pane hat. Keymap und andere Consumer bleiben
+unveraendert; dies ist kein providerneutraler Loom-Vertrag und keine neue CLI-Option.
+
 ## Tasten und Wirkungen
 
 Reference-Sheet:

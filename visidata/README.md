@@ -65,6 +65,12 @@ retain their documented SHA-256 values:
 Branding uses `chafa --fill block -c full --scale 0.5`. Missing Chafa, redirected I/O, or a small
 terminal never blocks the workbench.
 
+The composition `loom_workbench.start(execute, seed, logo="dix", confirm_execute=True,
+show_branding=True)` has an additive startup option. The default keeps the logo and Enter
+prelude in a suitable TTY. Only Cockpit's master assembly selects `show_branding=False`,
+because it already owns a logo/status pane. Keymaps and other consumers are unchanged;
+this is not a provider-neutral Loom contract or a new CLI option.
+
 ## Keys and effects
 
 Reference sheet:
