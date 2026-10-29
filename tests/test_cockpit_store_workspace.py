@@ -127,7 +127,7 @@ def test_store_window_and_pane_drift_fail_closed(store_graph):
     workspace.require("stop")(session="a")
 
 
-def test_installed_master_opens_two_real_visidata_browsers_from_command(
+def test_installed_legacy_dual_browser_remains_explicitly_available(
     store_graph, tmp_path, monkeypatch,
 ):
     from pathlib import Path
@@ -215,7 +215,10 @@ def test_installed_master_opens_two_real_visidata_browsers_from_command(
         assert restored["store"] == {"pane_id": store, "action": "respawned"}
         wait_for(lambda: "external" in tmux(sock, "capture-pane", "-p", "-t", store))
         assert len(tmux(sock, "list-panes", "-t", "a:control").splitlines()) == 4
-        tmux(sock, "send-keys", "-t", master, "z", "S")
+        # The leading master no longer binds zS/zN. The explicit historical API remains.
+        workspace.require("open_stores")(session="a", commands={
+            side: [str(binary / "dix-cockpit-store-browser"), "--session", "a", "--side", side]
+            for side in ("A", "B")})
         wait_for(lambda: "stores" in tmux(sock, "list-windows", "-t", "a", "-F", "#{window_name}"))
         wait_for(lambda: len(tmux(sock, "list-panes", "-t", "a:stores",
                                    "-F", "#{pane_id}").splitlines()) == 2)

@@ -74,6 +74,10 @@ files = {
         "compositions/store_workbench/session.py",
         "compositions/store_workbench/keymap.py",
         "compositions/store_workbench/ui.py",
+        "apps/store_status/app.toml",
+        "apps/store_status/runtime.py",
+        "assets/dix.png",
+        "assets/roba.png",
         "apps/store_browser/app.toml",
         "apps/store_browser/runtime.py",
         "compositions/store_catalog/composition.toml",
@@ -156,7 +160,7 @@ finally:
         shutil.rmtree(backup)
 PY
 
-for name in dix-cockpit-ui dix-cockpit-master-workbench dix-cockpit-store-browser dix-cockpit-store-workbench; do
+for name in dix-cockpit-ui dix-cockpit-master-workbench dix-cockpit-store-browser dix-cockpit-store-workbench dix-cockpit-store-status; do
     launcher_spec="$DIX_LAUNCHERS/$name.toml"
     "$DIX_VENV/bin/python" - \
         "$integration_root/launchers/$name.toml" \

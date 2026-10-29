@@ -36,6 +36,7 @@ def test_cockpit_is_one_explicit_external_module_with_privileged_runtime_apps() 
         "skaldos/cockpit/ui",
         "skaldos/cockpit/store_browser",
         "skaldos/cockpit/store_workbench",
+        "skaldos/cockpit/store_status",
     }
 
 
@@ -54,6 +55,7 @@ def test_delivery_contains_owned_launchers_helpers_config_and_bilingual_docs() -
         "dix-cockpit-master-workbench.toml",
         "dix-cockpit-store-browser.toml",
         "dix-cockpit-store-workbench.toml",
+        "dix-cockpit-store-status.toml",
     }
     assert (COCKPIT / "integrations/tmux/cockpit.conf").is_file()
     english = (COCKPIT / "README.md").read_text()

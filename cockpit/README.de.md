@@ -205,6 +205,7 @@ Der **untere linke Store-Pane** ist jetzt das fuehrende lokale Registrierungs-/E
 
 | Taste | Wirkung ausschliesslich in diesem Store-Pane |
 | --- | --- |
+| :o | Gespeicherten Store am Katalogroot als eigenen Arbeitsraum oeffnen/fokussieren |
 | :n | Neuer Provider-Draft; ein Provider direkt, mehrere mit expliziter Auswahl |
 | Enter auf Katalogzeile | Lokale Definition oeffnen, nicht das Ziel |
 | Enter auf Container | Innerhalb desselben Drafts drillen |
@@ -220,7 +221,7 @@ Der **untere linke Store-Pane** ist jetzt das fuehrende lokale Registrierungs-/E
 | PageUp / PageDown | Seitenweise bewegen |
 | gg / G | Erste / letzte Zeile |
 
-`:` oeffnet ausschliesslich den Cockpit-Prompt fuer `n`, `w`, `q`, `wq`, `q!`, `r`.
+`:` oeffnet ausschliesslich den Cockpit-Prompt fuer `n`, `w`, `q`, `wq`, `q!`, `r`, `o`.
 Die Tokens werden getrimmt; leere oder unbekannte Tokens zeigen eine lokale Meldung und tun
 sonst nichts. Keine Parameter, Shellbefehle, Regex- oder Ex-Sprache. Der Store importiert
 VisiData **3.4** vollstaendig, prueft die SettingsMgr-/Command-/Input-Grenze vor curses,
@@ -251,26 +252,80 @@ und kein Credential gelangt in Prozessargumente, tmux-Metadaten/-Titel, Breadcru
 normale Fehlerlogs. Der Katalog bleibt fluechtig: Stop/Start oder Reset verwirft ihn.
 „Persistenter Pane“ bedeutet keine Dateipersistenz.
 
-Der unten beschriebene abgeloeste `zN`-/`zE`-/`zC`-Draftflow bleibt kompatibel vorhanden, ist aber
-nicht mehr der fuehrende Store-Editierweg.
+Der historische abgeloeste Draftflow bleibt nur im expliziten Dual-Pane-Unterbau vorhanden,
+ist aber kein fuehrender Masterweg. Der breite Master-Loom bindet keine zS/zN-Einstiege mehr.
 VisiDatas in der Mainloop fest behandeltes `Ctrl+Q` liegt ausserhalb der Binding-Registry.
 Der Store-Prozess prueft deshalb nach Rueckkehr aus `vd.run()` seinen Draft: Bei dirty State folgt
 nach Curses-Ende dieselbe Save/Discard/Cancel-Auswahl als normaler Terminalprompt. Cancel oder
 fehlgeschlagenes Save kehrt zum selben Draft/Pfad/Cursor zurueck; Save oder Discard beendet
 bewusst. Das patcht VisiData nicht und beeinflusst keine andere Workbench. Erzwungene Zerstoerung
 durch OS, Prozess-Kill oder Terminalende ist kein geschuetzter Navigationsbefehl. Read-only-Dual-Browser und oberer rechter breiter
-ROBA-Loom behalten ihre bisherigen Tasten. Nur der Master-Loom startet jetzt direkt ohne
+ROBA-Loom behalten ihre Navigations-/Loom-Tasten, abgesehen von den bewusst entfernten
+Master-Storeeinstiegen. Nur der Master-Loom startet direkt ohne
 Enter-Vorspann; Logo/Status bleiben im eigenen Pane sichtbar. Andere Workbenches behalten
 Branding und Startvertrag. VisiDatas globale Quit-Semantik wird nicht gepatcht.
 
-## Read-only Stores (UP-065)
+## Ein gespeicherter Store als eigener Arbeitsraum (UP-068)
 
-Nach einem Update `./cockpit/integrations/install-ui` erneut ausfuehren. Der Installer liefert
-auch den internen Helper `dix-cockpit-store-browser`; die Basisruntime bleibt VisiData-frei.
-Master wie oben starten. In dessen VisiData-Pane oeffnet `zN` (`cockpit-new-store` in der
-Command-Hilfe) **New Store**, `zS` (`cockpit-open-stores`) oeffnet/fokussiert das stabile
-`stores`-Window. Diese prozesslokalen Commands aendern den generischen Loom nicht. Alternativ
-im Owner-Terminal oder einem externen aktivierten Terminal:
+Nach dem Update `./cockpit/integrations/install-ui` erneut ausfuehren. Der Installer liefert auch
+`dix-cockpit-store-status`; Status und Browser laden ihre Definition privat anhand Session,
+Store-ID und Logo. Keine Connection oder Capability wird als Aufrufargument weitergereicht.
+
+Im unteren linken Store-Katalog einen gespeicherten Eintrag waehlen, dann `:o`, Enter:
+
+```text
+Store-Window
++--------------------------------+
+| Logo + privilegierter Status   |
+| volle Definition + Revision    |
++--------------------------------+
+| genau ein read-only Browser    |
+| direkt am gewaehlten Store     |
++--------------------------------+
+```
+
+- Enter bleibt im Master lokale Definition-/Zellbearbeitung, nicht Window-Open.
+- `:o` geht nur am Katalogroot fuer einen gespeicherten Eintrag. Drafts, Childs, leere Auswahl
+  oder entfernte Eintraege erzeugen weder Save noch Window; Fehler bleiben sichtbar.
+- Wiederholen fokussiert dasselbe eindeutig besessene Window. Namen und Index sind nur Darstellung;
+  Umbenennen/Verschieben innerhalb der Session ist erlaubt. Fuer den normalen Wechsel tmux nutzen.
+- Ein beendeter oder fehlender eigener Pane wird gezielt repariert; der gesunde Gegenpane bleibt
+  erhalten. Ein manuell geschlossenes Window wird beim naechsten `:o` neu erzeugt.
+- Jeder erfolgreiche ganze Store-Save rotiert eine interne zufaellige Revision, auch bei gleicher
+  Definition. `list`/`get` und der Draft bleiben exakt `store_id`, `provider`, `connection`.
+  Revisionen sind keine Definition-/Tokenhashes. Beim naechsten `:o` baut Revisionsdrift beide
+  Prozesse kontrolliert neu auf; der alte Browser bleibt nicht als aktueller Zugriff laufen.
+- Ein offener Browser verweigert weitere Reads einer inzwischen geaenderten Definition bis zum
+  erneuten Oeffnen. Kein Watcher, Sync oder automatischer Reconnect wird eingefuehrt.
+- Fremde, doppelte, sessionfremde oder inkonsistente Rollen-/Storemetadaten scheitern ohne Adoption
+  oder Loeschen fremder Ressourcen. Ein frischer fehlgeschlagener Aufbau raeumt nur sein neues
+  Window auf. Ein fehlerhafter Rebuild kann einen sichtbaren Reparatur-/Recreate-Bedarf hinterlassen;
+  alte Zugriffsprozesse werden zuerst gestoppt.
+
+Der Browser bleibt im gewaehlten Store. Enter drillt Container oder zeigt atomare Werte; `q`/`zB`
+geht zum Parent, am Store-Root bleibt `q` aktiv; `zU` springt zum selben Store-Root, Ctrl+R liest
+neu. Ein atomarer Inspect-Sheet wird mit normalem VisiData-q geschlossen. Dieser Browser besitzt
+keine New/Edit/Rename/Remove-Kommandos fuer den Katalog und ruft ausschliesslich die positive
+Provideroberflaeche `root`/`children`/`inspect`. Providerfehler bleiben im Pane sichtbar, ohne das
+Window oder den Store zu loeschen. Dies ist keine Sandbox fuer vom Owner selbst ausgefuehrten
+beliebigen Pythoncode.
+
+Context-Connections koennen Keys und lesbare Instances zeigen; eine Connection mit `instance_id`
+zeigt direkt nur deren Keys. Existierende Instance-Connections lassen sich ueber den Katalog-API
+materialisieren und danach im Master-Pane pruefen/speichern. Der schlanke New-Draft bleibt die
+bisherige Context-Form; UP-068 erfindet keine neue Provider-/Draftvariante.
+
+**Der Status ist bewusst voll privilegiert:** Locator, Token und Scope sind dort sichtbar und
+kopierbar. Nicht in argv, Titel, tmux-Optionen/Environment, normale Fehlerlogs oder ungepruefte
+geteilte Captures uebertragen. Auch private Sessionaufzeichnung kann die Anzeige enthalten.
+Stop/Reset entfernt weiterhin nur die eigene Runtime und ihren fluechtigen Katalog; kein Autosave
+oder Export entsteht. Nach dem Formatupdate eine frische Cockpit-Runtime verwenden; alte
+laufende Kataloginhalte werden nicht still migriert.
+
+## Historischer expliziter Dual-Pane-Storeweg (UP-065)
+
+Der explizite historische Browser bleibt als Regression verfuegbar; im Master-Loom gibt es
+keine zS/zN-Storeeinstiege mehr. Aus der Owner-Shell oder einem aktivierten aeusseren Terminal:
 
 ```sh
 dix-cockpit-ui stores --session dix --logo dix
@@ -286,7 +341,7 @@ Oeffnen respawnt. Detach erhaelt den Raum; nur `dix-cockpit stop|reset` raeumt d
 
 1. Ziel-Context, Instance, Token, Socket und Grant werden vorher separat im administrativen
    Terminal erzeugt. New Store erzeugt oder repariert keine dieser Ressourcen.
-2. `zN` im Master oder `zN` im Browser druecken. `roba` waehlen (einziger Provider); Enter nimmt
+2. `zN` in einem der expliziten historischen Browser druecken. `roba` waehlen (einziger Provider); Enter nimmt
    den vorbelegten Provider. Ein abgeloester lokaler Draft mit `store_id`, `provider` und
    `connection` oeffnet sich. Das Ziel wird nicht kontaktiert.
 3. Mit Enter in `connection` drillen, mit `e` Skalare als **TOML-Literale** bearbeiten, etwa

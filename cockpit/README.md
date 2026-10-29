@@ -200,6 +200,7 @@ The **bottom-left Store pane** is now the primary local registration/editor inte
 
 | Key | Effect in this Store pane only |
 | --- | --- |
+| :o | Open/focus a saved catalog-root Store in its own workspace |
 | :n | New provider draft; one provider opens directly, multiple providers require a choice |
 | Enter on a catalog row | Open its local definition, not its target |
 | Enter on a container | Drill within the same draft |
@@ -215,7 +216,7 @@ The **bottom-left Store pane** is now the primary local registration/editor inte
 | PageUp / PageDown | Page through longer sheets |
 | gg / G | First / last row |
 
-`:` opens only the Cockpit prompt for `n`, `w`, `q`, `wq`, `q!`, `r`.
+`:` opens only the Cockpit prompt for `n`, `w`, `q`, `wq`, `q!`, `r`, `o`.
 Tokens are trimmed; empty or unknown tokens show a local message and otherwise do nothing.
 No parameters, shell commands, regex or Ex language. The Store fully imports VisiData **3.4**,
 checks its SettingsMgr/command/input boundary before curses, clears its entire process-local
@@ -240,11 +241,11 @@ Leaving a dirty draft (root back, New/switch, Reload or explicit exit) asks **Sa
 Cancel**: `s` commits once and continues only on success; `d` discards without writing; `c` or Esc
 stays in the same draft. Navigation inside containers never asks. Credentials may intentionally be
 visible in the personal editor, but no target is contacted and no credential goes into process
-arguments, tmux metadata/titles, breadcrumbs, status or ordinary error logs. The catalog remains
+arguments, tmux metadata/titles, breadcrumbs or ordinary status/error lines. The catalog remains
 volatile: stop/start or reset discards it. “Persistent pane” does not mean file persistence.
 
-The old `zN`/`zE`/`zC` detached-draft interface below remains available for compatibility; it is
-not the primary Store editing flow.
+The historical detached-draft flow remains only in the explicit dual-pane underlay, not as a
+leading master flow. The broad master Loom no longer binds zS/zN Store entry points.
 VisiData handles native `Ctrl+Q` in its main loop, outside the binding registry.
 
 The Store process therefore checks its draft after `vd.run()` returns: a dirty draft gets the
@@ -252,18 +253,71 @@ same Save/Discard/Cancel choice as a plain terminal prompt after curses ends. Ca
 Save returns to the same draft/path/cursor; Save or Discard exits explicitly. This does not patch
 VisiData or affect the other workbenches. Forced OS/process/terminal destruction is not a guarded
 navigation command. The read-only dual browser and the top-right broad ROBA Loom
-retain their existing keys. Only the master Loom now starts directly without an Enter prelude;
+retain their navigation/Loom keys, except the deliberately removed master Store hooks.
+Only the master Loom starts directly without an Enter prelude;
 logo/status remain visible in their own pane. Other workbenches keep their branding and start
 contract. VisiData's global quit behavior is not patched.
 
-## Read-only Stores (UP-065)
+## One owned workspace per saved Store (UP-068)
+
+Re-run `./cockpit/integrations/install-ui` after updating. It also delivers
+`dix-cockpit-store-status`. Both views load their definition privately by session, Store ID and
+logo; no connection or capability is passed in their launch arguments.
+
+Select a saved entry in the bottom-left catalog, then `:o`, Enter:
+
+```text
+Store window
++--------------------------------+
+| logo + privileged status       |
+| full definition + revision     |
++--------------------------------+
+| exactly one read-only browser  |
+| rooted at the selected Store   |
++--------------------------------+
+```
+
+- Enter in the master remains local definition/cell interaction, not a window-open operation.
+- `:o` is only for a saved catalog-root entry. Drafts, children, empty selection and removed entries
+  have neither save nor window effects; failures remain visible.
+- Repeating focuses the same uniquely owned window. Name/index are presentation; renaming/moving
+  within the session is supported. Use normal tmux navigation for routine window switching.
+- A dead or missing owned pane is repaired without replacing its healthy counterpart. A manually
+  closed window is recreated on the next `:o`.
+- Every successful whole Store save rotates a private random revision, including identical saves.
+  Public `list`/`get` and drafts remain exactly `store_id`, `provider`, `connection`. Revisions are
+  not definition/token hashes. On the next `:o`, drift rebuilds both views; an old browser is not
+  left running as apparently current access.
+- An open browser refuses further reads after its saved definition changes until reopened.
+  There is no watcher, sync or automatic reconnect.
+- Foreign, duplicate, cross-session or inconsistent ownership metadata fails closed without
+  adoption or deletion of foreign resources. Fresh-creation failure removes only its new window.
+  A failed rebuild can leave a visible repair/recreate requirement; old access is stopped first.
+
+The browser stays in its selected Store. Enter drills containers or inspects atomic values;
+`q`/`zB` goes to the parent and stays alive at the Store root; `zU` returns to that same root,
+Ctrl+R reloads. Close a scalar inspect sheet with native VisiData-q. The selected browser has no
+catalog New/Edit/Rename/Remove commands and calls only the positive provider surface
+`root`/`children`/`inspect`. Provider errors stay visible without deleting the window or catalog
+entry. This is not a sandbox for arbitrary Python code deliberately executed by its owner.
+
+Context connections may expose keys and readable instances; a connection with `instance_id`
+starts directly at that instance's keys. Existing instance connections can be materialized through
+the catalog API, then reviewed/saved in the master pane. New's small draft remains the existing
+Context form; UP-068 does not invent another provider or draft variant.
+
+**Status is deliberately privileged:** locator, token and scope are visible and copyable there.
+Never forward them through argv, titles, tmux options/environment, ordinary error logs or unchecked
+shared captures. Even private session recordings can contain that display. Stop/reset still owns
+runtime cleanup and discards the volatile catalog; there is no autosave/export. Use a fresh runtime
+after the record-format update; old running catalog contents are not silently migrated.
+
+## Historical explicit dual-pane Stores (UP-065)
 
 Re-run `./cockpit/integrations/install-ui` after updating. It also installs the internal
 `dix-cockpit-store-browser` helper; the base runtime remains VisiData-free. Start the master as
-above. In its VisiData pane, `zN` (`cockpit-new-store` in command help) opens **New Store** and
-`zS` (`cockpit-open-stores`) opens/focuses the stable `stores` window. These process-local
-commands do not change the generic Loom. Alternatively, from the owner shell or an activated
-external terminal:
+above. This historical explicit underlay is retained for regression, not as the leading UX.
+The master Loom has no zS/zN Store entry points. From the owner shell or an activated external terminal:
 
 ```sh
 dix-cockpit-ui stores --session dix --logo dix
@@ -279,7 +333,7 @@ the workspace; `dix-cockpit stop|reset` remains the only lifecycle cleanup.
 
 1. Create any target Context, Instance, token, socket or grant separately in your administrative
    terminal. New Store never creates or repairs these resources.
-2. Press `zN` in the master or `zN` in a browser. Choose `roba` (the only provider); Enter accepts
+2. Press `zN` in one of the explicit historical browsers. Choose `roba` (the only provider); Enter accepts
    the prefilled provider. This opens a detached local draft with `store_id`, `provider` and
    `connection`. No target is contacted.
 3. Use Enter to drill into `connection`, and `e` to edit scalars as **TOML literals**, for example
@@ -322,7 +376,8 @@ reset discards the catalog. There is no file persistence, autosave, snapshot, im
 transfer, second provider, sync or runner.
 
 Credentials may be displayed/edited/copied in the personal Owner draft, but are never placed in
-argv, tmux metadata/environment/titles, breadcrumbs, status or normal error logs. Browser helpers
+argv, tmux metadata/environment/titles, breadcrumbs or ordinary status/error logs. The separate
+privileged Store-status pane above deliberately displays the complete definition. Browser helpers
 receive only session/logo/side and obtain the private capability inside their process. Terminal
 recordings can still capture an intentionally displayed token: use short-lived test credentials,
 keep recordings private and inspect/redact before sharing.
