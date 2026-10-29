@@ -6,6 +6,18 @@ from typing import ClassVar
 from visidata import ItemColumn, Sheet, clipstr_middle, vd
 
 
+def _draw_store_header(self, scr, y, h, vcolidx):
+    col = self.availCols[vcolidx]
+    original = col._name
+    text = (self.browser.error or self.browser.breadcrumb) if vcolidx else (
+        f"{self.logo.upper()} Stores {self.side} · READ ONLY")
+    col._name = clipstr_middle(text, max(self._visibleColLayout[vcolidx][1]-1, 0))[0] + "\n" + original
+    try:
+        Sheet.drawColHeader(self, scr, y, h, vcolidx)
+    finally:
+        col._name = original
+
+
 class StoreSheet(Sheet):
     """Read-only provider navigation, with separate explicit local catalog commands."""
 
@@ -21,16 +33,7 @@ class StoreSheet(Sheet):
     def nHeaderRows(self):
         return 2
 
-    def drawColHeader(self, scr, y, h, vcolidx):
-        col = self.availCols[vcolidx]
-        original = col._name
-        text = (self.browser.error or self.browser.breadcrumb) if vcolidx else (
-            f"{self.logo.upper()} Stores {self.side} · READ ONLY")
-        col._name = clipstr_middle(text, max(self._visibleColLayout[vcolidx][1]-1, 0))[0] + "\n" + original
-        try:
-            super().drawColHeader(scr, y, h, vcolidx)
-        finally:
-            col._name = original
+    drawColHeader = _draw_store_header
 
     def reload(self):
         nodes = self.browser.reload()
@@ -146,7 +149,7 @@ class ReadOnlyStoreSheet(Sheet):
     rowtype = "Store node"
     columns: ClassVar[list] = StoreSheet.columns
     nHeaderRows = StoreSheet.nHeaderRows
-    drawColHeader = StoreSheet.drawColHeader
+    drawColHeader = _draw_store_header
     reload = StoreSheet.reload
     _render = StoreSheet._render
     openNode = StoreSheet.openNode

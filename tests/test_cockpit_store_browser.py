@@ -167,3 +167,21 @@ def test_selected_browser_is_rooted_read_only_and_rejects_revision_drift(store_g
     assert fresh.revision != context.revision and fresh.reload()
     assert instance.reload() and not instance.error
     assert json.dumps(owner.snapshot(), sort_keys=True) == before
+
+
+
+def test_selected_header_delegates_to_sheet_without_editor_inheritance(store_graph, monkeypatch):
+    from visidata import Sheet
+
+    create, _, _ = store_graph
+    bound, ui = browser_ui(create)
+    calls=[]
+    monkeypatch.setattr(Sheet,'drawColHeader',lambda sheet,*args:calls.append(type(sheet).__name__))
+    class Browser:
+        store_id='selected'
+        breadcrumb='/selected'
+        error=''
+    for view in (ui.StoreSheet(Browser(),bound.runtime),ui.ReadOnlyStoreSheet(Browser())):
+        view._visibleColLayout={0:(0,30)}
+        view.drawColHeader(None,0,2,0)
+    assert calls==['StoreSheet','ReadOnlyStoreSheet']
