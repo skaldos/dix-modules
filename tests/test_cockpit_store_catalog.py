@@ -99,3 +99,57 @@ def test_catalog_parallel_process_capabilities_do_not_lose_updates(store_graph, 
     with pytest.raises(ValueError, match="already exists"):
         catalogs[0].require("update")("0", catalogs[0].require("get")("1", "a"), "a")
     assert len(catalogs[0].require("list")("a")) == 4
+
+
+def test_revisioned_record_rotates_atomically_without_changing_public_definition(store_graph, api, monkeypatch):
+    import copy
+    import uuid
+    from contextlib import contextmanager
+
+    create, _, _ = store_graph
+    bound = create('skaldos/cockpit/store_catalog')
+    catalog = bound.api
+    catalog.require('register_provider')('test', api(
+        draft=dict, validate=lambda value: value, root=lambda *_: None,
+        children=lambda *_: [], inspect=lambda *_: None))
+    value = {'store_id': 'one', 'provider': 'test', 'connection': {'token': 'synthetic-only'}}
+    catalog.require('create')(value, 'a')
+    first = catalog.require('record')('one', 'a')
+    assert set(first) == {'definition', 'revision'} and first['definition'] == value
+    assert uuid.UUID(hex=first['revision']).version == 4
+    assert catalog.require('get')('one', 'a') == value and catalog.require('list')('a') == [value]
+    first['definition']['connection']['token'] = 'detached-change'
+    unchanged = catalog.require('record')('one', 'a')
+    assert unchanged['definition'] == value
+    catalog.require('update')('one', value, 'a')  # Even an identical successful save rotates.
+    second = catalog.require('record')('one', 'a')
+    assert second['revision'] != first['revision']
+    original = bound.runtime._catalog
+
+    @contextmanager
+    def failed_native(session):
+        with original(session) as client:
+            class Failing:
+                get = client.get
+                @staticmethod
+                def set(*args):
+                    raise RuntimeError('pre-effect write failure')
+            yield Failing()
+
+    renamed = copy.deepcopy(value); renamed['store_id'] = 'renamed'
+    with monkeypatch.context() as m:
+        m.setattr(bound.runtime, '_catalog', failed_native)
+        with pytest.raises(RuntimeError, match='pre-effect'):
+            catalog.require('update')('one', renamed, 'a')
+        with pytest.raises(RuntimeError, match='pre-effect'):
+            catalog.require('create')(renamed, 'a')
+    assert catalog.require('record')('one', 'a') == second
+    assert catalog.require('list')('a') == [value]
+    catalog.require('update')('one', renamed, 'a')
+    third = catalog.require('record')('renamed', 'a')
+    assert third['definition'] == renamed and third['revision'] != second['revision']
+    with pytest.raises(ValueError):
+        catalog.require('record')('one', 'a')
+    with pytest.raises(ValueError):
+        catalog.require('create')(renamed, 'a')
+    assert catalog.require('record')('renamed', 'a') == third

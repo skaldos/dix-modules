@@ -1,0 +1,6 @@
+[app]
+id = "store_status"
+[compositions.catalog]
+use = "skaldos/cockpit/store_catalog"
+[functions.main]
+description = "Show the complete saved Store record in its privileged owner status pane."

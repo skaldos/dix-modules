@@ -24,3 +24,6 @@ description = "Register a Store locally without any target access."
 description = "Edit or rename a Store locally without target access."
 [functions.remove]
 description = "Remove only the local Store entry, never its target capability."
+
+[functions.record]
+description = "Read one saved Store definition and its opaque non-secret revision."

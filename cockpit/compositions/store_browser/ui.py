@@ -138,3 +138,31 @@ for key, name, command, help_text in (
     ("zX", "remove-store", "sheet.removeStore()", "remove only a local Store registration"),
 ):
     StoreSheet.addCommand(key, name, command, help_text)
+
+
+class ReadOnlyStoreSheet(Sheet):
+    """Share rendering/navigation, never inherit the catalog editor's commands or methods."""
+
+    rowtype = "Store node"
+    columns: ClassVar[list] = StoreSheet.columns
+    nHeaderRows = StoreSheet.nHeaderRows
+    drawColHeader = StoreSheet.drawColHeader
+    reload = StoreSheet.reload
+    _render = StoreSheet._render
+    openNode = StoreSheet.openNode
+    parentNode = StoreSheet.parentNode
+    rootNode = StoreSheet.rootNode
+
+    def __init__(self, browser, *, logo="dix"):
+        self.browser, self.logo, self.side = browser, logo, browser.store_id
+        super().__init__(f"{logo.upper()} Store · read only")
+
+
+for key, name, command in (
+    ("Enter", "selected-store-enter", "sheet.openNode()"),
+    ("q", "selected-store-parent", "sheet.parentNode()"),
+    ("zB", "selected-store-back", "sheet.parentNode()"),
+    ("zU", "selected-store-root", "sheet.rootNode()"),
+    ("^R", "selected-store-reload", "sheet.reload()"),
+):
+    ReadOnlyStoreSheet.addCommand(key, name, command, "navigate the selected read-only Store")

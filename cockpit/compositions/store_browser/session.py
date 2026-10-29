@@ -79,3 +79,51 @@ class BrowserSession:
             return text
         return re.sub(r"roba(?:-control)?1\.[A-Za-z0-9_.-]+", "[redacted]",
                       scrub(scrub(message, self._known), extra)).replace("\n", " ")
+
+
+class SelectedBrowserSession(BrowserSession):
+    """One saved Store only. A changed definition requires an explicit workspace reopen."""
+
+    def __init__(self, catalog, session, store_id):
+        super().__init__(catalog, session)
+        record = catalog.require("record")(store_id, session)
+        self.store_id = store_id
+        self.revision = record["revision"]
+        self._known = [record["definition"]]
+
+    def _entry(self):
+        record = self.catalog.require("record")(self.store_id, self.session)
+        if record["revision"] != self.revision:
+            raise RuntimeError("Store definition changed; reopen it from the master catalog")
+        return record["definition"]
+
+    def reload(self):
+        try:
+            entry = self._entry()
+            path = self.stack[-1]["path"] if self.stack else []
+            if not path:
+                self.catalog.require("provider_call")(entry["provider"], "root", entry["connection"])
+            rows = self.catalog.require("provider_call")(
+                entry["provider"], "children", entry["connection"], path)
+            self.rows, self.error = copy.deepcopy(rows), ""
+        except Exception as exc:  # noqa: BLE001 - keep errors inside the read-only pane
+            self.rows, self.error = [], self.safe(f"{type(exc).__name__}: {exc}")
+        return self.rows
+
+    def open(self, node):
+        self.stack.append(copy.deepcopy(node))
+        self.reload()
+
+    def parent(self):
+        if self.stack:
+            self.stack.pop()
+        self.reload()
+
+    def root(self):
+        self.stack.clear()
+        self.reload()
+
+    def inspect(self, node):
+        entry = self._entry()
+        return self.catalog.require("provider_call")(
+            entry["provider"], "inspect", entry["connection"], node["path"])

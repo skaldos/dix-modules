@@ -14,3 +14,8 @@ description = "Choose a provider and open a local Store definition draft."
 description = "Edit one detached Store definition with an explicit catalog commit."
 [functions.start]
 description = "Run one independent read-only VisiData Store browser."
+
+[functions.create_selected_session]
+description = "Create an isolated read-only browser rooted at exactly one saved Store."
+[functions.start_selected]
+description = "Run the selected Store browser without catalog mutation commands."

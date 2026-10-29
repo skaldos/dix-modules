@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from dix.core.composition import CompositionRuntimeContext
 
-from .session import BrowserSession
+from .session import BrowserSession, SelectedBrowserSession
 
 
 class Runtime:
@@ -54,6 +54,22 @@ class Runtime:
 
         browser = self.create_session(session)
         sheet = StoreSheet(browser, self, logo=logo, side=side)
+        sheet.reload()
+        vd.options.disp_menu = False
+        vd.run(sheet)
+        return 0
+
+
+    def create_selected_session(self, store_id: str, session: str = "dix") -> BrowserSession:
+        return SelectedBrowserSession(self.catalog, session, store_id)
+
+    def start_selected(self, store_id: str, session: str = "dix", logo: str = "dix") -> int:
+        from visidata import vd
+
+        from .ui import ReadOnlyStoreSheet
+
+        browser = self.create_selected_session(store_id, session)
+        sheet = ReadOnlyStoreSheet(browser, logo=logo)
         sheet.reload()
         vd.options.disp_menu = False
         vd.run(sheet)

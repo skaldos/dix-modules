@@ -126,3 +126,44 @@ def test_distinct_stores_and_depths_have_no_shared_navigation(store_graph):
     for key, name in (("zN", "new-store"), ("zE", "edit-store"),
                       ("zR", "rename-store"), ("zX", "remove-store")):
         assert sheet.getCommand(ui.vd.prettykeys(key)).longname == name
+
+
+def test_selected_browser_is_rooted_read_only_and_rejects_revision_drift(store_graph):
+    from visidata import Sheet
+
+    create, _, owner, conn, _, _, _ = external(store_graph)
+    bound, ui = browser_ui(create)
+    catalog = bound.runtime.catalog
+    for ident, connection in (('context', conn), ('instance', {**conn, 'instance_id': 'one'})):
+        catalog.require('create')({'store_id': ident, 'provider': 'roba', 'connection': connection}, 'a')
+    before = json.dumps(owner.snapshot(), sort_keys=True)
+    context = bound.api.require('create_selected_session')('context', 'a')
+    instance = bound.api.require('create_selected_session')('instance', 'a')
+    assert context.store_id == 'context' and instance.store_id == 'instance'
+    context.reload(); instance.reload()
+    assert not context.error and not instance.error
+    assert context.breadcrumb == '/context' and instance.breadcrumb == '/instance'
+    context.open(next(n for n in context.rows if n['label'] == 'settings'))
+    context.open(context.rows[0])
+    assert context.breadcrumb == '/context / settings / nested'
+    context.parent(); context.root(); context.parent()
+    assert context.store_id == 'context' and context.breadcrumb == '/context'
+    assert instance.inspect(instance.rows[0]) == 'example'
+    sheet = ui.ReadOnlyStoreSheet(context)
+    sheet.reload()
+    for operation in ('newStore', 'editStore', 'renameStore', 'removeStore'):
+        assert not hasattr(sheet, operation)
+    for name in ('new-store', 'edit-store', 'rename-store', 'remove-store'):
+        assert sheet.getCommand(name) is None
+    for key in ('zN', 'zE', 'zR', 'zX'):
+        assert sheet.getCommand(ui.vd.prettykeys(key)) == Sheet('unrelated').getCommand(ui.vd.prettykeys(key))
+    assert sheet.getCommand('Enter').longname == 'selected-store-enter'
+    assert sheet.getCommand('q').longname == 'selected-store-parent'
+    definition = catalog.require('get')('context', 'a')
+    definition['connection']['timeout'] = .75
+    catalog.require('update')('context', definition, 'a')
+    assert context.reload() == [] and 'reopen' in context.error
+    fresh = bound.api.require('create_selected_session')('context', 'a')
+    assert fresh.revision != context.revision and fresh.reload()
+    assert instance.reload() and not instance.error
+    assert json.dumps(owner.snapshot(), sort_keys=True) == before

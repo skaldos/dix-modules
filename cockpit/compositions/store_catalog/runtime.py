@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 import fcntl
 import os
+import re
+import uuid
 from collections.abc import Mapping
 from contextlib import contextmanager
 from pathlib import Path
@@ -41,14 +43,28 @@ class Runtime:
     def list(self, session: str = "dix") -> list[dict[str, object]]:
         with self._catalog(session) as client:
             values = client.get(_KEY)
-            return copy.deepcopy([values[key] for key in sorted(values)])
+            return [self._record(values[key])["definition"] for key in sorted(values)]
 
     def get(self, store_id: str, session: str = "dix") -> dict[str, object]:
+        return self.record(store_id, session)["definition"]
+
+    def record(self, store_id: str, session: str = "dix") -> dict[str, object]:
         with self._catalog(session) as client:
             values = client.get(_KEY)
             if store_id not in values:
                 raise ValueError("store does not exist; reload the catalog")
-            return copy.deepcopy(values[store_id])
+            return self._record(values[store_id])
+
+    @staticmethod
+    def _record(value):
+        # Private volatile format; no migration or silent repair of an old/malformed catalog.
+        if (not isinstance(value, dict) or set(value) != {"definition", "revision"}
+                or not isinstance(value["definition"], dict)
+                or set(value["definition"]) != {"store_id", "provider", "connection"}
+                or not isinstance(value["revision"], str)
+                or not re.fullmatch(r"[0-9a-f]{32}", value["revision"])):
+            raise RuntimeError("private Store record has an invalid shape")
+        return copy.deepcopy(value)
 
     def create(self, value: object, session: str = "dix") -> None:
         entry = self._entry(value)
@@ -56,7 +72,7 @@ class Runtime:
             values = client.get(_KEY)
             if entry["store_id"] in values:
                 raise ValueError("store ID already exists")
-            values[entry["store_id"]] = entry
+            values[entry["store_id"]] = {"definition": entry, "revision": uuid.uuid4().hex}
             client.set(_KEY, values)
 
     def update(self, store_id: str, value: object, session: str = "dix") -> None:
@@ -68,7 +84,7 @@ class Runtime:
             if entry["store_id"] != store_id and entry["store_id"] in values:
                 raise ValueError("store ID already exists")
             del values[store_id]
-            values[entry["store_id"]] = entry
+            values[entry["store_id"]] = {"definition": entry, "revision": uuid.uuid4().hex}
             client.set(_KEY, values)
 
     def remove(self, store_id: str, session: str = "dix") -> None:
