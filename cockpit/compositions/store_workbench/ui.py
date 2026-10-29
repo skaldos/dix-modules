@@ -20,6 +20,10 @@ class StoreSheet(Sheet):
         self.session, self.logo = session, logo
         super().__init__("Cockpit Stores")
         self.exiting = False
+        # Native vd.input subtracts the entire right status from prompt width. General
+        # command longnames consume a split Master pane; reserve space locally, not globally.
+        vd.options.set("disp_rstatus_fmt", "{sheet.nRows} rows {sheet.modifiedStatus}",
+                       obj=type(self))
 
     @property
     def nHeaderRows(self):

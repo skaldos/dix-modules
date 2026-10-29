@@ -204,6 +204,9 @@ def test_allowlist_reset_gate_and_closed_prompt(store_graph, monkeypatch):
     s = obj.api.require('create_session')('a')
     sheet = ui.StoreSheet(s)
     sheet.reload()
+    assert sheet.options.disp_rstatus_fmt == '{sheet.nRows} rows {sheet.modifiedStatus}'
+    from visidata import Sheet
+    assert Sheet('unrelated-status').options.disp_rstatus_fmt != sheet.options.disp_rstatus_fmt
     before = copy.deepcopy(dict(vd.bindkeys))
     with monkeypatch.context() as m:
         m.setattr(keys, 'version', lambda name: '3.5')
