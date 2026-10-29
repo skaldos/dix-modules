@@ -340,7 +340,8 @@ def test_real_master_workspace_traverses_private_roba_store_and_data(monkeypatch
         )
         observed: list[object] = []
 
-        def traverse(execute, seed, logo, confirm):
+        def traverse(execute, seed, logo, confirm, *, show_branding=True):
+            assert show_branding is False
             observed.append(seed)
             assert logo == "dix" and confirm is True
             connection = _select(execute(seed), "connection")["value"]
