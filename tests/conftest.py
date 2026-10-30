@@ -59,6 +59,10 @@ def store_graph(monkeypatch):
     for name in ("dix/state", "dix/cli", "dix/norn", "dix/roba"):
         modules.load_module(first_party_module_path(name), module_id=name)
         loaded.append(name)
+    for name in ("core", "roba"):
+        ident = f"skaldos/stores/nolspace/{name}"
+        modules.load_module(ROOT / "stores/nolspace" / name, module_id=ident)
+        loaded.append(ident)
     for name in ("visidata", "cockpit"):
         modules.load_module(ROOT / name, module_id=f"skaldos/{name}")
         loaded.append(f"skaldos/{name}")

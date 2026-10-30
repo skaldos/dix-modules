@@ -4,16 +4,18 @@ from collections.abc import Mapping
 
 from dix.core.composition import CompositionRuntimeContext
 
-from .session import BrowserSession, SelectedBrowserSession
+from .nolspace_session import NolspaceSession
+from .session import BrowserSession
 
 
 class Runtime:
     """Bind a local catalog and one provider to independent browser sessions."""
 
     def __init__(self, *, context: CompositionRuntimeContext, config: Mapping[str, object],
-                 catalog, provider, values) -> None:
-        self.catalog, self.values = catalog, values
+                 catalog, provider, values, nolspace, nolspace_provider, nolspace_connection) -> None:
+        self.catalog, self.values, self.nolspace = catalog, values, nolspace
         catalog.require("register_provider")("roba", provider)
+        catalog.require("register_nolspace")("roba", nolspace_provider, nolspace_connection)
 
     def create_session(self, session: str = "dix") -> BrowserSession:
         return BrowserSession(self.catalog, session)
@@ -60,17 +62,19 @@ class Runtime:
         return 0
 
 
-    def create_selected_session(self, store_id: str, session: str = "dix") -> BrowserSession:
-        return SelectedBrowserSession(self.catalog, session, store_id)
+    def create_selected_session(self, store_id: str, session: str = "dix") -> NolspaceSession:
+        return NolspaceSession(self.catalog, self.nolspace, session, store_id)
 
     def start_selected(self, store_id: str, session: str = "dix", logo: str = "dix") -> int:
         from visidata import vd
 
-        from .ui import ReadOnlyStoreSheet
+        from .keymap import configure_nolspace
+        from .nolspace_ui import NolspaceSheet
 
         browser = self.create_selected_session(store_id, session)
-        sheet = ReadOnlyStoreSheet(browser, logo=logo)
+        sheet = NolspaceSheet(browser, logo=logo)
         sheet.reload()
+        configure_nolspace(sheet)
         vd.options.disp_menu = False
         vd.run(sheet)
         return 0

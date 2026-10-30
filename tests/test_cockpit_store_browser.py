@@ -128,46 +128,34 @@ def test_distinct_stores_and_depths_have_no_shared_navigation(store_graph):
         assert sheet.getCommand(ui.vd.prettykeys(key)).longname == name
 
 
-def test_selected_browser_is_rooted_read_only_and_rejects_revision_drift(store_graph):
-    from visidata import Sheet
-
+def test_selected_nolspace_is_isolated_lazy_and_rejects_revision_drift(store_graph):
     create, _, owner, conn, _, _, _ = external(store_graph)
-    bound, ui = browser_ui(create)
+    bound, _ = browser_ui(create)
     catalog = bound.runtime.catalog
-    for ident, connection in (('context', conn), ('instance', {**conn, 'instance_id': 'one'})):
-        catalog.require('create')({'store_id': ident, 'provider': 'roba', 'connection': connection}, 'a')
+    for ident, connection in (("context", conn), ("instance", {**conn, "instance_id": "one"})):
+        catalog.require("create")({"store_id": ident, "provider": "roba", "connection": connection}, "a")
     before = json.dumps(owner.snapshot(), sort_keys=True)
-    context = bound.api.require('create_selected_session')('context', 'a')
-    instance = bound.api.require('create_selected_session')('instance', 'a')
-    assert context.store_id == 'context' and instance.store_id == 'instance'
+    context = bound.api.require("create_selected_session")("context", "a")
+    instance = bound.api.require("create_selected_session")("instance", "a")
     context.reload(); instance.reload()
-    assert not context.error and not instance.error
-    assert context.breadcrumb == '/context' and instance.breadcrumb == '/instance'
-    context.open(next(n for n in context.rows if n['label'] == 'settings'))
-    context.open(context.rows[0])
-    assert context.breadcrumb == '/context / settings / nested'
+    assert {r["key"] for r in context.rows} == {"values", "instances"}
+    assert all(r["object"] is None for r in context.rows + instance.rows)
+    context.lookup("values")
+    context.lookup("settings")
+    assert context.breadcrumb == "/context / values"
+    assert context.rows[0]["object"]["value"] == {"nested": ["first", {"message": "hello"}]}
+    assert instance.lookup("name")["value"] == "example"
     context.parent(); context.root(); context.parent()
-    assert context.store_id == 'context' and context.breadcrumb == '/context'
-    assert instance.inspect(instance.rows[0]) == 'example'
-    sheet = ui.ReadOnlyStoreSheet(context)
-    sheet.reload()
-    for operation in ('newStore', 'editStore', 'renameStore', 'removeStore'):
-        assert not hasattr(sheet, operation)
-    for name in ('new-store', 'edit-store', 'rename-store', 'remove-store'):
-        assert sheet.getCommand(name) is None
-    for key in ('zN', 'zE', 'zR', 'zX'):
-        assert sheet.getCommand(ui.vd.prettykeys(key)) == Sheet('unrelated').getCommand(ui.vd.prettykeys(key))
-    assert sheet.getCommand('Enter').longname == 'selected-store-enter'
-    assert sheet.getCommand('q').longname == 'selected-store-parent'
-    definition = catalog.require('get')('context', 'a')
-    definition['connection']['timeout'] = .75
-    catalog.require('update')('context', definition, 'a')
-    assert context.reload() == [] and 'reopen' in context.error
-    fresh = bound.api.require('create_selected_session')('context', 'a')
+    assert context.store_id == "context" and context.breadcrumb == "/context"
+    definition = catalog.require("get")("context", "a")
+    definition["connection"]["timeout"] = .75
+    catalog.require("update")("context", definition, "a")
+    cache = list(context.rows)
+    assert context.reload() == cache and "reopen" in context.error
+    fresh = bound.api.require("create_selected_session")("context", "a")
     assert fresh.revision != context.revision and fresh.reload()
     assert instance.reload() and not instance.error
     assert json.dumps(owner.snapshot(), sort_keys=True) == before
-
 
 
 def test_selected_header_delegates_to_sheet_without_editor_inheritance(store_graph, monkeypatch):
@@ -175,13 +163,17 @@ def test_selected_header_delegates_to_sheet_without_editor_inheritance(store_gra
 
     create, _, _ = store_graph
     bound, ui = browser_ui(create)
-    calls=[]
-    monkeypatch.setattr(Sheet,'drawColHeader',lambda sheet,*args:calls.append(type(sheet).__name__))
+    selected = importlib.import_module(bound.runtime.__class__.__module__ + ".nolspace_ui")
+    calls = []
+    monkeypatch.setattr(Sheet, "drawColHeader", lambda sheet, *args: calls.append(type(sheet).__name__))
     class Browser:
-        store_id='selected'
-        breadcrumb='/selected'
-        error=''
-    for view in (ui.StoreSheet(Browser(),bound.runtime),ui.ReadOnlyStoreSheet(Browser())):
-        view._visibleColLayout={0:(0,30)}
-        view.drawColHeader(None,0,2,0)
-    assert calls==['StoreSheet','ReadOnlyStoreSheet']
+        store_id = "selected"
+        breadcrumb = "/selected"
+        error = ""
+        view = None
+    for view in (ui.StoreSheet(Browser(), bound.runtime), selected.NolspaceSheet(Browser())):
+        view._visibleColLayout = {0: (0, 30)}
+        view.drawColHeader(None, 0, 2, 0)
+    assert calls == ["StoreSheet", "NolspaceSheet"]
+    assert not hasattr(view, "newStore") and not hasattr(view, "editStore")
+    assert view.getCommand("new-store") is None

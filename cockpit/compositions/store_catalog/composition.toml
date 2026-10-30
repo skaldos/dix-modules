@@ -27,3 +27,6 @@ description = "Remove only the local Store entry, never its target capability."
 
 [functions.record]
 description = "Read one saved Store definition and its opaque non-secret revision."
+
+[functions.register_nolspace]
+description = "Bind a local Nolspace capability without serializing it in the Store catalog."

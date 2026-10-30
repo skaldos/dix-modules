@@ -30,6 +30,9 @@ class Runtime:
     def register_provider(self, provider_id: str, provider: object) -> None:
         self.providers.require("register")(provider_id, provider)
 
+    def register_nolspace(self, provider_id: str, provider: object, connection: object) -> None:
+        self.providers.require("register_nolspace")(provider_id, provider, connection)
+
     def providers_list(self) -> list[str]:
         return self.providers.require("list")()
 
