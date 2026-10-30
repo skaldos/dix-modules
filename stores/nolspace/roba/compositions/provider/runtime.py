@@ -26,7 +26,7 @@ class Runtime:
             if (kind == "instance") != ("instance_id" in conn):
                 raise ValueError("ROBA target kind does not match the explicit scope")
             result = self.access.require("inspect")(
-                {"context_locator": conn["context_locator"], "token": conn["token"]}, conn["timeout"])
+                {"context_locator": conn["context_locator"], "token": conn.get("token")}, conn["timeout"])
             if result["context"]["id"] != conn["context_id"]:
                 raise ValueError("Context id differs from the authenticated connection")
             principal = result["principal"]
@@ -54,7 +54,7 @@ class Runtime:
     def _ids(self, conn, principal):
         if principal["owner"] or "read" in principal["access"].get("context", []):
             result = self.instances.require("list")(
-                context_access={"context_locator": conn["context_locator"], "token": conn["token"]},
+                context_access={"context_locator": conn["context_locator"], "token": conn.get("token")},
                 timeout=conn["timeout"])
             return [item["id"] for item in result]
         # Known scopes only, not a new native discovery permission. No State read here.
@@ -63,7 +63,7 @@ class Runtime:
 
     @staticmethod
     def _args(conn):
-        return {"access": {"context_locator": conn["context_locator"], "token": conn["token"]},
+        return {"access": {"context_locator": conn["context_locator"], "token": conn.get("token")},
                 "instance_id": conn.get("instance_id", ""), "timeout": conn["timeout"]}
 
     def enumerate(self, view: object) -> list[dict[str, str]]:

@@ -152,3 +152,18 @@ def test_bad_access_cannot_use_owner_environment_and_bad_values_never_write(nati
     assert calls==[]
     monkeypatch.setattr(TransportClient,'request',original)
     assert owner.get('text').startswith('long-')
+
+
+def test_explicit_native_socket_capability_needs_no_token_or_environment(native_nolspace, monkeypatch):
+    create, owner, base, _ = native_nolspace
+    boot = create('skaldos/stores/nolspace/roba/connection').api
+    provider = create('skaldos/stores/nolspace/roba/provider').api
+    socket = owner.socket_create(socket_id='reader', read=['instance:same'])['socket']
+    connection = {key: value for key, value in base.items() if key != 'token'}
+    connection.update(context_locator='unix:' + socket, instance_id='same')
+    monkeypatch.setenv('ROBA_CTX_TOKEN', base['token'])
+    root = boot.require('root')(connection)
+    assert root['value']['caps'] == ['enumerate', 'lookup']
+    assert provider.require('lookup')(root, 'same')['value'] == 'instance value'
+    with pytest.raises(RuntimeError, match='does not permit'):
+        provider.require('delete')(root, 'same')

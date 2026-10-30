@@ -17,9 +17,9 @@ class Runtime:
     def validate(self, connection: object) -> dict[str, object]:
         try:
             result = self.loom.require("materialize_connection")(connection)
-            fields = {"context_id", "context_locator", "token", "timeout"}
-            if set(result) not in (fields, fields | {"instance_id"}):
-                raise ValueError("Nolspace requires an explicit existing token-based Context/Instance connection")
+            fields = {"context_id", "context_locator", "timeout"}
+            if not fields <= set(result) <= fields | {"instance_id", "token"}:
+                raise ValueError("Nolspace requires an explicit existing Context/Instance connection")
             return copy.deepcopy(result)
         except Exception as exc:  # noqa: BLE001 - private credential boundary
             raise ValueError(_safe(f"{type(exc).__name__}: {exc}", connection)) from None
@@ -28,7 +28,7 @@ class Runtime:
         conn = self.validate(connection)
         try:
             result = self.access.require("inspect")(
-                {"context_locator": conn["context_locator"], "token": conn["token"]}, conn["timeout"])
+                {"context_locator": conn["context_locator"], "token": conn.get("token")}, conn["timeout"])
             if result["context"]["id"] != conn["context_id"]:
                 raise ValueError("Context id differs from the authenticated connection")
             if "instance_id" in conn:
