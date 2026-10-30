@@ -1,0 +1,14 @@
+[composition]
+id = "connection"
+[compositions.loom]
+use = "dix/roba/loom"
+[compositions.access]
+use = "dix/roba/context_access"
+[compositions.contract]
+use = "skaldos/stores/nolspace/core/contract"
+[functions.draft]
+description = "Return the existing token-based ROBA Context connection draft."
+[functions.validate]
+description = "Materialize one explicit existing Context/Instance connection without transport."
+[functions.root]
+description = "Bootstrap a Nolspace root from authenticated metadata, never State values."

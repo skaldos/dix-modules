@@ -1,0 +1,20 @@
+[composition]
+id = "provider"
+[compositions.connection]
+use = "skaldos/stores/nolspace/roba/connection"
+[compositions.access]
+use = "dix/roba/context_access"
+[compositions.data]
+use = "dix/roba/data"
+[compositions.instances]
+use = "dix/roba/instance"
+[compositions.contract]
+use = "skaldos/stores/nolspace/core/contract"
+[functions.enumerate]
+description = "Enumerate names only; native keys and Instance metadata never transport State values."
+[functions.lookup]
+description = "Resolve one key or one Child view through the explicit authenticated connection."
+[functions.upsert]
+description = "Write one standard atomic value without a preceding read."
+[functions.delete]
+description = "Delete one key without a preceding read."
