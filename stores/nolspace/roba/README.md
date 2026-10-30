@@ -4,8 +4,8 @@ Explicit module ID `skaldos/stores/nolspace/roba`; load dix/state, dix/cli, dix/
 then the Nolspace core and this module. No Cockpit, VisiData or tmux imports.
 
 `connection` is provider-specific bootstrap (draft/validate/root), not extra standard verbs.
-It accepts the existing explicit token-based canonical Context/Instance connections. No automatic
-Control/owner/environment resolution and no new tokenless connection variant. Root inspection
+It accepts existing explicit canonical Context/Instance connections, using a token or an existing
+native capability socket. No automatic Control/owner/environment resolution or access creation. Root inspection
 reads authenticated metadata only. `provider` exposes exactly enumerate/lookup/upsert/delete.
 Consume it through the explicit core/api binding; children retain the same provider.
 

@@ -88,6 +88,10 @@ def test_browser_standard_atomic_creation_strict_parsing_and_delete(store_graph,
         sheet.dispatch("n")
         assert owner.get("fresh") == expected
     assert calls == ["upsert"] * 5
+    for kind in ("array", "object", "nolspace", "vendor"):
+        monkeypatch.setattr(ui.vd, "input", lambda *a, kind=kind, **k: kind)
+        sheet.dispatch("n")
+        assert calls == ["upsert"] * 5
     choose(sheet, "fresh")
     monkeypatch.setattr(ui.vd, "confirm", lambda *a: False)
     sheet.dispatch("d"); assert calls == ["upsert"] * 5
@@ -135,9 +139,13 @@ def test_complex_values_are_local_read_only_and_copy_uses_full_native_cell(store
     long = "long $literal; " + "z" * 2000 + "\nlast line"
     owner.set("long", long)
     choose(sheet, "values"); sheet.enter()
-    choose(sheet, "long"); sheet.enter()
-    assert len(sheet.cursorRow["value"]) == 120
     calls = track(browser, monkeypatch)
+    choose(sheet, "long", col=2); sheet.copy_cell()
+    assert calls == [] and "not loaded" in browser.error
+    choose(sheet, "long"); sheet.enter()
+    assert calls == ["lookup"]
+    calls.clear()
+    assert len(sheet.cursorRow["value"]) == 120
     sent = []
     monkeypatch.setenv("DIX_COCKPIT_CLIPBOARD_COPY", "/absolute/clipboard")
     original_run = subprocess.run
@@ -183,6 +191,27 @@ assert Sheet("generic").getCommand("/") is not None
 class Browser:
     view = None
 sheet = ui.NolspaceSheet(Browser())
+original_version = keymap.version
+before = {k: dict(v) for k, v in vd.bindkeys.items()}
+keymap.version = lambda name: "0.incompatible"
+try:
+    keymap.configure_nolspace(sheet)
+except keymap.NolspaceKeymapCompatibilityError as exc:
+    assert "VisiData 3.4" in str(exc)
+else:
+    raise AssertionError("incompatible version was accepted")
+assert before == dict(vd.bindkeys)
+keymap.version = original_version
+registry = vd.bindkeys
+vd.bindkeys = {}
+try:
+    keymap.configure_nolspace(sheet)
+except keymap.NolspaceKeymapCompatibilityError:
+    pass
+else:
+    raise AssertionError("incompatible registry was accepted")
+assert vd.bindkeys == {}
+vd.bindkeys = registry
 proof = keymap.configure_nolspace(sheet)
 assert proof["cleared"] == 0 and len(proof["bindings"]) == 18
 assert sheet.getCommand("y").longname == "nolspace-copy"

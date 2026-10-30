@@ -19,6 +19,8 @@ modules = registry.require('module', ModuleComponent)
 component = registry.require('composition', CompositionComponent)
 for name in ('state', 'cli', 'norn', 'roba'):
     modules.load_module(first_party_module_path('dix/' + name), module_id='dix/' + name)
+for part in ('core', 'roba'):
+    modules.load_module(root / 'stores/nolspace' / part, module_id='skaldos/stores/nolspace/' + part)
 for name in ('visidata', 'cockpit'):
     modules.load_module(root / name, module_id='skaldos/' + name)
 instance = component.create_instance(CompositionInstanceSpec(
@@ -139,5 +141,5 @@ try:
 finally:
     observe(sheet)
     component.destroy_instance('probe', 'probe')
-    for name in ('skaldos/cockpit', 'skaldos/visidata', 'dix/roba', 'dix/norn', 'dix/cli', 'dix/state'):
+    for name in ('skaldos/cockpit', 'skaldos/visidata', 'skaldos/stores/nolspace/roba', 'skaldos/stores/nolspace/core', 'dix/roba', 'dix/norn', 'dix/cli', 'dix/state'):
         modules.unload_module(name)

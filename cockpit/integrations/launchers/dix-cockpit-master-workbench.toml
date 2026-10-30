@@ -26,5 +26,13 @@ id = "skaldos/visidata"
 source = "@SKALDOS_VISIDATA_UI_MODULE@"
 
 [[modules]]
+id = "skaldos/stores/nolspace/core"
+source = "@SKALDOS_NOLSPACE_CORE_MODULE@"
+
+[[modules]]
+id = "skaldos/stores/nolspace/roba"
+source = "@SKALDOS_NOLSPACE_ROBA_MODULE@"
+
+[[modules]]
 id = "skaldos/cockpit"
 source = "@SKALDOS_COCKPIT_UI_MODULE@"

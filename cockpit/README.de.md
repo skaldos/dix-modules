@@ -279,7 +279,7 @@ Store-Window
 | Logo + privilegierter Status   |
 | volle Definition + Revision    |
 +--------------------------------+
-| genau ein read-only Browser    |
+| genau ein Nolspace-Browser    |
 | direkt am gewaehlten Store     |
 +--------------------------------+
 ```
@@ -302,18 +302,46 @@ Store-Window
   Window auf. Ein fehlerhafter Rebuild kann einen sichtbaren Reparatur-/Recreate-Bedarf hinterlassen;
   alte Zugriffsprozesse werden zuerst gestoppt.
 
-Der Browser bleibt im gewaehlten Store. Enter drillt Container oder zeigt atomare Werte; `q`/`zB`
-geht zum Parent, am Store-Root bleibt `q` aktiv; `zU` springt zum selben Store-Root, Ctrl+R liest
-neu. Ein atomarer Inspect-Sheet wird mit normalem VisiData-q geschlossen. Dieser Browser besitzt
-keine New/Edit/Rename/Remove-Kommandos fuer den Katalog und ruft ausschliesslich die positive
-Provideroberflaeche `root`/`children`/`inspect`. Providerfehler bleiben im Pane sichtbar, ohne das
-Window oder den Store zu loeschen. Dies ist keine Sandbox fuer vom Owner selbst ausgefuehrten
-beliebigen Pythoncode.
+Der gewaehlte Store-Browser konsumiert jetzt den externen **Nolspace**-Vertrag (UP-069)
+statt ROBA-spezifischer Treepfade. Katalog, opake Revision, `:o`, besessene Window-Reparatur und
+privilegierter Status bleiben erhalten. `./cockpit/integrations/install-ui` erneut ausfuehren:
+Die explizite private Sourceprojektion nimmt `skaldos/stores/nolspace/core` und
+`skaldos/stores/nolspace/roba` mit. Basisruntime und TOML-Workbench bleiben separat.
 
-Context-Connections koennen Keys und lesbare Instances zeigen; eine Connection mit `instance_id`
-zeigt direkt nur deren Keys. Existierende Instance-Connections lassen sich ueber den Katalog-API
-materialisieren und danach im Master-Pane pruefen/speichern. Der schlanke New-Draft bleibt die
-bisherige Context-Form; UP-068 erfindet keine neue Provider-/Draftvariante.
+| Taste | Wirkung nur im gewaehlten Nolspace-Browser |
+| --- | --- |
+| Enter auf key | Genau ein Lookup; ein Nolspace oeffnet sofort als Child |
+| Enter auf geladenem atomaren value | Nativer Inline-Editor; Enter schreibt einmal, Esc gar nicht |
+| Enter auf geladenem Array/Object | Abgeloesten lokalen Wert **nur lesen** und drillen |
+| :n | Standardtyp, Name und Wert abfragen; einmal schreiben (null ohne Wertprompt) |
+| :d | Gewaehlten Namen nach Bestaetigung loeschen; kein :x-Alias |
+| :r / Ctrl+R | Aufgeloeste Zeilencaches verwerfen und Namen neu enumerieren |
+| q / zU | Parent / gewaehlter Store-Root; q am Root haelt den Browser offen |
+| y | Vollstaendigen aktiven Zellwert kopieren, niemals die gekuerzte Preview |
+| :q | Diesen Browser bewusst beenden |
+
+Spalten: `key/type/value`. Enumerate laedt **nur Namen**; Zeichnen und Reload laden keine Werte.
+Context-Roots trennen `values` und `instances`, auch bei gleichen nativen Namen. Eine explizite
+Instance-Connection zeigt direkt ihre Values. Childs behalten dieselbe lokale Providerbindung;
+ihre optionalen Targets bleiben fuer den Browser opaque. Erfolgreiches Reload verwirft Caches,
+Fehler erhalten moeglichst den letzten bestaetigten Wert und die Navigation.
+
+Upsert nur fuer string/integer/number/boolean/null. Strings ohne Quotes, Integer als Integerliteral,
+Number endlich, Boolean exakt `true`/`false`, Null exakt `null`. Array/Object und unbekannte
+Providertypen sind nicht konstruierbar oder editierbar. Delete betrifft genau den gewaehlten Namen.
+Kein globales Save; der getrennte Master-Definitionseditor behaelt `:w` / Ctrl+S.
+
+Read-only blockiert Mutation vor dem Provideraufruf. Write-only enumeriert keine vorhandenen Keys:
+`:n` schreibt einen bekannten Wert, sein lokales Ergebnis laesst sich mit `:d` loeschen — ohne
+Keys/Get/Read-before-Write. Native Principalrechte bleiben bei jedem Aufruf autoritativ; UI-Caps
+sind keine Grants. Kein Owner-, Control- oder Environmentfallback bei fehlendem/falschem Zugriff.
+Providerfehler bleiben im Pane; eine alte Storerevision verlangt erneutes Oeffnen ueber `:o`.
+
+Der eigene Browserprozess prueft VisiData 3.4 und setzt seine Bindings auf eine 18-Tasten-Allowlist.
+Keine generische Spreadsheetmutation, Dateispeicherung oder offene Kommandosprache; andere
+VisiData-Prozesse behalten ihre Bindings. `y` liefert den vollen Wert per stdin an den vorhandenen
+Clipboardadapter. `Ctrl-a p` bindet aktiven Pane und privaten Server explizit, auch bei Fokuswechsel
+waehrend langsamen Clipboardlesens. Kein Zellinhalt geht in argv.
 
 **Der Status ist bewusst voll privilegiert:** Locator, Token und Scope sind dort sichtbar und
 kopierbar. Nicht in argv, Titel, tmux-Optionen/Environment, normale Fehlerlogs oder ungepruefte

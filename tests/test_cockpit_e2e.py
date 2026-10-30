@@ -67,6 +67,10 @@ def test_real_privileged_runtime_reuse_reset_and_two_sessions(monkeypatch) -> No
             loaded.append(module_id)
         modules.load_module(ROOT / "visidata", module_id="skaldos/visidata")
         loaded.append("skaldos/visidata")
+        for part in ("core", "roba"):
+            module_id = "skaldos/stores/nolspace/" + part
+            modules.load_module(ROOT / "stores/nolspace" / part, module_id=module_id)
+            loaded.append(module_id)
         modules.load_module(ROOT / "cockpit", module_id="skaldos/cockpit")
         loaded.append("skaldos/cockpit")
         instance = compositions.create_instance(
@@ -290,6 +294,10 @@ def test_real_master_workspace_traverses_private_roba_store_and_data(monkeypatch
             loaded.append(module_id)
         modules.load_module(ROOT / "visidata", module_id="skaldos/visidata")
         loaded.append("skaldos/visidata")
+        for part in ("core", "roba"):
+            module_id = "skaldos/stores/nolspace/" + part
+            modules.load_module(ROOT / "stores/nolspace" / part, module_id=module_id)
+            loaded.append(module_id)
         modules.load_module(ROOT / "cockpit", module_id="skaldos/cockpit")
         loaded.append("skaldos/cockpit")
         session_instance = compositions.create_instance(

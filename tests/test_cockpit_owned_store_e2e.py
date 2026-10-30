@@ -91,7 +91,8 @@ def test_installed_owned_stores_with_two_real_contexts_and_instances(real_owned_
             win=windows(sid)[0]
             wait_for(lambda: tmux(sock,'display-message','-p','#{window_id}')==win)
             pair=panes(win)
-            wait_for(lambda: 'READ ONLY' in screen(pair['browser']['id']) and 'settings' in screen(pair['browser']['id']))
+            wait_for(lambda: 'Nolspace' in screen(pair['browser']['id']) and
+                     ('values' if 'instance_id' not in connections[sid] else 'settings') in screen(pair['browser']['id']))
             wait_for(lambda: catalog.require('record')(sid,'a')['revision'] in screen(pair['status']['id'],True))
         except AssertionError:
             detail=safe(screen(store))
@@ -127,29 +128,37 @@ def test_installed_owned_stores_with_two_real_contexts_and_instances(real_owned_
         if 'instance_id' in connections[sid]: assert connections[sid]['instance_id'] in status
         pane=pair['browser']['id']
         model=browser_api.require('create_selected_session')(sid,'a')
-        labels=[node['label'] for node in model.reload()]
-        if sid.endswith('context'): assert sid.removesuffix('context')+'work' in labels
-        else: assert sid not in labels
-        # Drive the installed browser through list -> object -> root and object -> root.
-        for field in ('refs','settings'):
-            keys(pane,'g','g')
-            for _ in range(labels.index(field)): keys(pane,'Down')
-            keys(pane,'Enter')
-            wait_for(lambda field=field, pane=pane: field in screen(pane))
-            if field=='refs':
-                keys(pane,'Enter');wait_for(lambda pane=pane: 'file' in screen(pane))
-            keys(pane,'z','U')
-            wait_for(lambda pane=pane: 'settings' in screen(pane) and 'priority' in screen(pane))
-        for field in ('project','active','priority'):
-            keys(pane,'g','g')
-            for _ in range(labels.index(field)): keys(pane,'Down')
-            keys(pane,'Enter');keys(pane,'Enter')
-            expected=(sid.split('-')[0]+(' instance' if 'instance_id' in connections[sid] else ' context')
-                      if field=='project' else ('true' if sid.startswith('alpha') else 'false')
-                      if field=='active' else ('7' if sid.startswith('alpha') else '21'))
-            wait_for(lambda pane=pane, expected=expected: 'Read-only Store value' in screen(pane) and expected in screen(pane))
-            keys(pane,'q');keys(pane,'z','U')
-            wait_for(lambda pane=pane: 'settings' in screen(pane) and 'priority' in screen(pane))
+        model.reload()
+        context_scope = 'instance_id' not in connections[sid]
+        if context_scope:
+            model.lookup('values')
+        labels = [node['key'] for node in model.rows]
+        assert 'settings' in labels and 'refs' in labels
+
+        def value_root(pane=pane, context_scope=context_scope):
+            keys(pane, 'z', 'U')
+            if context_scope:
+                wait_for(lambda: 'instances' in screen(pane))
+                keys(pane, 'Enter')  # Explicit lookup of the structural values Child.
+            wait_for(lambda: 'settings' in screen(pane) and 'priority' in screen(pane))
+
+        for field in ('refs', 'settings'):
+            value_root(); keys(pane, 'g', 'g')
+            for _ in range(labels.index(field)): keys(pane, 'Down')
+            keys(pane, 'Enter'); keys(pane, 'Enter')  # Lookup, then local read-only drill.
+            if field == 'refs':
+                keys(pane, 'Enter'); wait_for(lambda pane=pane: 'file' in screen(pane))
+            else:
+                wait_for(lambda pane=pane: 'colors' in screen(pane))
+        for field in ('project', 'active', 'priority'):
+            value_root(); keys(pane, 'g', 'g')
+            for _ in range(labels.index(field)): keys(pane, 'Down')
+            keys(pane, 'Enter')  # Load only; a second Enter now means explicit inline editing.
+            expected = (sid.split('-')[0] + (' instance' if not context_scope else ' context')
+                        if field == 'project' else ('true' if sid.startswith('alpha') else 'false')
+                        if field == 'active' else ('7' if sid.startswith('alpha') else '21'))
+            wait_for(lambda expected=expected, pane=pane: expected in screen(pane))
+        value_root()
         for key in ('N','E','R','X'): keys(pane,'z',key)
         same,same_pair=opened(sid)
         assert same==win and {k:p['pid'] for k,p in same_pair.items()}=={k:p['pid'] for k,p in pair.items()}

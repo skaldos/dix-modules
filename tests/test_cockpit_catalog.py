@@ -21,6 +21,10 @@ def catalog_api(tmp_path: Path):
         loaded.append(module_id)
     modules.load_module(ROOT / "visidata", module_id="skaldos/visidata")
     loaded.append("skaldos/visidata")
+    for part in ("core", "roba"):
+        module_id = "skaldos/stores/nolspace/" + part
+        modules.load_module(ROOT / "stores/nolspace" / part, module_id=module_id)
+        loaded.append(module_id)
     modules.load_module(ROOT / "cockpit", module_id="skaldos/cockpit")
     loaded.append("skaldos/cockpit")
     instance = compositions.create_instance(
@@ -104,6 +108,10 @@ def test_config_uses_xdg_defaults_without_creating_files(tmp_path: Path, monkeyp
         loaded.append(module_id)
     modules.load_module(ROOT / "visidata", module_id="skaldos/visidata")
     loaded.append("skaldos/visidata")
+    for part in ("core", "roba"):
+        module_id = "skaldos/stores/nolspace/" + part
+        modules.load_module(ROOT / "stores/nolspace" / part, module_id=module_id)
+        loaded.append(module_id)
     modules.load_module(ROOT / "cockpit", module_id="skaldos/cockpit")
     loaded.append("skaldos/cockpit")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))

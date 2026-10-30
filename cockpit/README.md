@@ -272,7 +272,7 @@ Store window
 | logo + privileged status       |
 | full definition + revision     |
 +--------------------------------+
-| exactly one read-only browser  |
+| exactly one Nolspace browser  |
 | rooted at the selected Store   |
 +--------------------------------+
 ```
@@ -294,17 +294,46 @@ Store window
   adoption or deletion of foreign resources. Fresh-creation failure removes only its new window.
   A failed rebuild can leave a visible repair/recreate requirement; old access is stopped first.
 
-The browser stays in its selected Store. Enter drills containers or inspects atomic values;
-`q`/`zB` goes to the parent and stays alive at the Store root; `zU` returns to that same root,
-Ctrl+R reloads. Close a scalar inspect sheet with native VisiData-q. The selected browser has no
-catalog New/Edit/Rename/Remove commands and calls only the positive provider surface
-`root`/`children`/`inspect`. Provider errors stay visible without deleting the window or catalog
-entry. This is not a sandbox for arbitrary Python code deliberately executed by its owner.
+The selected Store browser now consumes the external **Nolspace** contract (UP-069), not
+ROBA-specific tree paths. The existing catalog, opaque revision, `:o`, owned window repair/rebuild
+and privileged status are unchanged. Re-run `./cockpit/integrations/install-ui`: its explicit
+private projection includes `skaldos/stores/nolspace/core` and `skaldos/stores/nolspace/roba`.
+The base runtime and separate TOML workbench installers remain independent.
 
-Context connections may expose keys and readable instances; a connection with `instance_id`
-starts directly at that instance's keys. Existing instance connections can be materialized through
-the catalog API, then reviewed/saved in the master pane. New's small draft remains the existing
-Context form; UP-068 does not invent another provider or draft variant.
+| Key | Effect in the selected Nolspace browser only |
+| --- | --- |
+| Enter on key | Exactly one lookup; a Nolspace opens immediately as a Child |
+| Enter on a loaded atomic value | Native inline editor; Enter writes once, Esc writes nothing |
+| Enter on a loaded array/object | Drill a detached **read-only** local value |
+| :n | Ask standard atomic type, name and value; write once (null needs no value prompt) |
+| :d | Confirm deletion of the selected name; no :x alias |
+| :r / Ctrl+R | Discard resolved row caches and enumerate names again |
+| q / zU | Parent / selected Store root; q at root keeps the browser alive |
+| y | Copy the full underlying active cell, never its truncated preview |
+| :q | Explicitly exit this browser |
+
+Columns are `key/type/value`. Enumeration loads **names only**; neither rendering nor reload looks
+up values. Context roots separate `values` from `instances` even when both contain the same native
+name. An explicit Instance connection starts at its Values. Child views keep their local provider
+binding; their optional targets stay opaque to the browser. Reload discards resolved caches only
+on success; errors leave the last confirmed value and navigation usable.
+
+Only string/integer/number/boolean/null can be upserted. Strings need no quotes; integers use integer
+literals, numbers must be finite, booleans exactly `true`/`false`, null exactly `null`. Array/object
+and unknown provider types cannot be constructed or edited. Delete targets one selected name.
+There is no global Save. The separate master Store-definition editor still uses `:w` / Ctrl+S.
+
+Read-only views block mutation before any provider call. Write-only views do not enumerate or
+invent existing keys: `:n` writes a known value and its local result can be selected for `:d`, with
+no Keys/Get/read-before-write. Native principal rights remain authoritative on every call; UI caps
+are not grants. Bad, missing or stale access never falls back to owner, Control or environment.
+Provider errors stay in the pane; an old Store revision requires reopening through `:o`.
+
+The dedicated browser checks VisiData 3.4 and clears its process-local binding registry to an
+18-key allowlist. Generic spreadsheet mutations/save and an open command language are unavailable;
+other VisiData processes keep their own bindings. `y` sends the complete cell via stdin to the
+existing clipboard adapter. `Ctrl-a p` captures the active pane and private server explicitly,
+even if focus changes during a slow clipboard read. No cell payload is passed in argv.
 
 **Status is deliberately privileged:** locator, token and scope are visible and copyable there.
 Never forward them through argv, titles, tmux options/environment, ordinary error logs or unchecked
