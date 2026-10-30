@@ -1,0 +1,8 @@
+[strand]
+id = "object"
+[input]
+type = "model"
+model = "object.toml"
+[output]
+type = "model"
+model = "object.toml"

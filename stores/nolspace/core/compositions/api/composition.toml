@@ -1,0 +1,12 @@
+[composition]
+id = "api"
+[compositions.contract]
+use = "skaldos/stores/nolspace/core/contract"
+[functions.enumerate]
+description = "Enumerate only References through an explicitly supplied local provider API."
+[functions.lookup]
+description = "Resolve exactly one named Object through the same provider binding."
+[functions.upsert]
+description = "Upsert one Object without an implicit lookup."
+[functions.delete]
+description = "Delete exactly one name without an implicit lookup."

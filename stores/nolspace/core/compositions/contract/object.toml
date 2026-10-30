@@ -1,0 +1,7 @@
+name = "NolspaceObject"
+[fields.name]
+type = "string"
+[fields.type]
+type = "string"
+[fields.value]
+type = "any"
