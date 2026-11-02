@@ -38,7 +38,7 @@ def main(mode):
     # tmux load-buffer silently ignores zero bytes and would retain an older clipboard.
     # Do not invent destructive clear/history semantics or report that as a successful copy.
     if copying and not payload:
-        print("Cockpit tmux buffer cannot store an empty payload; clipboard unchanged", file=sys.stderr)
+        print("Cockpit tmux buffer cannot store an empty payload; private buffer unchanged", file=sys.stderr)
         return 1
     tmux = [os.environ.get("DIX_COCKPIT_TMUX_BIN", "tmux"), "-S", socket]
     result = run([*tmux, "load-buffer" if copying else "save-buffer", "-"], payload)
