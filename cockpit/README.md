@@ -426,3 +426,8 @@ privileged Store-status pane above deliberately displays the complete definition
 receive only session/logo/side and obtain the private capability inside their process. Terminal
 recordings can still capture an intentionally displayed token: use short-lived test credentials,
 keep recordings private and inspect/redact before sharing.
+
+**Empty clipboard values:** a successful system adapter may handle them. Native tmux ignores an
+empty `load-buffer` without replacing an older buffer, so the private fallback explicitly rejects
+an empty payload instead of reporting a false copy success. It does not clear clipboard history
+or invent an empty-buffer sentinel. The previous private buffer remains unchanged.

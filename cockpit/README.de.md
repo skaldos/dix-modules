@@ -449,3 +449,8 @@ Buffer zurueck, niemals auf den Host-Defaultserver. Der stdlib-Helper puffert nu
 reicht Bytes unveraendert weiter und verwirft partielle Ausgabe eines gescheiterten Paste-Versuchs.
 Keine Payload in argv, dauerhaften Tempfiles oder Fehlermeldungen. Das beim Prefix-Paste erfasste
 Pane bleibt auch bei Fokuswechsel das Ziel.
+
+**Leerer Clipboardwert:** Ein erfolgreicher Systemadapter kann ihn behandeln. tmux ignoriert einen
+leeren `load-buffer` jedoch, ohne den alten Buffer zu ersetzen. Deshalb verweigert der private
+Fallback leere Payloads sichtbar statt Copy-Scheinerfolg zu melden. Keine implizite Loeschung der
+Clipboardhistorie und kein Sentinel; der bisherige private Buffer bleibt unveraendert.
