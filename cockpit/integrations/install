@@ -146,6 +146,8 @@ PY
         --replace
 done
 
+cp "$integration_root/clipboard.py" "$DIX_LAUNCHERS/cockpit/clipboard.py"
+chmod 0600 "$DIX_LAUNCHERS/cockpit/clipboard.py"
 cp "$integration_root/tmux/cockpit.conf" "$DIX_LAUNCHERS/cockpit/tmux.conf"
 cp "$integration_root/zsh/.zshrc" "$DIX_LAUNCHERS/cockpit/zsh/.zshrc"
 cp "$module_root/assets/dix.png" "$DIX_LAUNCHERS/cockpit/assets/dix.png"

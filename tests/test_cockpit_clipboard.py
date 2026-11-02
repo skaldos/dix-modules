@@ -4,6 +4,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parents[1]
 COPY = ROOT / "cockpit/integrations/bin/dix-cockpit-clipboard-copy"
 PASTE = ROOT / "cockpit/integrations/bin/dix-cockpit-clipboard-paste"
@@ -102,7 +104,7 @@ esac''',
     assert paste.stdout == payload
     commands = log.read_text().splitlines()
     assert commands[0] == f"-S {socket} load-buffer -"
-    assert commands[-1] == f"-S {socket} save-buffer -"
+    assert commands[-2] == f"-S {socket} save-buffer -"
     assert "System clipboard unavailable" in copy.stderr.decode()
     assert "System clipboard unavailable" in paste.stderr.decode()
 
@@ -169,3 +171,48 @@ printf 'literal-paste-payload\\n'
         client.wait(timeout=5)
         os.close(master)
         workspace.require("stop")(session="a")
+
+
+@pytest.mark.parametrize("backend", ["wayland", "x11"])
+def test_failed_system_adapter_replays_exact_bytes_and_discards_partial_paste(tmp_path, backend):
+    tools = tmp_path / "bin"; tools.mkdir()
+    buffer, log = tmp_path / "private-buffer", tmp_path / "argv.log"
+    _tool(tools, "tmux", f'''printf '%s\\n' "$*" >> "{log}"
+case "$*" in
+  *"load-buffer -"*) cat > "{buffer}" ;;
+  *"save-buffer -"*) cat "{buffer}" ;;
+esac''')
+    for name in ("wl-copy", "wl-paste", "xclip"):
+        _tool(tools, name, f'''printf '%s\\n' "$*" >> "{log}"
+cat >/dev/null <<EOF
+ignored
+EOF
+printf 'partial-must-not-escape'
+printf 'backend diagnostic must not escape' >&2
+exit 17''')
+    environment = {**os.environ, "PATH": f"{tools}:/usr/bin:/bin",
+        "WAYLAND_DISPLAY": "broken" if backend == "wayland" else "", "DISPLAY": ":99",
+        "DIX_COCKPIT_TMUX_SOCKET": str(tmp_path / "private.sock"), "DIX_COCKPIT_TMUX_BIN": "tmux"}
+    payload = ('secret-$HOME;$(touch forbidden)\n' + 'a' * 180_000 + '\nlast\n').encode() + b'\x00'
+    copied = _run(COPY, environment, payload)
+    assert copied.returncode == 0 and buffer.read_bytes() == payload
+    pasted = _run(PASTE, environment)
+    assert pasted.returncode == 0 and pasted.stdout == payload
+    assert copied.stdout == b''
+    assert b'partial' not in pasted.stderr and b'backend diagnostic' not in copied.stderr + pasted.stderr
+    assert 'secret-$HOME' not in log.read_text()
+    assert all(line.startswith('-S ' + environment['DIX_COCKPIT_TMUX_SOCKET'])
+               for line in log.read_text().splitlines() if 'buffer' in line or 'display-message' in line)
+    assert not (tmp_path / 'forbidden').exists()
+
+
+def test_failed_clipboard_without_explicit_private_socket_never_uses_host_tmux(tmp_path):
+    tools = tmp_path / "bin"; tools.mkdir()
+    touched = tmp_path / "host-tmux-used"
+    _tool(tools, 'wl-copy', 'exit 1')
+    _tool(tools, 'tmux', f'touch "{touched}"; exit 0')
+    env = {**os.environ, 'PATH': f'{tools}:/usr/bin:/bin', 'WAYLAND_DISPLAY': 'bad', 'DISPLAY': ''}
+    env.pop('DIX_COCKPIT_TMUX_SOCKET', None)
+    result = _run(COPY, env, b'private payload')
+    assert result.returncode != 0 and not touched.exists()
+    assert b'private payload' not in result.stderr

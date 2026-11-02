@@ -1,16 +1,12 @@
 #!/bin/sh
 set -eu
 
-if [ -n "${WAYLAND_DISPLAY:-}" ] && command -v wl-copy >/dev/null 2>&1; then
-    exec wl-copy
+# Source checkout and installed asset use the same stdlib-only byte adapter.
+source_helper=$(CDPATH='' cd "$(dirname "$0")/.." && pwd -P)/clipboard.py
+if [ -r "$source_helper" ]; then
+    helper=$source_helper
+else
+    helper=${DIX_LAUNCHERS:?DIX_LAUNCHERS is required}/cockpit/clipboard.py
 fi
-
-if [ -n "${DISPLAY:-}" ] && command -v xclip >/dev/null 2>&1; then
-    exec xclip -selection clipboard -in
-fi
-
-socket=${DIX_COCKPIT_TMUX_SOCKET:?DIX_COCKPIT_TMUX_SOCKET is required for tmux fallback}
-tmux_bin=${DIX_COCKPIT_TMUX_BIN:-tmux}
-"$tmux_bin" -S "$socket" load-buffer -
-"$tmux_bin" -S "$socket" display-message "System clipboard unavailable; copied to Cockpit tmux buffer"
-printf '%s\n' 'System clipboard unavailable; copied to Cockpit tmux buffer' >&2
+python=${DIX_VENV:+$DIX_VENV/bin/python}
+exec "${python:-python3}" "$helper" copy
