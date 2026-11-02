@@ -310,12 +310,13 @@ Die explizite private Sourceprojektion nimmt `skaldos/stores/nolspace/core` und
 
 | Taste | Wirkung nur im gewaehlten Nolspace-Browser |
 | --- | --- |
-| Enter auf key | Genau ein Lookup; ein Nolspace oeffnet sofort als Child |
+| Enter auf ungeladener Row (jede Spalte) | Genau ein Lookup, kein Edit im selben Tastendruck; ein Nolspace oeffnet als Child |
+| Enter auf geladenem key | Bewusster erneuter Lookup |
 | Enter auf geladenem atomaren value | Nativer Inline-Editor; Enter schreibt einmal, Esc gar nicht |
-| Enter auf geladenem Array/Object | Abgeloesten lokalen Wert **nur lesen** und drillen |
+| Enter auf geladenem Array/Object | Lokale Projektion eines bestaetigten Roots oeffnen; bestehende atomare Leafs editieren |
 | :n | Standardtyp, Name und Wert abfragen; einmal schreiben (null ohne Wertprompt) |
 | :d | Gewaehlten Namen nach Bestaetigung loeschen; kein :x-Alias |
-| :r / Ctrl+R | Aufgeloeste Zeilencaches verwerfen und Namen neu enumerieren |
+| :r / Ctrl+R | Remote: Caches verwerfen und Namen enumerieren; lokal: bestaetigten Root ohne Get neu zeichnen |
 | q / zU | Parent / gewaehlter Store-Root; q am Root haelt den Browser offen |
 | y | Vollstaendigen aktiven Zellwert kopieren, niemals die gekuerzte Preview |
 | :q | Diesen Browser bewusst beenden |
@@ -326,9 +327,10 @@ Instance-Connection zeigt direkt ihre Values. Childs behalten dieselbe lokale Pr
 ihre optionalen Targets bleiben fuer den Browser opaque. Erfolgreiches Reload verwirft Caches,
 Fehler erhalten moeglichst den letzten bestaetigten Wert und die Navigation.
 
-Upsert nur fuer string/integer/number/boolean/null. Strings ohne Quotes, Integer als Integerliteral,
-Number endlich, Boolean exakt `true`/`false`, Null exakt `null`. Array/Object und unbekannte
-Providertypen sind nicht konstruierbar oder editierbar. Delete betrifft genau den gewaehlten Namen.
+Der Provider akzeptiert die sieben Standardtypen einschliesslich Array/Object. Die UI erzeugt
+nur Atomics mit `:n`, kann aber bestehende atomare Leafs geladener komplexer Roots type-preserving
+bearbeiten (siehe UP-071 unten). Unbekannte Typen und komplexe Konstruktoren bleiben gesperrt.
+Delete betrifft genau den gewaehlten entfernten Namen, niemals lokale Strukturen.
 Kein globales Save; der getrennte Master-Definitionseditor behaelt `:w` / Ctrl+S.
 
 Read-only blockiert Mutation vor dem Provideraufruf. Write-only enumeriert keine vorhandenen Keys:
@@ -419,3 +421,31 @@ Fehlerlogs. Browserhelper erhalten nur Session/Logo/Seite und beziehen die priva
 innerhalb ihres Prozesses. Terminalaufzeichnungen koennen bewusst angezeigte Tokens trotzdem
 erfassen: kurzlebige Testcredentials nutzen, Aufzeichnungen privat halten und vor Weitergabe
 pruefen/bereinigen.
+
+
+### Komplexe Values und Interaktionsgrenzen (UP-071)
+
+Der ROBA-Provider schreibt alle sieben Standardtypen: string, integer, number, boolean, null,
+array und object. `:n` erzeugt weiterhin ausschliesslich atomare Values. Geladene Arrays/Objekte
+sind lokale Projektionen genau eines bestaetigten benannten Root-Objects, keine eigenen Nolspaces.
+Enter auf einem bestehenden atomaren Leaf oeffnet den Inline-Editor type-preserving. Bestaetigung
+klont den vollstaendigen bestaetigten Root, ersetzt genau dieses Leaf und sendet **einen ganzen
+Root-Upsert ohne zusaetzlichen Lookup**. Erst der Providererfolg ersetzt Cache und Projektion;
+Escape, Parse-, Rechte- und Providerfehler bestaetigen keine Aenderung. Die kanonische Rueckgabe
+ist massgeblich; bei entfernter Struktur geht die Ansicht sichtbar zum naechsten gueltigen
+Container zurueck. Whole-value-Atomicity, Normalisierung und konkurrierende Writer bleiben
+Providerverantwortung, ohne Patch/Merge/CAS-Versprechen.
+
+Read-only erlaubt Drillthrough, aber keinen Editor. Lokales `:n`/`:d`, Add/Delete/Insert/Move,
+Typwechsel, Complex-Constructor und Whole-object-Editor bleiben gesperrt. Navigation und `y`
+laden niemals implizit. Ein Enter auf einer ungeladenen Row funktioniert aus allen drei Spalten
+und laedt nur einmal; ein weiterer Enter kann erst editieren beziehungsweise lokal einsteigen.
+Lokales Reload zeichnet den bestaetigten Root ohne Get neu. Erfolgreiche explizite Aktionen und
+bewusster Abbruch entfernen alte persistente Fehler; neue Fehler ersetzen sie.
+
+Nach Update Runtime **und** UI neu installieren (`install`, danach `install-ui`). Ein realer
+Fehler eines vorhandenen Wayland-/X11-Adapters faellt auf den expliziten privaten Cockpit-tmux-
+Buffer zurueck, niemals auf den Host-Defaultserver. Der stdlib-Helper puffert nur im Speicher,
+reicht Bytes unveraendert weiter und verwirft partielle Ausgabe eines gescheiterten Paste-Versuchs.
+Keine Payload in argv, dauerhaften Tempfiles oder Fehlermeldungen. Das beim Prefix-Paste erfasste
+Pane bleibt auch bei Fokuswechsel das Ziel.

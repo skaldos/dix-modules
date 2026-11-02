@@ -302,12 +302,13 @@ The base runtime and separate TOML workbench installers remain independent.
 
 | Key | Effect in the selected Nolspace browser only |
 | --- | --- |
-| Enter on key | Exactly one lookup; a Nolspace opens immediately as a Child |
+| Enter on an unloaded row (any column) | Exactly one lookup, never an edit in the same keypress; a Nolspace opens as a Child |
+| Enter on a loaded key | Explicit relookup |
 | Enter on a loaded atomic value | Native inline editor; Enter writes once, Esc writes nothing |
-| Enter on a loaded array/object | Drill a detached **read-only** local value |
+| Enter on a loaded array/object | Drill a local projection of one confirmed remote root |
 | :n | Ask standard atomic type, name and value; write once (null needs no value prompt) |
 | :d | Confirm deletion of the selected name; no :x alias |
-| :r / Ctrl+R | Discard resolved row caches and enumerate names again |
+| :r / Ctrl+R | Remote: discard resolved row caches and enumerate names again; local: redraw the confirmed root without a get |
 | q / zU | Parent / selected Store root; q at root keeps the browser alive |
 | y | Copy the full underlying active cell, never its truncated preview |
 | :q | Explicitly exit this browser |
@@ -318,9 +319,18 @@ name. An explicit Instance connection starts at its Values. Child views keep the
 binding; their optional targets stay opaque to the browser. Reload discards resolved caches only
 on success; errors leave the last confirmed value and navigation usable.
 
-Only string/integer/number/boolean/null can be upserted. Strings need no quotes; integers use integer
-literals, numbers must be finite, booleans exactly `true`/`false`, null exactly `null`. Array/object
-and unknown provider types cannot be constructed or edited. Delete targets one selected name.
+The provider accepts all seven standard types (string/integer/number/boolean/null/array/object).
+The UI creates only atomics with `:n`. Inside a loaded array/object, Enter edits an **existing
+atomic leaf** with its type preserved: strings need no quotes, integers use integer literals,
+numbers are finite, booleans exactly `true`/`false`, null exactly `null`. Enter clones the last
+provider-confirmed complete root, replaces that one leaf, and sends exactly **one whole-root
+upsert**, without another lookup. Only the successful provider result replaces the confirmed
+cache; Esc, parse/rights/provider errors leave it intact. Provider normalization is authoritative;
+if it removes the current path, the browser returns to the nearest valid container visibly.
+Local `:n`/`:d`, add/delete/insert/move, leaf type changes, complex constructors and whole-object
+text editors remain unavailable. This is not a nested-path/patch API or a concurrency guarantee:
+whole-value atomicity, normalization and concurrent-writer conflicts belong to the provider.
+Read-only projections allow drillthrough but no editor. Delete targets one selected remote name.
 There is no global Save. The separate master Store-definition editor still uses `:w` / Ctrl+S.
 
 Read-only views block mutation before any provider call. Write-only views do not enumerate or
@@ -333,7 +343,13 @@ The dedicated browser checks VisiData 3.4 and clears its process-local binding r
 18-key allowlist. Generic spreadsheet mutations/save and an open command language are unavailable;
 other VisiData processes keep their own bindings. `y` sends the complete cell via stdin to the
 existing clipboard adapter. `Ctrl-a p` captures the active pane and private server explicitly,
-even if focus changes during a slow clipboard read. No cell payload is passed in argv.
+even if focus changes during a slow clipboard read. A failed installed Wayland/X11 adapter now
+falls back to the explicit private Cockpit tmux buffer, not the host default server. Payloads are
+buffered in memory and replayed byte-for-byte; partial failed paste output is discarded. No cell
+payload is passed in argv, persisted in temporary files, or echoed in diagnostics. Reinstall the
+base runtime **and** optional UI after updating (`install`, then `install-ui`): the runtime installs
+the shared stdlib-only clipboard helper. Successful explicit lookup/navigation/reload/write/delete/
+copy and intentional cancellation clear previous persistent errors; new failures replace them.
 
 **Status is deliberately privileged:** locator, token and scope are visible and copyable there.
 Never forward them through argv, titles, tmux options/environment, ordinary error logs or unchecked

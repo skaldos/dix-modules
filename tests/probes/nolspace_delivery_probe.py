@@ -64,6 +64,13 @@ try:
     assert api.require('enumerate')(provider, child) == [{'name': 'same'}]
     instance = api.require('lookup')(provider, child, 'same')
     assert api.require('lookup')(provider, instance, 'same')['value'] == 'instance'
+    for view, target in ((values, owner), (instance, owner.with_scope('id:same'))):
+        for kind, value in [('array', [7, {'enabled': False}]),
+                            ('object', {'items': [1, None, {'leaf': 'whole-root'}]})]:
+            item = {'name': 'complex', 'type': kind, 'value': value}
+            assert api.require('upsert')(provider, view, item) == item
+            assert target.get('complex') == value
+    print(mode, 'whole standard array/object replacements in Context and Instance: OK')
     print(mode, 'external core/provider, unchanged Norn boundaries, native keys/metadata, explicit lookup/upsert/delete: OK')
 finally:
     if daemon is not None:

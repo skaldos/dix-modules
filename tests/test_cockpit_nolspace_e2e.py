@@ -145,6 +145,7 @@ def test_real_installed_nolspace_atomic_mutation_rights_copy_and_paste(nolspace_
     # Read-only: no target mutation request, before or after trying all paths.
     _, ro = opened('ro')
     choose(ro, 'text', names); keys(ro, 'Enter')
+    wait_for(lambda: len(values('ro')) == 1)
     count = len(values('ro'))
     keys(ro, 'Enter'); command(ro, 'n'); command(ro, 'd')
     wait_for(lambda: 'does not offer' in screen(ro))

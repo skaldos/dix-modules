@@ -16,6 +16,9 @@ caller-modified caps. Structural Instance discovery uses native metadata-only li
 or known scopes from principal.access when Context-read is absent. This grants no new native
 listing permission. Value enumeration uses the completed UP-070 keys-only DIX composition.
 
-Upsert accepts only standard atomics and returns the submitted value, never reading before/after.
-Delete acts on one key. Arrays/objects are lookup-only. Native errors remain visible with credential
+Upsert accepts all seven standard types: string, integer, number, boolean, null, array, object.
+It replaces one complete native value through exactly one data.set, returning the submitted value
+without reading before/after. Malformed values, nolspace and unknown types are rejected before
+transport. Whole-value atomicity, normalization and concurrent writers remain provider-owned;
+there is no nested-path, patch, merge or CAS API. Delete acts on one key. Native errors remain visible with credential
 redaction; there is no fallback, sync, schema inference, grant management or resource creation.
