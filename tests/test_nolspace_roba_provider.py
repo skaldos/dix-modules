@@ -74,7 +74,6 @@ def test_real_roba_nolspace_lazy_collision_and_authoritative_rights(native_nolsp
     assert api.require('lookup')(provider,child,'same')['value']=='instance value'
     for key,kind in [('integer','integer'),('number','number'),('boolean','boolean'),('null','null'),('array','array'),('object','object')]:
         assert api.require('lookup')(provider,values,key)['type']==kind
-    with pytest.raises(ValueError):api.require('upsert')(provider,values,{'name':'array','type':'array','value':[]})
     assert len([1 for method,path,_ in calls if method=='GET' and path.endswith('/state/same')])==2
     monkeypatch.setattr(TransportClient,'request',original)
     assert json.dumps(owner.snapshot(),sort_keys=True)==before
@@ -146,8 +145,8 @@ def test_bad_access_cannot_use_owner_environment_and_bad_values_never_write(nati
     def spy(self,method,path,**kwargs):
         calls.append((method,path));return original(self,method,path,**kwargs)
     monkeypatch.setattr(TransportClient,'request',spy)
-    for kind,value in [('integer',True),('number',float('inf')),('object',{'nested':1}),
-                       ('array',[1]),('vendor',{'x':2}),('nolspace',{'caps':[]})]:
+    for kind,value in [('integer',True),('number',float('inf')),('object',{'nested':float('nan')}),
+                       ('array',[object()]),('vendor',{'x':2}),('nolspace',{'caps':[]})]:
         with pytest.raises(ValueError):provider.require('upsert')(view,{'name':'text','type':kind,'value':value})
     assert calls==[]
     monkeypatch.setattr(TransportClient,'request',original)
@@ -167,3 +166,35 @@ def test_explicit_native_socket_capability_needs_no_token_or_environment(native_
     assert provider.require('lookup')(root, 'same')['value'] == 'instance value'
     with pytest.raises(RuntimeError, match='does not permit'):
         provider.require('delete')(root, 'same')
+
+
+@pytest.mark.parametrize("instance_id", ["", "same"])
+@pytest.mark.parametrize("kind,value", [
+    ("string", "literal"), ("integer", 4), ("number", 2.5), ("boolean", False),
+    ("null", None), ("array", [1, False, {"nested": [None, "deep"]}]),
+    ("object", {"title": "new", "items": [2, {"enabled": True}]}),
+])
+def test_whole_standard_values_use_one_native_set_no_read(native_nolspace, monkeypatch, instance_id, kind, value):
+    create, owner, base, _ = native_nolspace
+    provider = create('skaldos/stores/nolspace/roba/provider').api
+    boot = create('skaldos/stores/nolspace/roba/connection').api
+    # Even write-only authority can replace a complete supplied value.
+    scope = 'instance:same' if instance_id else 'context'
+    token = owner.token_create(token_id='whole-writer', write=[scope])['token']
+    root = boot.require('root')({**base, 'token': token, **({'instance_id': instance_id} if instance_id else {})})
+    view = root if instance_id else provider.require('lookup')(root, 'values')
+    calls = []
+    original = TransportClient.request
+    def spy(self, method, path, **kwargs):
+        assert path.endswith('/connect') or method == 'PUT'
+        calls.append((method, path))
+        return original(self, method, path, **kwargs)
+    monkeypatch.setattr(TransportClient, 'request', spy)
+    item = {'name': 'whole', 'type': kind, 'value': value}
+    assert provider.require('upsert')(view, item) == item
+    assert [method for method, _ in calls] == ['GET', 'PUT']
+    assert calls[-1][1].endswith('/state/whole')
+    monkeypatch.setattr(TransportClient, 'request', original)
+    target = owner.with_scope('id:' + instance_id) if instance_id else owner
+    assert target.get('whole') == value
+    assert target.get('same') == ('instance value' if instance_id else 'context value')

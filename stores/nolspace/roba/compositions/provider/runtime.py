@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
-_ATOMICS = frozenset({"string", "integer", "number", "boolean", "null"})
+_VALUES = frozenset({"string", "integer", "number", "boolean", "null", "array", "object"})
 
 
 class Runtime:
@@ -95,8 +95,8 @@ class Runtime:
 
     def upsert(self, view: object, value: object) -> dict[str, object]:
         item = self.contract.require("object")(value)
-        if item["type"] not in _ATOMICS:
-            raise ValueError("ROBA Nolspace upsert supports only standard atomics")
+        if item["type"] not in _VALUES:
+            raise ValueError("ROBA Nolspace upsert supports only standard values")
         _, conn, _ = self._request(view, "upsert")
         try:
             self.data.require("set")(**self._args(conn), key=item["name"], value=item["value"])
