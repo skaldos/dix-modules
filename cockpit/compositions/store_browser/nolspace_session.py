@@ -22,7 +22,7 @@ class NolspaceSession:
 
     def __init__(self, catalog, api, session, store_id):
         self.catalog, self.session = catalog, session
-        self.rows, self.error = [], ""
+        self.rows, self.error, self.notice = [], "", ""
         record = catalog.require("record")(store_id, session)
         self.store_id, self.revision = store_id, record["revision"]
         self._known, self.api = [record["definition"]], api
@@ -63,7 +63,8 @@ class NolspaceSession:
                 self.error = ""
             else:
                 self.rows = []
-                self.error = "No enumerate capability; use :n to write a known atomic value"
+                self.error = ""
+                self.notice = "No enumerate capability; use :n to write a known atomic value"
         except Exception as exc:  # noqa: BLE001 - keep the previous confirmed view and cache
             self.error = self.safe(f"{type(exc).__name__}: {exc}")
         return self.rows
@@ -77,6 +78,7 @@ class NolspaceSession:
             self.reload()
         else:
             self._cache(item)
+            self.error = ""
         return copy.deepcopy(item)
 
     def _cache(self, item):
@@ -109,3 +111,52 @@ class NolspaceSession:
         self.stack.clear()
         self.view, self.rows = None, []
         self.reload()
+
+
+class ComplexProjection:
+    """Detached local paths into one confirmed object. Never a provider path or target."""
+
+    def __init__(self, root):
+        self.root = copy.deepcopy(root)
+        self.path = []
+
+    @property
+    def value(self):
+        value = self.root["value"]
+        for part in self.path:
+            value = value[part]
+        return value
+
+    @property
+    def labels(self):
+        return [self.root["name"], *map(str, self.path)]
+
+    def enter(self, part):
+        if type(self.value[part]) not in (list, dict):
+            raise ValueError("Only existing containers can be opened")
+        self.path.append(part)
+
+    def proposal(self, part, value):
+        previous = self.value[part]
+        if type(previous) in (list, dict) or type(previous) is not type(value):
+            raise ValueError("Existing leaves must keep their type")
+        proposal = copy.deepcopy(self.root)
+        target = proposal["value"]
+        for key in self.path:
+            target = target[key]
+        target[part] = value
+        return proposal
+
+    def accept(self, result):
+        # The returned complete root, not the submitted proposal, is authoritative.
+        self.root = copy.deepcopy(result)
+        path, self.path = self.path, []
+        for part in path:
+            value = self.value
+            exists = (type(value) is dict and part in value or
+                      type(value) is list and type(part) is int and 0 <= part < len(value))
+            if exists and type(value[part]) in (dict, list):
+                self.path.append(part)
+                continue
+            break
+        return len(self.path) == len(path)

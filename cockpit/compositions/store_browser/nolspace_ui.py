@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import json
 import math
 import os
@@ -48,7 +47,7 @@ def preview(value):
 
 
 class NolspaceSheet(Sheet):
-    """No ROBA knowledge. Remote Nolspaces and local read-only complex values stay distinct."""
+    """No ROBA knowledge. Complex projections write only their complete remote root."""
 
     columns: ClassVar[list] = [Column("key", width=26, getter=lambda c, r: r["key"]),
                               Column("type", width=12, getter=lambda c, r: r["type"]),
@@ -65,15 +64,17 @@ class NolspaceSheet(Sheet):
 
     @property
     def breadcrumb(self):
-        return self.browser.safe(self.browser.breadcrumb + "".join(" / " + name for name, _ in self.local))
+        labels = self.local.labels if self.local else []
+        return self.browser.safe(self.browser.breadcrumb + "".join(" / " + name for name in labels))
 
     def drawColHeader(self, scr, y, h, vcolidx):
         col = self.availCols[vcolidx]
         original = col._name
         text = (f"{self.logo.upper()} Nolspace" if vcolidx == 0 else
-                ("local/read only" if self.local else " / ".join(self.browser.view["value"]["caps"])
+                ("local/root upsert" if self.local and "upsert" in self.browser.view["value"]["caps"] else
+                 "local/read only" if self.local else " / ".join(self.browser.view["value"]["caps"])
                  if self.browser.view else "") if vcolidx == 1 else
-                self.browser.error or self.breadcrumb)
+                self.browser.error or self.browser.notice or self.breadcrumb)
         col._name = clipstr_middle(text, max(self._visibleColLayout[vcolidx][1]-1, 0))[0] + "\n" + original
         try:
             super().drawColHeader(scr, y, h, vcolidx)
@@ -83,13 +84,15 @@ class NolspaceSheet(Sheet):
     def reload(self):
         if not self.local:
             self.browser.reload()
+        else:
+            self.browser.error = ""  # Reload of the confirmed local projection, not a hidden get.
         self.render()
 
     def render(self):
         if self.local:
-            value = self.local[-1][1]
+            value = self.local.value
             entries = value.items() if type(value) is dict else enumerate(value)
-            self.rows = [{"key": str(k), "type": kind_of(v), "value": preview(v),
+            self.rows = [{"key": str(k), "part": k, "type": kind_of(v), "value": preview(v),
                           "object": {"name": str(k), "type": kind_of(v), "value": v}}
                          for k, v in entries]
         else:
@@ -111,7 +114,7 @@ class NolspaceSheet(Sheet):
             return
         try:
             item = row["object"]
-            if not self.local and self.cursorCol.name == "key":
+            if not self.local and (item is None or self.cursorCol.name == "key"):
                 item = self.browser.lookup(row["key"])
                 self.render()
                 if item["type"] == "nolspace":
@@ -122,32 +125,52 @@ class NolspaceSheet(Sheet):
             if item is None:
                 raise ValueError("Load this key with Enter before inspecting or editing its value")
             if item["type"] in {"array", "object"}:
-                self.local.append((item["name"], copy.deepcopy(item["value"])))
+                if self.local:
+                    self.local.enter(row["part"])
+                else:
+                    from .nolspace_session import ComplexProjection
+                    self.local = ComplexProjection(item)
+                self.browser.error = ""
                 self.render()
                 self.cursorRowIndex = self.cursorVisibleColIndex = 0
-            elif not self.local and self.cursorCol.name == "value":
+            elif self.local or self.cursorCol.name == "value":
                 self.browser.require_cap("upsert")
                 if item["type"] not in ATOMICS:
                     raise ValueError("This type is read only")
                 raw = self.editCell(value=cell_text(item["value"]), record=False)
-                changed = {**item, "value": parse_atomic(item["type"], raw)}
-                self.browser.upsert(changed)
+                value = parse_atomic(item["type"], raw)
+                # Preserve a float leaf even when the user enters an integral numeric literal.
+                if self.local and type(item["value"]) is float:
+                    value = float(value)
+                changed = self.local.proposal(row["part"], value) if self.local else {**item, "value": value}
+                confirmed = self.browser.upsert(changed)
+                if self.local:
+                    retained = self.local.accept(confirmed)
+                    if confirmed["type"] not in {"array", "object"}:
+                        self.local = []
+                        retained = False
+                    if not retained:
+                        vd.status("Provider normalized the root; returned to the nearest valid view")
                 self.render()
         except EscapeException:
-            vd.status("Edit cancelled; target unchanged")
+            self._cancel("Edit cancelled; target unchanged")
         except Exception as exc:  # noqa: BLE001 - parse/provider failure preserves the cache
             self._error(exc)
 
     def parent(self):
         if self.local:
-            self.local.pop()
+            if self.local.path:
+                self.local.path.pop()
+            else:
+                self.local = []
+            self.browser.error = ""
         else:
             self.browser.parent()
         self.render()
         self.cursorRowIndex = self.cursorVisibleColIndex = 0
 
     def root(self):
-        self.local.clear()
+        self.local = []
         self.browser.root()
         self.render()
         self.cursorRowIndex = self.cursorVisibleColIndex = 0
@@ -171,6 +194,8 @@ class NolspaceSheet(Sheet):
                 if vd.confirm("Delete the selected name? "):
                     self.browser.delete(name)
                     self.render()
+                else:
+                    self._cancel("Delete cancelled; target unchanged")
             elif token == "r":
                 self.reload()
             elif token == "q":
@@ -178,17 +203,25 @@ class NolspaceSheet(Sheet):
             else:
                 raise ValueError("Unknown Nolspace command; use n, d, r, q (no global save)")
         except EscapeException:
-            vd.status("Command cancelled; target unchanged")
+            self._cancel("Command cancelled; target unchanged")
         except Exception as exc:  # noqa: BLE001 - no target effects on input failure
             self._error(exc)
 
     def _mutable(self, operation):
         if self.local:
-            raise PermissionError("Complex values are local read-only views")
+            raise PermissionError("Local complex structure is read-only; edit existing atomic leaves")
         self.browser.require_cap(operation)
 
+    def _cancel(self, message):
+        self.browser.error = ""
+        self.render()
+        vd.status(message)
+
     def prompt(self):
-        self.dispatch(vd.input(":", record=False).strip())
+        try:
+            self.dispatch(vd.input(":", record=False).strip())
+        except EscapeException:
+            self._cancel("Command cancelled; target unchanged")
 
     def copy_cell(self):
         try:
@@ -208,6 +241,8 @@ class NolspaceSheet(Sheet):
             result = subprocess.run([command], input=text, text=True, capture_output=True, check=False)
             if result.returncode:
                 raise RuntimeError("Cockpit clipboard adapter failed")
+            self.browser.error = ""
+            self.render()
             vd.status("Copied the full cell value")
         except Exception as exc:  # noqa: BLE001 - clipboard errors never echo cell payloads
             self._error(exc)

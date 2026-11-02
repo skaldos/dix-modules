@@ -120,7 +120,7 @@ def test_browser_actual_read_and_write_only_and_local_complex_inspection(store_g
 
 def test_write_only_local_result_can_be_deleted_without_lookup(store_graph, monkeypatch):
     owner, browser, sheet, ui = selected(store_graph, rights={"write": ["instance:one"]})
-    assert sheet.rows == [] and "No enumerate" in browser.error
+    assert sheet.rows == [] and "No enumerate" in browser.notice
     calls = track(browser, monkeypatch)
     answers = iter(["string", "fresh", "write only"])
     monkeypatch.setattr(ui.vd, "input", lambda *a, answers=answers, **k: next(answers))
@@ -134,7 +134,7 @@ def test_write_only_local_result_can_be_deleted_without_lookup(store_graph, monk
     assert owner.with_scope("id:one").keys() == ["name"]
 
 
-def test_complex_values_are_local_read_only_and_copy_uses_full_native_cell(store_graph, monkeypatch):
+def test_complex_values_keep_local_structure_read_only_and_copy_full_native_cell(store_graph, monkeypatch):
     owner, browser, sheet, _ui = selected(store_graph)
     long = "long $literal; " + "z" * 2000 + "\nlast line"
     owner.set("long", long)
@@ -164,7 +164,7 @@ def test_complex_values_are_local_read_only_and_copy_uses_full_native_cell(store
     choose(sheet, "1"); sheet.enter()
     assert sheet.rows[0]["value"] == "hello"
     count = list(calls)
-    sheet.dispatch("n"); sheet.dispatch("d"); sheet.enter()
+    sheet.dispatch("n"); sheet.dispatch("d")
     assert calls == count and "read-only" in browser.error
     sheet.parent(); sheet.parent(); sheet.parent()
     assert browser.breadcrumb == "/chosen / values" and not sheet.local
@@ -221,3 +221,120 @@ assert sheet.getCommand(":").longname == "nolspace-prompt"
 '''
     result = subprocess.run([__import__("sys").executable, "-c", program, path], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("column", [0, 1, 2])
+def test_unloaded_enter_from_any_column_only_loads_once(store_graph, monkeypatch, column):
+    _, browser, sheet, _ = selected(store_graph)
+    calls = track(browser, monkeypatch)
+    choose(sheet, "values", column); sheet.enter()
+    assert calls == ["lookup", "enumerate"]
+    choose(sheet, "settings", column)
+    monkeypatch.setattr(sheet, "editCell", lambda **kw: pytest.fail("lookup also edited"))
+    calls.clear(); sheet.enter()
+    assert calls == ["lookup"] and not sheet.local
+    assert sheet.cursorCol.name == "value"
+    sheet.enter()
+    assert sheet.local and calls == ["lookup"]
+
+
+def test_nested_leaf_updates_one_whole_root_and_only_on_success(store_graph, monkeypatch):
+    owner, browser, sheet, _ = selected(store_graph)
+    original = {"title": "original", "items": [1, False, {"nested": "before"}], "float": 1.5}
+    owner.set("complex", original)
+    choose(sheet, "values"); sheet.enter()
+    choose(sheet, "complex"); sheet.enter(); sheet.enter()
+    choose(sheet, "items"); sheet.enter()
+    calls = track(browser, monkeypatch)
+    from visidata import EscapeException
+    def escape(**kw): raise EscapeException()
+    monkeypatch.setattr(sheet, "editCell", escape)
+    browser.error = "old"; choose(sheet, "0", 2); sheet.enter()
+    assert calls == [] and not browser.error and sheet.local.root["value"] == original
+    monkeypatch.setattr(sheet, "editCell", lambda **kw: "false")
+    sheet.enter()
+    assert calls == [] and "valid integer" in browser.error
+    assert sheet.local.root["value"] == original
+    monkeypatch.setattr(sheet, "editCell", lambda **kw: "42")
+    sheet.enter()
+    assert calls == ["upsert"] and not browser.error
+    choose(sheet, "1", 2); monkeypatch.setattr(sheet, "editCell", lambda **kw: "true"); sheet.enter()
+    choose(sheet, "2"); sheet.enter()
+    choose(sheet, "nested", 2); monkeypatch.setattr(sheet, "editCell", lambda **kw: "after"); sheet.enter()
+    assert calls == ["upsert"] * 3
+    expected = {**original, "items": [42, True, {"nested": "after"}]}
+    assert owner.get("complex") == expected
+    assert sheet.local.root["value"] == expected
+    sheet.parent(); sheet.parent()
+    choose(sheet, "float", 2); monkeypatch.setattr(sheet, "editCell", lambda **kw: "2"); sheet.enter()
+    assert type(sheet.local.root["value"]["float"]) is float
+    calls.clear(); confirmed = copy.deepcopy(sheet.local.root)
+    def failed(name):
+        return lambda *a: (_ for _ in ()).throw(RuntimeError("provider failed"))
+    monkeypatch.setattr(browser.provider, "require", failed)
+    monkeypatch.setattr(sheet, "editCell", lambda **kw: "3.5"); sheet.enter()
+    assert sheet.local.root == confirmed and "provider failed" in browser.error
+    # Reload/parent of a local projection is not a read and clears the visible old error.
+    sheet.reload(); assert not browser.error
+    browser.error = "old"; sheet.parent(); assert not browser.error and not sheet.local
+    assert next(r["object"] for r in browser.rows if r["key"] == "complex") == confirmed
+
+
+def test_readonly_complex_drill_blocks_editor_and_structural_mutation(store_graph, monkeypatch):
+    owner, browser, sheet, _ = selected(store_graph, rights={"read": ["instance:one"]})
+    owner.with_scope("id:one").set("complex", {"items": [1, {"x": False}]})
+    sheet.reload(); choose(sheet, "complex", 1); sheet.enter(); sheet.enter(); sheet.enter()
+    calls = track(browser, monkeypatch)
+    monkeypatch.setattr(sheet, "editCell", lambda **kw: pytest.fail("read-only editor"))
+    choose(sheet, "0", 2); sheet.enter()
+    assert "does not offer" in browser.error
+    for command in ("n", "d"):
+        sheet.dispatch(command); assert "structure is read-only" in browser.error
+    assert calls == []
+
+
+def test_canonical_provider_root_and_path_recovery(store_graph, monkeypatch):
+    _, browser, sheet, _ = selected(store_graph)
+    choose(sheet, "values"); sheet.enter(); choose(sheet, "settings"); sheet.enter(); sheet.enter()
+    choose(sheet, "nested"); sheet.enter(); choose(sheet, "1"); sheet.enter(); choose(sheet, "message", 2)
+    calls = []
+    canonical = {"name": "settings", "type": "object", "value": {"nested": ["normalized"]}}
+    require = browser.provider.require
+    def overridden(name):
+        if name != "upsert": return require(name)
+        def upsert(view, value):
+            calls.append(copy.deepcopy(value))
+            return copy.deepcopy(canonical)
+        return upsert
+    monkeypatch.setattr(browser.provider, "require", overridden)
+    monkeypatch.setattr(sheet, "editCell", lambda **kw: "attempt")
+    sheet.enter()
+    assert len(calls) == 1 and calls[0]["value"] == {"nested": ["first", {"message": "attempt"}]}
+    assert sheet.local.root == canonical and sheet.local.path == ["nested"]
+    assert [r["value"] for r in sheet.rows] == ["normalized"]
+    assert next(r["object"] for r in browser.rows if r["key"] == "settings") == canonical
+
+
+def test_successful_explicit_actions_clear_errors_no_implicit_value_reads(store_graph, monkeypatch):
+    owner, browser, sheet, ui = selected(store_graph)
+    owner.set("test", 7)
+    choose(sheet, "values"); sheet.enter()
+    calls = track(browser, monkeypatch)
+    choose(sheet, "test", 2); sheet.copy_cell()
+    assert "not loaded" in browser.error and calls == []
+    sheet.cursorRowIndex = 0; sheet.cursorRowIndex = 1
+    assert calls == []
+    choose(sheet, "test", 1); sheet.enter(); assert not browser.error
+    monkeypatch.setenv("DIX_COCKPIT_CLIPBOARD_COPY", "/unused")
+    original = subprocess.run
+    def run(args, **kwargs):
+        if args == ["/unused"]: return subprocess.CompletedProcess(args, 0)
+        return original(args, **kwargs)
+    monkeypatch.setattr(subprocess, "run", run)
+    browser.error = "stale"; sheet.copy_cell(); assert not browser.error
+    assert calls == ["lookup"]
+    monkeypatch.setattr(ui.vd, "confirm", lambda *args: False)
+    browser.error = "stale"; sheet.dispatch("d"); assert not browser.error
+    browser.error = "stale"; sheet.reload(); assert not browser.error
+    browser.error = "stale"; sheet.parent(); assert not browser.error
+    browser.error = "stale"; sheet.root(); assert not browser.error
