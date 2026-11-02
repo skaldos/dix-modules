@@ -239,3 +239,37 @@ def test_installed_adapter_resolves_environment_in_tmux_run_shell(tmp_path):
     payload = b'installed prefix bytes\n'
     assert _run(binary / COPY.name, env, payload).returncode == 0
     assert _run(binary / PASTE.name, env).stdout == payload
+
+
+@pytest.mark.parametrize("backend", ["wayland", "x11"])
+def test_native_clipboard_clients_fail_then_private_tmux_receives_exact_bytes(backend):
+    import shutil
+    import tempfile
+
+    required = ['tmux', 'wl-copy', 'wl-paste'] if backend == 'wayland' else ['tmux', 'xclip']
+    if not all(shutil.which(name) for name in required):
+        pytest.skip('native system clipboard clients and tmux required')
+    with tempfile.TemporaryDirectory(prefix='clip71-', dir='/tmp') as directory:
+        root = Path(directory); socket = str(root / 'private.sock')
+        env = {'PATH': '/usr/bin:/bin', 'HOME': directory, 'XDG_RUNTIME_DIR': directory,
+               'WAYLAND_DISPLAY': 'dix-no-compositor' if backend == 'wayland' else '',
+               'DISPLAY': ':61372' if backend == 'x11' else '',
+               'DIX_COCKPIT_TMUX_SOCKET': socket}
+        base = ['tmux', '-S', socket]
+        subprocess.run([*base, '-f', '/dev/null', 'new-session', '-d', '-s', 'clip', 'sleep 60'],
+                       env=env, capture_output=True, check=True)
+        try:
+            native = ['wl-copy'] if backend == 'wayland' else ['xclip', '-selection', 'clipboard', '-in']
+            failed = subprocess.run(native, input=b'probe', env=env, capture_output=True, check=False, timeout=5)
+            assert failed.returncode != 0  # Real upstream client, not a monkeypatched return code.
+            payload = ('native fallback; $HOME $(not-a-command)\n' + 'z' * 5000 + '\nend').encode()
+            copied = _run(COPY, env, payload)
+            assert copied.returncode == 0 and b'System clipboard unavailable' in copied.stderr
+            pasted = _run(PASTE, env)
+            assert pasted.returncode == 0 and pasted.stdout == payload
+            # Native tmux cannot represent an empty buffer: explicitly fail, never lie about it.
+            empty = _run(COPY, env, b'')
+            assert empty.returncode != 0 and b'empty payload' in empty.stderr
+            assert _run(PASTE, env).stdout == payload
+        finally:
+            subprocess.run([*base, 'kill-server'], env=env, capture_output=True, check=False)
