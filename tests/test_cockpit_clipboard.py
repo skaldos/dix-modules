@@ -216,3 +216,26 @@ def test_failed_clipboard_without_explicit_private_socket_never_uses_host_tmux(t
     result = _run(COPY, env, b'private payload')
     assert result.returncode != 0 and not touched.exists()
     assert b'private payload' not in result.stderr
+
+
+def test_installed_adapter_resolves_environment_in_tmux_run_shell(tmp_path):
+    import shutil
+
+    binary, launchers, tools = (tmp_path / name for name in ('bin', 'launchers', 'tools'))
+    for path in (binary, launchers / 'cockpit', tools): path.mkdir(parents=True)
+    for source in (COPY, PASTE): shutil.copy2(source, binary / source.name)
+    shutil.copy2(ROOT / 'cockpit/integrations/clipboard.py', launchers / 'cockpit/clipboard.py')
+    buffer = tmp_path / 'buffer'
+    _tool(tools, 'tmux', f'''case "$*" in
+    *"load-buffer -"*) cat > "{buffer}" ;;
+    *"save-buffer -"*) cat "{buffer}" ;;
+    esac''')
+    env_file = tmp_path / 'env'
+    env_file.write_text(f'export DIX_LAUNCHERS="{launchers}"\n')
+    # tmux run-shell need not inherit the Python wrapper's sourced DIX_LAUNCHERS.
+    env = {**os.environ, 'DIX_ENV': str(env_file), 'PATH': f'{tools}:/usr/bin:/bin',
+           'WAYLAND_DISPLAY': '', 'DISPLAY': '', 'DIX_COCKPIT_TMUX_SOCKET': str(tmp_path / 'private.sock')}
+    env.pop('DIX_LAUNCHERS', None)
+    payload = b'installed prefix bytes\n'
+    assert _run(binary / COPY.name, env, payload).returncode == 0
+    assert _run(binary / PASTE.name, env).stdout == payload

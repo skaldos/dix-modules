@@ -6,6 +6,10 @@ source_helper=$(CDPATH='' cd "$(dirname "$0")/.." && pwd -P)/clipboard.py
 if [ -r "$source_helper" ]; then
     helper=$source_helper
 else
+    env_file=${DIX_ENV:-$HOME/.dix/env}
+    if [ -r "$env_file" ]; then
+        . "$env_file"
+    fi
     helper=${DIX_LAUNCHERS:?DIX_LAUNCHERS is required}/cockpit/clipboard.py
 fi
 python=${DIX_VENV:+$DIX_VENV/bin/python}
