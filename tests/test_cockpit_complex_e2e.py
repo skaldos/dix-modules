@@ -96,10 +96,10 @@ def test_installed_complex_root_edits_and_failed_system_clipboard(nolspace_clien
     wait_for(lambda: owner.get('complex') == expected)
     assert [c['method'] for c in values('complex-rw')] == ['GET', 'PUT', 'PUT', 'PUT']
     assert all(c['path'].endswith('/state/complex') for c in values('complex-rw'))
-    # Structural mutation remains blocked. A successful local parent clears that error.
-    keys(pane, ':'); literal(pane, 'n')
-    wait_for(lambda: 'structure is read-only' in screen(pane))
-    keys(pane, 'q'); wait_for(lambda: 'structure is read-only' not in screen(pane))
+    # Unknown commands remain blocked. A successful local parent clears that error.
+    keys(pane, ':'); literal(pane, 'x')
+    wait_for(lambda: 'Unknown Nolspace command' in screen(pane))
+    keys(pane, 'q'); wait_for(lambda: 'Unknown Nolspace command' not in screen(pane))
     keys(pane, 'q', 'q')
     # Unloaded value Enter is also load-only; navigation and y never fetch it implicitly.
     choose(pane, names.index('long'), 2); before = len(values('complex-rw'))

@@ -415,7 +415,8 @@ def test_structural_failures_cancel_duplicate_and_only_upsert_cap(store_graph, m
     sheet.dispatch('d'); assert 'Select a name' in browser.error
 
 
-def test_structural_canonical_normalization_controls_cache_and_current_path(store_graph, monkeypatch):
+@pytest.mark.parametrize("operation", ["n", "d"])
+def test_structural_canonical_normalization_controls_cache_and_current_path(store_graph, monkeypatch, operation):
     _, browser, sheet, ui = selected(store_graph)
     choose(sheet, 'values'); sheet.enter(); choose(sheet, 'settings'); sheet.enter(); sheet.enter()
     choose(sheet, 'nested'); sheet.enter(); choose(sheet, '1'); sheet.enter()
@@ -429,8 +430,11 @@ def test_structural_canonical_normalization_controls_cache_and_current_path(stor
             sent.append(copy.deepcopy(proposal)); return copy.deepcopy(canonical)
         return effect
     monkeypatch.setattr(browser.provider, 'require', normalized)
-    answers(monkeypatch, ui, ['boolean', 'new', 'true']); sheet.dispatch('n')
-    assert len(sent) == 1 and sent[0]['value']['nested'][1] == {'message': 'hello', 'new': True}
+    answers(monkeypatch, ui, ['boolean', 'new', 'true'])
+    monkeypatch.setattr(ui.vd, 'confirm', lambda *a: True)
+    sheet.dispatch(operation)
+    expected = {'message': 'hello', 'new': True} if operation == 'n' else {}
+    assert len(sent) == 1 and sent[0]['value']['nested'][1] == expected
     assert sheet.local.root == canonical and sheet.local.path == ['nested'] and sheet.rows == []
     assert old != canonical and not browser.error
     assert next(r['object'] for r in browser.rows if r['key'] == 'settings') == canonical

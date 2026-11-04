@@ -438,3 +438,5 @@ keep recordings private and inspect/redact before sharing.
 empty `load-buffer` without replacing an older buffer, so the private fallback explicitly rejects
 an empty payload instead of reporting a false copy success. It does not clear clipboard history
 or invent an empty-buffer sentinel. The previous private buffer remains unchanged.
+
+VisiData confirmation is a y/n form: press **one** `y` or `n` key; do not append Enter.

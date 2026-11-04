@@ -463,3 +463,5 @@ Pane bleibt auch bei Fokuswechsel das Ziel.
 leeren `load-buffer` jedoch, ohne den alten Buffer zu ersetzen. Deshalb verweigert der private
 Fallback leere Payloads sichtbar statt Copy-Scheinerfolg zu melden. Keine implizite Loeschung der
 Clipboardhistorie und kein Sentinel; der bisherige private Buffer bleibt unveraendert.
+
+VisiData bestaetigt per y/n-Formular: genau **eine** Taste `y` oder `n`, ohne folgendes Enter.
