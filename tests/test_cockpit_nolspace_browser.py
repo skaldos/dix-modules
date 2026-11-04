@@ -353,7 +353,8 @@ def test_structural_local_create_all_standard_types_and_delete_without_lookup(st
             ('array', '[]', []), ('object', '{}', {})]:
         answers(monkeypatch, ui, [kind, 'new-' + kind] + ([] if raw is None else [raw]))
         sheet.dispatch('n')
-        assert not browser.error and owner.get('settings')['new-' + kind] == expected
+        actual = owner.get('settings')['new-' + kind]
+        assert not browser.error and actual == expected and type(actual) is type(expected)
     assert calls == ['upsert'] * 7
     choose(sheet, 'new-array', 2); sheet.enter()
     for kind, raw, value in [('integer', '1', 1), ('object', '{}', {})]:
@@ -385,8 +386,13 @@ def test_structural_failures_cancel_duplicate_and_only_upsert_cap(store_graph, m
     assert 'already exists' in browser.error and calls == [] and sheet.local.root == before
     from visidata import EscapeException
     def escape(*a, **kw): raise EscapeException()
-    monkeypatch.setattr(ui.vd, 'input', escape); sheet.dispatch('n')
-    assert not browser.error and calls == []
+    for prefix in ([], ['object'], ['object', 'fresh']):
+        staged = iter(prefix)
+        def cancelled(*a, staged=staged, **kw):
+            try: return next(staged)
+            except StopIteration: raise EscapeException() from None
+        monkeypatch.setattr(ui.vd, 'input', cancelled); sheet.dispatch('n')
+        assert not browser.error and calls == [] and sheet.local.root == before
     for kind, raw in [('array', '{}'), ('object', '[]'), ('array', '[NaN]'),
                       ('object', '{"x":1e999}'), ('array', '[Infinity]'),
                       ('object', '{"x":1,"x":2}'), ('object', '{bad}'), ('integer', '2.0')]:
