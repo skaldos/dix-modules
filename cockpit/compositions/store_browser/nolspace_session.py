@@ -147,6 +147,41 @@ class ComplexProjection:
         target[part] = value
         return proposal
 
+    def _copy_container(self):
+        proposal = copy.deepcopy(self.root)
+        target = proposal["value"]
+        for part in self.path:
+            target = target[part]
+        return proposal, target
+
+    def add(self, value, name=None):
+        """Object field creation or array append; never an overwrite or insertion."""
+        current = self.value
+        if type(current) is dict:
+            if type(name) is not str:
+                raise TypeError("A new object field needs a string key")
+            if name in current:
+                raise ValueError("Object key already exists")
+        elif type(current) is not list:
+            raise TypeError("Only an existing object or array can receive new values")
+        proposal, target = self._copy_container()
+        if type(target) is dict:
+            target[name] = copy.deepcopy(value)
+        else:
+            target.append(copy.deepcopy(value))
+        return proposal
+
+    def remove(self, part):
+        """Remove one selected local subtree in a complete, unconfirmed root copy."""
+        current = self.value
+        if type(current) is list and (type(part) is not int or not 0 <= part < len(current)):
+            raise IndexError("Select an existing array element")
+        if type(current) is dict and part not in current:
+            raise KeyError("Select an existing object field")
+        proposal, target = self._copy_container()
+        del target[part]
+        return proposal
+
     def accept(self, result):
         # The returned complete root, not the submitted proposal, is authoritative.
         self.root = copy.deepcopy(result)
