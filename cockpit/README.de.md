@@ -327,10 +327,11 @@ Instance-Connection zeigt direkt ihre Values. Childs behalten dieselbe lokale Pr
 ihre optionalen Targets bleiben fuer den Browser opaque. Erfolgreiches Reload verwirft Caches,
 Fehler erhalten moeglichst den letzten bestaetigten Wert und die Navigation.
 
-Der Provider akzeptiert die sieben Standardtypen einschliesslich Array/Object. Die UI erzeugt
-nur Atomics mit `:n`, kann aber bestehende atomare Leafs geladener komplexer Roots type-preserving
-bearbeiten (siehe UP-071 unten). Unbekannte Typen und komplexe Konstruktoren bleiben gesperrt.
-Delete betrifft genau den gewaehlten entfernten Namen, niemals lokale Strukturen.
+Der Provider akzeptiert die sieben Standardtypen einschliesslich Array/Object. Remote-Root-`:n`
+erzeugt nur Atomics; lokale Complex-Projektionen unterstuetzen alle sieben Standardtypen, Add,
+Append und bestaetigtes Subtree-Delete (siehe UP-071/UP-072 unten). Unbekannte Typen bleiben
+nicht konstruierbar. Remote-Delete entfernt einen benannten Root; lokales Delete ist ausschliesslich
+ein ganzer Root-Upsert, niemals ein Provider-Delete einer Teilstruktur.
 Kein globales Save; der getrennte Master-Definitionseditor behaelt `:w` / Ctrl+S.
 
 Read-only blockiert Mutation vor dem Provideraufruf. Write-only enumeriert keine vorhandenen Keys:
@@ -426,7 +427,7 @@ pruefen/bereinigen.
 ### Komplexe Values und Interaktionsgrenzen (UP-071/UP-072)
 
 Der ROBA-Provider schreibt alle sieben Standardtypen: string, integer, number, boolean, null,
-array und object. `:n` erzeugt weiterhin ausschliesslich atomare Values. Geladene Arrays/Objekte
+array und object. Remote-Root-`:n` erzeugt weiterhin ausschliesslich atomare Values. Geladene Arrays/Objekte
 sind lokale Projektionen genau eines bestaetigten benannten Root-Objects, keine eigenen Nolspaces.
 Enter auf einem bestehenden atomaren Leaf oeffnet den Inline-Editor type-preserving. Bestaetigung
 klont den vollstaendigen bestaetigten Root, ersetzt genau dieses Leaf und sendet **einen ganzen
