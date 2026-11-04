@@ -28,6 +28,32 @@ def parse_atomic(kind, raw):
     raise ValueError("Enter a valid " + kind + " literal (strings need no quotes)")
 
 
+def _json_object(pairs):
+    result = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError("Duplicate JSON object key")
+        result[name] = value
+    return result
+
+
+def _nonfinite(_value):
+    raise ValueError("JSON numbers must be finite")
+
+
+def parse_new(kind, raw):
+    if kind in ATOMICS:
+        return parse_atomic(kind, raw)
+    if kind not in {"array", "object"}:
+        raise ValueError("New values need a standard type")
+    value = json.loads(raw, object_pairs_hook=_json_object, parse_constant=_nonfinite)
+    expected = list if kind == "array" else dict
+    if type(value) is not expected:
+        raise ValueError("JSON root type must be " + kind)
+    json.dumps(value, allow_nan=False)  # Also rejects overflowed floats at any depth.
+    return value
+
+
 def cell_text(value):
     return value if type(value) is str else json.dumps(value, ensure_ascii=False, allow_nan=False)
 
@@ -143,15 +169,7 @@ class NolspaceSheet(Sheet):
                 if self.local and type(item["value"]) is float:
                     value = float(value)
                 changed = self.local.proposal(row["part"], value) if self.local else {**item, "value": value}
-                confirmed = self.browser.upsert(changed)
-                if self.local:
-                    retained = self.local.accept(confirmed)
-                    if confirmed["type"] not in {"array", "object"}:
-                        self.local = []
-                        retained = False
-                    if not retained:
-                        vd.status("Provider normalized the root; returned to the nearest valid view")
-                self.render()
+                self._upsert(changed)
         except EscapeException:
             self._cancel("Edit cancelled; target unchanged")
         except Exception as exc:  # noqa: BLE001 - parse/provider failure preserves the cache
@@ -178,22 +196,19 @@ class NolspaceSheet(Sheet):
     def dispatch(self, token):
         try:
             if token == "n":
-                self._mutable("upsert")
-                kind = vd.input("Type [string/integer/number/boolean/null]: ", record=False)
-                if kind not in ATOMICS:
-                    raise ValueError("New values support only standard atomics")
-                name = vd.input("Name: ", record=False)
-                raw = "null" if kind == "null" else vd.input("Value: ", record=False)
-                self.browser.upsert({"name": name, "type": kind, "value": parse_atomic(kind, raw)})
-                self.render()
+                self._new()
             elif token == "d":
-                self._mutable("delete")
+                self.browser.require_cap("upsert" if self.local else "delete")
                 if self.cursorRow is None:
                     raise ValueError("Select a name to delete")
-                name = self.cursorRow["key"]
-                if vd.confirm("Delete the selected name? "):
-                    self.browser.delete(name)
-                    self.render()
+                row = self.cursorRow
+                if vd.confirm("Delete the selected local subtree? " if self.local else
+                              "Delete the selected name? "):
+                    if self.local:
+                        self._upsert(self.local.remove(row["part"]))
+                    else:
+                        self.browser.delete(row["key"])
+                        self.render()
                 else:
                     self._cancel("Delete cancelled; target unchanged")
             elif token == "r":
@@ -207,10 +222,33 @@ class NolspaceSheet(Sheet):
         except Exception as exc:  # noqa: BLE001 - no target effects on input failure
             self._error(exc)
 
-    def _mutable(self, operation):
+    def _new(self):
+        self.browser.require_cap("upsert")
+        allowed = ATOMICS | {"array", "object"} if self.local else ATOMICS
+        kind = vd.input("Type [" + "/".join(sorted(allowed)) + "]: ", record=False)
+        if kind not in allowed:
+            raise ValueError("New local values need a standard type" if self.local else
+                             "New values support only standard atomics")
+        named = not self.local or type(self.local.value) is dict
+        name = vd.input("Name: ", record=False) if named else None
+        if self.local and named and name in self.local.value:
+            raise ValueError("Object key already exists")
+        raw = "null" if kind == "null" else vd.input("Value (JSON): " if kind in {"array", "object"}
+                                                      else "Value: ", record=False)
+        value = parse_new(kind, raw)
+        proposal = self.local.add(value, name) if self.local else {"name": name, "type": kind, "value": value}
+        self._upsert(proposal)
+
+    def _upsert(self, proposal):
+        confirmed = self.browser.upsert(proposal)
         if self.local:
-            raise PermissionError("Local complex structure is read-only; edit existing atomic leaves")
-        self.browser.require_cap(operation)
+            retained = self.local.accept(confirmed)
+            if confirmed["type"] not in {"array", "object"}:
+                self.local = []
+                retained = False
+            if not retained:
+                vd.status("Provider normalized the root; returned to the nearest valid view")
+        self.render()
 
     def _cancel(self, message):
         self.browser.error = ""

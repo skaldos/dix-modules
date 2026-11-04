@@ -306,8 +306,8 @@ The base runtime and separate TOML workbench installers remain independent.
 | Enter on a loaded key | Explicit relookup |
 | Enter on a loaded atomic value | Native inline editor; Enter writes once, Esc writes nothing |
 | Enter on a loaded array/object | Drill a local projection of one confirmed remote root |
-| :n | Ask standard atomic type, name and value; write once (null needs no value prompt) |
-| :d | Confirm deletion of the selected name; no :x alias |
+| :n | Remote: atomic type/name/value. Local object: new key/value; local array: append value |
+| :d | Confirm removal of a remote name, or one selected local subtree; no :x alias |
 | :r / Ctrl+R | Remote: discard resolved row caches and enumerate names again; local: redraw the confirmed root without a get |
 | q / zU | Parent / selected Store root; q at root keeps the browser alive |
 | y | Copy the full underlying active cell, never its truncated preview |
@@ -320,17 +320,24 @@ binding; their optional targets stay opaque to the browser. Reload discards reso
 on success; errors leave the last confirmed value and navigation usable.
 
 The provider accepts all seven standard types (string/integer/number/boolean/null/array/object).
-The UI creates only atomics with `:n`. Inside a loaded array/object, Enter edits an **existing
+Remote `:n` creates only atomics. Inside a loaded array/object, Enter edits an **existing
 atomic leaf** with its type preserved: strings need no quotes, integers use integer literals,
 numbers are finite, booleans exactly `true`/`false`, null exactly `null`. Enter clones the last
 provider-confirmed complete root, replaces that one leaf, and sends exactly **one whole-root
 upsert**, without another lookup. Only the successful provider result replaces the confirmed
 cache; Esc, parse/rights/provider errors leave it intact. Provider normalization is authoritative;
 if it removes the current path, the browser returns to the nearest valid container visibly.
-Local `:n`/`:d`, add/delete/insert/move, leaf type changes, complex constructors and whole-object
-text editors remain unavailable. This is not a nested-path/patch API or a concurrency guarantee:
+Local `:n` adds a **new object key** (duplicates fail) or appends **one array element** at the end.
+All seven standard types are supported locally; arrays/objects require strictly type-matching JSON,
+including `[]` and `{}`. Nested/empty containers can be opened and filled in a separate step.
+Nonfinite numbers, duplicate JSON keys and invalid input fail before any provider call.
+Local `:d` confirms removal of the selected field/element and its entire subtree. Both local
+commands require `upsert`, never Nolspace `delete`, and send exactly **one complete root upsert**
+without another lookup; only its canonical result advances the confirmed cache/path. No mutation
+is acknowledged on Escape, rejected confirmation, parse, capability or provider error.
+Insert/move/reorder/rename, leaf type changes and whole-object text editors remain unavailable. This is not a nested-path/patch API or a concurrency guarantee:
 whole-value atomicity, normalization and concurrent-writer conflicts belong to the provider.
-Read-only projections allow drillthrough but no editor. Delete targets one selected remote name.
+Read-only projections allow drillthrough but no editor. Remote delete targets one selected remote name; local delete only proposes a new whole root.
 There is no global Save. The separate master Store-definition editor still uses `:w` / Ctrl+S.
 
 Read-only views block mutation before any provider call. Write-only views do not enumerate or

@@ -314,8 +314,8 @@ Die explizite private Sourceprojektion nimmt `skaldos/stores/nolspace/core` und
 | Enter auf geladenem key | Bewusster erneuter Lookup |
 | Enter auf geladenem atomaren value | Nativer Inline-Editor; Enter schreibt einmal, Esc gar nicht |
 | Enter auf geladenem Array/Object | Lokale Projektion eines bestaetigten Roots oeffnen; bestehende atomare Leafs editieren |
-| :n | Standardtyp, Name und Wert abfragen; einmal schreiben (null ohne Wertprompt) |
-| :d | Gewaehlten Namen nach Bestaetigung loeschen; kein :x-Alias |
+| :n | Remote: atomarer Typ/Name/Wert; lokal: neuer Object-Key oder genau ein Array-Append |
+| :d | Nach Bestaetigung Remote-Namen oder genau einen lokalen Subtree entfernen |
 | :r / Ctrl+R | Remote: Caches verwerfen und Namen enumerieren; lokal: bestaetigten Root ohne Get neu zeichnen |
 | q / zU | Parent / gewaehlter Store-Root; q am Root haelt den Browser offen |
 | y | Vollstaendigen aktiven Zellwert kopieren, niemals die gekuerzte Preview |
@@ -423,7 +423,7 @@ erfassen: kurzlebige Testcredentials nutzen, Aufzeichnungen privat halten und vo
 pruefen/bereinigen.
 
 
-### Komplexe Values und Interaktionsgrenzen (UP-071)
+### Komplexe Values und Interaktionsgrenzen (UP-071/UP-072)
 
 Der ROBA-Provider schreibt alle sieben Standardtypen: string, integer, number, boolean, null,
 array und object. `:n` erzeugt weiterhin ausschliesslich atomare Values. Geladene Arrays/Objekte
@@ -436,8 +436,16 @@ ist massgeblich; bei entfernter Struktur geht die Ansicht sichtbar zum naechsten
 Container zurueck. Whole-value-Atomicity, Normalisierung und konkurrierende Writer bleiben
 Providerverantwortung, ohne Patch/Merge/CAS-Versprechen.
 
-Read-only erlaubt Drillthrough, aber keinen Editor. Lokales `:n`/`:d`, Add/Delete/Insert/Move,
-Typwechsel, Complex-Constructor und Whole-object-Editor bleiben gesperrt. Navigation und `y`
+Read-only erlaubt Drillthrough, aber keinen Editor. Lokales `:n` erzeugt einen **neuen Object-Key**
+(Duplicate scheitert) oder haengt **genau einen Arraywert am Ende** an. Alle sieben Standardtypen
+sind erlaubt; Array/Object verwenden strikt typpassendes JSON inklusive `[]`/`{}`. Nichtendliche
+Zahlen, doppelte JSON-Keys und fehlerhafte Eingaben scheitern ohne Provideraufruf. Leere neue
+Container lassen sich nach dem kanonischen Return oeffnen und in einem weiteren Schritt fuellen.
+Lokales `:d` entfernt nach Bestaetigung den gewaehlten Key/Arrayindex samt ganzem Subtree. Beide
+lokalen Wirkungen verlangen **upsert**, niemals Nolspace-delete, und senden ohne neuen Lookup
+**genau einen ganzen Root-Upsert**. Erst der kanonische Return bestaetigt Cache und Pfad; Escape,
+Abbruch, Parse-, Duplicate-, Rechte- und Providerfehler bestaetigen keine Aenderung.
+Insert/Move/Reorder/Rename, Leaf-Typwechsel und Whole-object-Editor bleiben gesperrt. Navigation und `y`
 laden niemals implizit. Ein Enter auf einer ungeladenen Row funktioniert aus allen drei Spalten
 und laedt nur einmal; ein weiterer Enter kann erst editieren beziehungsweise lokal einsteigen.
 Lokales Reload zeichnet den bestaetigten Root ohne Get neu. Erfolgreiche explizite Aktionen und

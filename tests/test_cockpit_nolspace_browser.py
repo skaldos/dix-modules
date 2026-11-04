@@ -134,7 +134,7 @@ def test_write_only_local_result_can_be_deleted_without_lookup(store_graph, monk
     assert owner.with_scope("id:one").keys() == ["name"]
 
 
-def test_complex_values_keep_local_structure_read_only_and_copy_full_native_cell(store_graph, monkeypatch):
+def test_complex_values_copy_full_native_cell_without_extra_reads(store_graph, monkeypatch):
     owner, browser, sheet, _ui = selected(store_graph)
     long = "long $literal; " + "z" * 2000 + "\nlast line"
     owner.set("long", long)
@@ -164,8 +164,7 @@ def test_complex_values_keep_local_structure_read_only_and_copy_full_native_cell
     choose(sheet, "1"); sheet.enter()
     assert sheet.rows[0]["value"] == "hello"
     count = list(calls)
-    sheet.dispatch("n"); sheet.dispatch("d")
-    assert calls == count and "read-only" in browser.error
+    assert calls == count
     sheet.parent(); sheet.parent(); sheet.parent()
     assert browser.breadcrumb == "/chosen / values" and not sheet.local
     choose(sheet, "settings"); sheet.cursorVisibleColIndex = 2; sheet.copy_cell()
@@ -289,7 +288,7 @@ def test_readonly_complex_drill_blocks_editor_and_structural_mutation(store_grap
     choose(sheet, "0", 2); sheet.enter()
     assert "does not offer" in browser.error
     for command in ("n", "d"):
-        sheet.dispatch(command); assert "structure is read-only" in browser.error
+        sheet.dispatch(command); assert "does not offer upsert" in browser.error
     assert calls == []
 
 
@@ -338,3 +337,100 @@ def test_successful_explicit_actions_clear_errors_no_implicit_value_reads(store_
     browser.error = "stale"; sheet.reload(); assert not browser.error
     browser.error = "stale"; sheet.parent(); assert not browser.error
     browser.error = "stale"; sheet.root(); assert not browser.error
+
+
+def answers(monkeypatch, ui, values):
+    iterator = iter(values)
+    monkeypatch.setattr(ui.vd, 'input', lambda *a, **kw: next(iterator))
+
+
+def test_structural_local_create_all_standard_types_and_delete_without_lookup(store_graph, monkeypatch):
+    owner, browser, sheet, ui = selected(store_graph)
+    choose(sheet, 'values'); sheet.enter(); choose(sheet, 'settings'); sheet.enter(); sheet.enter()
+    calls = track(browser, monkeypatch)
+    for kind, raw, expected in [('string', 'plain', 'plain'), ('integer', '-7', -7),
+            ('number', '2.5', 2.5), ('boolean', 'false', False), ('null', None, None),
+            ('array', '[]', []), ('object', '{}', {})]:
+        answers(monkeypatch, ui, [kind, 'new-' + kind] + ([] if raw is None else [raw]))
+        sheet.dispatch('n')
+        assert not browser.error and owner.get('settings')['new-' + kind] == expected
+    assert calls == ['upsert'] * 7
+    choose(sheet, 'new-array', 2); sheet.enter()
+    for kind, raw, value in [('integer', '1', 1), ('object', '{}', {})]:
+        answers(monkeypatch, ui, [kind, raw]); sheet.dispatch('n')
+        assert sheet.local.value[-1] == value
+    choose(sheet, '1', 2); sheet.enter()
+    answers(monkeypatch, ui, ['array', 'nested', '[false, {"leaf": null}]']); sheet.dispatch('n')
+    assert owner.get('settings')['new-array'] == [1, {'nested': [False, {'leaf': None}]}]
+    monkeypatch.setattr(ui.vd, 'confirm', lambda *a: True)
+    sheet.dispatch('d'); assert sheet.rows == [] and sheet.cursorRowIndex == 0
+    sheet.parent(); choose(sheet, '1'); sheet.dispatch('d')
+    assert sheet.local.value == [1]
+    choose(sheet, '0'); sheet.dispatch('d')
+    assert sheet.local.value == [] and sheet.rows == []
+    answers(monkeypatch, ui, ['object', '{}']); sheet.dispatch('n')
+    assert sheet.local.value == [{}]
+    assert calls == ['upsert'] * 14 and 'delete' not in calls
+    assert owner.get('settings')['nested'] == ['first', {'message': 'hello'}]
+
+
+def test_structural_failures_cancel_duplicate_and_only_upsert_cap(store_graph, monkeypatch):
+    owner, browser, sheet, ui = selected(store_graph)
+    choose(sheet, 'values'); sheet.enter(); choose(sheet, 'settings'); sheet.enter(); sheet.enter()
+    # UI must not require delete for a local structural operation.
+    browser.view['value']['caps'] = ['lookup', 'upsert']
+    calls = track(browser, monkeypatch)
+    before = copy.deepcopy(sheet.local.root)
+    answers(monkeypatch, ui, ['integer', 'nested']); sheet.dispatch('n')
+    assert 'already exists' in browser.error and calls == [] and sheet.local.root == before
+    from visidata import EscapeException
+    def escape(*a, **kw): raise EscapeException()
+    monkeypatch.setattr(ui.vd, 'input', escape); sheet.dispatch('n')
+    assert not browser.error and calls == []
+    for kind, raw in [('array', '{}'), ('object', '[]'), ('array', '[NaN]'),
+                      ('object', '{"x":1e999}'), ('array', '[Infinity]'),
+                      ('object', '{"x":1,"x":2}'), ('object', '{bad}'), ('integer', '2.0')]:
+        answers(monkeypatch, ui, [kind, 'new', raw]); sheet.dispatch('n')
+        assert browser.error and calls == [] and sheet.local.root == before
+    monkeypatch.setattr(ui.vd, 'confirm', lambda *a: False); sheet.dispatch('d')
+    assert not browser.error and calls == []
+    monkeypatch.setattr(ui.vd, 'confirm', escape); sheet.dispatch('d')
+    assert not browser.error and calls == []
+    require = browser.provider.require
+    def failed(name):
+        if name != 'upsert': return require(name)
+        def effect(*a):
+            calls.append('failed-upsert')
+            raise RuntimeError('provider rejected proposal')
+        return effect
+    monkeypatch.setattr(browser.provider, 'require', failed)
+    answers(monkeypatch, ui, ['object', 'new', '{}']); sheet.dispatch('n')
+    assert 'provider rejected' in browser.error and sheet.local.root == before
+    monkeypatch.setattr(ui.vd, 'confirm', lambda *a: True); sheet.dispatch('d')
+    assert sheet.local.root == before and len(calls) == 2
+    monkeypatch.setattr(browser.provider, 'require', require)
+    sheet.dispatch('d')
+    assert not browser.error and sheet.rows == [] and sheet.local.value == {}
+    assert owner.get('settings') == {} and calls[-1] == 'upsert'
+    sheet.dispatch('d'); assert 'Select a name' in browser.error
+
+
+def test_structural_canonical_normalization_controls_cache_and_current_path(store_graph, monkeypatch):
+    _, browser, sheet, ui = selected(store_graph)
+    choose(sheet, 'values'); sheet.enter(); choose(sheet, 'settings'); sheet.enter(); sheet.enter()
+    choose(sheet, 'nested'); sheet.enter(); choose(sheet, '1'); sheet.enter()
+    old = copy.deepcopy(sheet.local.root)
+    canonical = {'name': 'settings', 'type': 'object', 'value': {'nested': []}}
+    sent = []
+    require = browser.provider.require
+    def normalized(name):
+        if name != 'upsert': return require(name)
+        def effect(view, proposal):
+            sent.append(copy.deepcopy(proposal)); return copy.deepcopy(canonical)
+        return effect
+    monkeypatch.setattr(browser.provider, 'require', normalized)
+    answers(monkeypatch, ui, ['boolean', 'new', 'true']); sheet.dispatch('n')
+    assert len(sent) == 1 and sent[0]['value']['nested'][1] == {'message': 'hello', 'new': True}
+    assert sheet.local.root == canonical and sheet.local.path == ['nested'] and sheet.rows == []
+    assert old != canonical and not browser.error
+    assert next(r['object'] for r in browser.rows if r['key'] == 'settings') == canonical
