@@ -300,3 +300,14 @@ def test_default_output_error_is_preserved_before_any_provider_effect(sources):
             owner.materialize(mounts())
         assert type(caught.value).__name__ == 'StrandOutputValueError'
         assert owner.backend().calls() == []
+
+
+def test_recursive_layout_is_a_definition_error_without_provider_effect(sources):
+    replace(sources, 'fake/layout.toml', 'session = "session"', 'session = "layout"')
+    with DataspaceGraph(sources) as graph:
+        owner = graph.create('local/dataspace/fake')
+        for _ in range(2):
+            with pytest.raises(ValueError) as caught:
+                owner.materialize(mounts())
+            assert type(caught.value).__name__ == 'LayoutDefinitionError'
+            assert owner.backend().calls() == []

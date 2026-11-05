@@ -52,17 +52,24 @@ class Runtime:
                 raise LayoutDefinitionError("Set requires a name and a flat dataset alias")
             self._sets[role] = owner.bind_dependency(alias, "definition")
         self._definition = None
+        self._materializing = False
 
     def definition(self) -> object:
         if self._definition is None:
-            sets = {}
-            for role, get_definition in self._sets.items():
-                dataset = get_definition()
-                # Local Dataset contract, deliberately not a global class identity/registry.
-                if not hasattr(dataset, "fields") or not callable(getattr(dataset, "describe", None)):
-                    raise LayoutDefinitionError("Set dependency does not return a Dataset definition")
-                sets[role] = dataset
-            self._definition = Layout(self._id, sets)
+            if self._materializing:
+                raise LayoutDefinitionError("Layouts must not recursively include layouts")
+            self._materializing = True
+            try:
+                sets = {}
+                for role, get_definition in self._sets.items():
+                    dataset = get_definition()
+                    # Local Dataset contract, not a global class identity/registry.
+                    if not hasattr(dataset, "fields") or not callable(getattr(dataset, "describe", None)):
+                        raise LayoutDefinitionError("Set dependency does not return a Dataset definition")
+                    sets[role] = dataset
+                self._definition = Layout(self._id, sets)
+            finally:
+                self._materializing = False
         return self._definition
 
     def describe(self) -> dict[str, object]:
