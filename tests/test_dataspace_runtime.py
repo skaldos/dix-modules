@@ -270,3 +270,33 @@ def test_provider_binding_is_immediate_exposed_and_not_global(sources, case):
             graph.create('skaldos/stores/dataspace/core/runtime', {'layout': 'layout', 'providers': ['backend']})
         else:
             graph.create('local/dataspace/fake')
+
+
+def test_norn_output_failure_after_write_is_not_caught_or_rolled_back(sources):
+    replace(sources, 'fake/composition.toml', 'use = "local/dataspace/codec"\nconfig = { kind = "color" }',
+            'use = "dix/norn/strand"\nconfig = { spec = "incompatible.strand.toml" }')
+    parent = sources / 'compositions/fake'
+    (parent / 'incompatible.strand.toml').write_text('[strand]\nid = "incompatible"\n'
+        '[input]\ntype = "string"\n[output]\ntype = "number"\n')
+    with DataspaceGraph(sources) as graph:
+        owner = graph.create('local/dataspace/fake')
+        space = owner.materialize(mounts())
+        with pytest.raises(ValueError) as caught:
+            space.set('project', 'color', 'native-string')
+        assert type(caught.value).__name__ == 'StrandOutputValueError'
+        assert owner.backend().calls() == [('upsert', 'private', 'color')]
+        assert owner.backend().values('private') == {'color': 'native-string'}
+
+
+def test_default_output_error_is_preserved_before_any_provider_effect(sources):
+    replace(sources, 'fake/composition.toml', 'use = "local/dataspace/codec"\nconfig = { kind = "path" }',
+            'use = "dix/norn/strand"\nconfig = { spec = "incompatible.strand.toml" }')
+    replace(sources, 'fake/session.toml', 'contract = "path"', 'contract = "path"\ndefault = "default"')
+    (sources / 'compositions/fake/incompatible.strand.toml').write_text('[strand]\nid = "bad-default"\n'
+        '[input]\ntype = "string"\n[output]\ntype = "number"\n')
+    with DataspaceGraph(sources) as graph:
+        owner = graph.create('local/dataspace/fake')
+        with pytest.raises(ValueError) as caught:
+            owner.materialize(mounts())
+        assert type(caught.value).__name__ == 'StrandOutputValueError'
+        assert owner.backend().calls() == []

@@ -86,3 +86,18 @@ No values are cached in the handle, no default is written, no role has an implic
 and no alias/mapping, partial update, transaction, rollback, synchronization or audit is promised.
 Composition graph lifetime remains caller-owned: destroy instances, then unload their modules.
 Do not keep calling a returned handle after destroying its owning graph.
+
+## Runnable reference graph
+
+`tests/fixtures/dataspace_roba/compositions/consumer/` is a source-declared integration owner: `path`,
+`number`, `color` are local contracts, two Dataset definitions feed the `runtime` Layout, and
+one explicit `roba` dependency supplies Nolspace effects. `private` and `evia` handles reuse
+that exact graph while their mount tables select different project Instances and the same
+session Context values view. The consumer never sees the bootstrap/provider APIs.
+
+`tests/test_dataspace_roba_e2e.py` independently checks native target values, missing-default
+nonmaterialization, shared sessions, project isolation, invalid colors, read-only fields,
+authenticated rights, explicit bad credentials and complete process/socket/loader cleanup.
+`tests/probes/dataspace_delivery_probe.py <module-root> <source|wheel>` exercises the same
+contract with clean source or isolated delivered module roots. No Cockpit installer changes
+are needed or intended: these external roots are explicitly loaded by their consumer.
