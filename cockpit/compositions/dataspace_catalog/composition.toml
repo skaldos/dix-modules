@@ -1,0 +1,29 @@
+[composition]
+id = "dataspace_catalog"
+[compositions.runtime]
+use = "skaldos/cockpit/roba_runtime"
+[compositions.contexts]
+use = "dix/roba/context"
+[compositions.materializers]
+use = "skaldos/cockpit/dataspace_materializers"
+
+[functions.register_materializer]
+description = "Bind only an explicit local app-graph materializer capability."
+[functions.materializers_list]
+description = "List graph-local materializer IDs without target access."
+[functions.draft]
+description = "Create one detached local materialization draft."
+[functions.validate_configuration]
+description = "Validate local configuration without materializing its target."
+[functions.list]
+description = "List only local Dataspace materialization definitions."
+[functions.get]
+description = "Get a detached local Dataspace definition."
+[functions.record]
+description = "Read a definition with its opaque catalog revision."
+[functions.create]
+description = "Save a local definition without contacting or materializing its target."
+[functions.update]
+description = "Replace or rename a local definition and rotate its revision."
+[functions.remove]
+description = "Delete only a local definition, never its target values."

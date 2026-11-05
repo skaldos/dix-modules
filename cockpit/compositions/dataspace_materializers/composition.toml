@@ -1,0 +1,16 @@
+[composition]
+id = "dataspace_materializers"
+
+[functions.register]
+description = "Bind one explicit static app dependency under a graph-local ID."
+[functions.list]
+description = "List only materializers explicitly bound in this graph."
+[functions.draft]
+description = "Return one detached local draft without contacting a target."
+[functions.validate]
+description = "Validate local configuration without creating a Dataspace."
+[functions.materialize]
+description = "Materialize a local owned space only in its browser process."
+
+[functions.native_configuration]
+description = "Detach finite native data without resolving a materializer or target."
