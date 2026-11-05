@@ -44,7 +44,8 @@ def workspace(tmp_path: Path):
         ),
         owner_scope_id="cockpit-tmux-test",
     )
-    runtime_module = importlib.import_module(instance.runtime.__class__.__module__)
+    runtime_module = importlib.import_module(
+        instance.runtime.__class__.__module__ + '.runtime_support.shared')
     try:
         yield instance.api, runtime_module
     finally:

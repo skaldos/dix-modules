@@ -96,12 +96,12 @@ def test_store_open_is_serialized_and_rollbacks_are_ownership_bounded(store_grap
     window = values[0]['window_id']; sock=args['socket']
     browser = values[0]['panes']['browser']['pane_id']
     old_pid = tmux(sock,'display-message','-p','-t',browser,'#{pane_pid}')
-    original=bound.runtime._run
+    original=bound.runtime._transport._run
     def refuse(command):
         if 'respawn-pane' in command and command[-1]=='refused-view':
             return subprocess.CompletedProcess(command,1,'','test-only spawn refusal')
         return original(command)
-    monkeypatch.setattr(bound.runtime,'_run',refuse)
+    monkeypatch.setattr(bound.runtime._transport,'_run',refuse)
     other = {**args,'store_id':'fresh-failure','commands':{'status':['refused-view'],'browser':['sleep','300']}}
     with pytest.raises(RuntimeError,match='spawn refusal'):
         bound.api.require('open_store')(**other)

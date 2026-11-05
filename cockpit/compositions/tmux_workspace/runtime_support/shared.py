@@ -102,6 +102,28 @@ class TmuxTransport:
             raise TmuxWorkspaceError(f"{operation} failed: {detail}")
 
 
+    def _panes(self, session: str, socket: Path,
+               window: str = "control") -> list[dict[str, str]]:
+        result = self._run(
+            (
+                *self._base(socket),
+                "list-panes",
+                "-t",
+                f"={session}:{window}",
+                "-F",
+                f"#{{pane_id}}\t#{{{_PANE_ROLE_OPTION}}}\t#{{pane_dead}}",
+            )
+        )
+        self._require(result, "list Cockpit control panes")
+        panes: list[dict[str, str]] = []
+        for line in result.stdout.splitlines():
+            fields = line.split("\t")
+            if len(fields) != 3 or not re.fullmatch(r"%[0-9]+", fields[0]):
+                raise TmuxWorkspaceError("tmux returned invalid Cockpit pane metadata")
+            panes.append({"id": fields[0], "role": fields[1], "dead": fields[2]})
+        return panes
+
+
 
 def _name(value: object, label: str) -> str:
     if not isinstance(value, str) or not value or not _SESSION.fullmatch(value):

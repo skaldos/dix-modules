@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import inspect
 import json
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
 from dix.core import CompositionComponent, ModuleComponent, create_core_component_registry
 from dix.core.composition import CompositionInstanceSpec
@@ -54,8 +56,8 @@ def test_exact_base_facade_signatures_and_unchanged_implementation_bodies():
     for name, expected in CONTRACT['bodies'].items():
         implementations = [n for cls in types.values() if cls.name != 'Runtime'
                            for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == name]
-        assert len(implementations) <= 1, name
-        method = implementations[0] if implementations else facade[name]
+        assert len(implementations) == 1, name
+        method = implementations[0]
         actual = '\n'.join(dump(OriginalDependencyNames().visit(n)) for n in method.body)
         assert hashlib.sha256(actual.encode()).hexdigest() == expected, name
 
@@ -72,6 +74,31 @@ def test_low_level_constants_validators_and_error_import_are_preserved(store_gra
     shared = sys.modules[module.__name__ + '.runtime_support.shared']
     assert module.TmuxWorkspaceError is shared.TmuxWorkspaceError
     assert issubclass(module.TmuxWorkspaceError, RuntimeError)
+
+
+def test_all_sixteen_facade_methods_forward_exact_arguments_and_returns(store_graph, monkeypatch):
+    create, _, _ = store_graph
+    runtime = create('skaldos/cockpit/tmux_workspace').runtime
+    services = {
+        '_lifecycle': {'socket_path', 'config_path', 'status', 'start', 'attach', 'stop'},
+        '_master': {'layout_control', 'layout_runtime', 'open_master_workspace',
+                    'open_master_workbench', 'update_status', 'update_runtime_status'},
+        '_stores': {'open_window', 'window_name', 'open_stores', 'open_store'},
+    }
+    assert set.union(*services.values()) == set(CONTRACT['signatures']) - {'__init__'}
+    for receiver, names in services.items():
+        for name in names:
+            sentinel = object()
+            operation = Mock(return_value=sentinel)
+            monkeypatch.setattr(getattr(runtime, receiver), name, operation)
+            arguments, keywords = [], {}
+            for parameter in inspect.signature(getattr(runtime, name)).parameters.values():
+                if parameter.kind is inspect.Parameter.KEYWORD_ONLY:
+                    keywords[parameter.name] = object()
+                else:
+                    arguments.append(object())
+            assert getattr(runtime, name)(*arguments, **keywords) is sentinel
+            operation.assert_called_once_with(*arguments, **keywords)
 
 
 def test_real_loader_removes_facade_and_all_package_local_modules(tmp_path):
@@ -100,6 +127,8 @@ def test_real_loader_removes_facade_and_all_package_local_modules(tmp_path):
             assert prefix in sys.modules
             assert prefix + '.runtime_support.shared' in sys.modules
             assert prefix + '.runtime_support.lifecycle' in sys.modules
+            assert prefix + '.runtime_support.master' in sys.modules
+            assert prefix + '.runtime_support.stores' in sys.modules
             assert bound.api.require('config_path')() == ROOT / 'cockpit/integrations/tmux/cockpit.conf'
             compositions.destroy_instance('split-test', 'split')
             created = False
