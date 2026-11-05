@@ -1,0 +1,12 @@
+[composition]
+id = "fake_provider"
+[compositions.contract]
+use = "skaldos/stores/nolspace/core/contract"
+[functions.enumerate]
+[functions.lookup]
+[functions.upsert]
+[functions.delete]
+[functions.configure]
+[functions.calls]
+[functions.values]
+[functions.missing_type]

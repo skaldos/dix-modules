@@ -1,0 +1,29 @@
+[composition]
+id = "fake"
+[compositions.path]
+use = "local/dataspace/codec"
+config = { kind = "path" }
+[compositions.number]
+use = "local/dataspace/codec"
+config = { kind = "number" }
+[compositions.color]
+use = "local/dataspace/codec"
+config = { kind = "color" }
+[compositions.session]
+use = "skaldos/stores/dataspace/core/dataset"
+config = { model = "session.toml" }
+[compositions.project]
+use = "skaldos/stores/dataspace/core/dataset"
+config = { model = "project.toml" }
+[compositions.layout]
+use = "skaldos/stores/dataspace/core/layout"
+config = { model = "layout.toml" }
+[functions.definition]
+[functions.contract_calls]
+[compositions.backend]
+use = "local/dataspace/fake_provider"
+[compositions.factory]
+use = "skaldos/stores/dataspace/core/runtime"
+config = { layout = "layout", providers = ["backend"] }
+[functions.materialize]
+[functions.backend]

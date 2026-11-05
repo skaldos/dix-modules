@@ -1,0 +1,9 @@
+[dataset]
+id = "session"
+[fields.cwd]
+contract = "path"
+operations = ["get", "set", "delete"]
+[fields.timeout]
+contract = "number"
+operations = ["get", "set"]
+default = 5.0

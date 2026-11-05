@@ -1,0 +1,10 @@
+[composition]
+id = "runtime"
+[components]
+owner = "composition_owner"
+[compositions.api]
+use = "skaldos/stores/nolspace/core/api"
+[compositions.contract]
+use = "skaldos/stores/nolspace/core/contract"
+[functions.materialize]
+description = "Bind an exact mount table into a detached immutable four-method Dataspace runtime."

@@ -42,3 +42,47 @@ are immutable and `describe` returns fresh metadata without default values.
 DIX finalizes immediate-owner bindings after constructing the graph. Therefore definition/default
 materialization is an explicit **post-binding** phase (`definition()`), not a constructor callback
 or Core hook. Runtime materialization uses these local definitions; no runtime registry exists.
+
+## Materialize and consume
+
+The immediate owner declares its contract dependencies, datasets (`session`, `project`),
+`layout`, provider (`backend`, exposing all four Nolspace operations), and this factory:
+
+```toml
+[compositions.factory]
+use = "skaldos/stores/dataspace/core/runtime"
+config = { layout = "layout", providers = ["backend"] }
+```
+
+After DIX has built the graph, the owner's wrapper calls:
+
+```python
+space = factory.materialize([
+    {"set": "session", "provider_alias": "backend", "nolspace_view": session_view},
+    {"set": "project", "provider_alias": "backend", "nolspace_view": project_view},
+])
+space.describe()
+space.set("session", "cwd", "/tmp/work")
+space.get("session", "cwd")
+space.delete("session", "cwd")  # {"set": "session", "field": "cwd"}
+```
+
+The ordered mount list makes duplicate roles an explicit error rather than silently overwriting
+them. Every role must appear exactly once, with only `set`, `provider_alias`, `nolspace_view`.
+Provider aliases bind only exposed functions of immediate-owner dependencies, never a registry.
+Views and default snapshots are detached behind private copy-returning closures; definitions,
+mount entries, provider bindings and the four-method handle are immutable. Changing source files,
+input mounts, view targets, returned metadata or default values cannot retarget a live handle.
+
+`describe` performs no provider call and includes no target, token, stored value or default value.
+`get` performs one lookup; only the graph-local `NolspaceNotFoundError` activates its prevalidated
+default. `set` validates/transforms input, upserts exactly once and decodes the provider's return,
+not a local guess or re-read. Output failure after a successful write does not undo that write.
+`delete` performs exactly one deletion, no lookup. Unknown fields/sets and forbidden dataset
+operations fail locally. View caps and authenticated provider rights can only narrow operations.
+Errors other than genuine Missing are not caught or converted by Dataspace.
+
+No values are cached in the handle, no default is written, no role has an implicit local backing,
+and no alias/mapping, partial update, transaction, rollback, synchronization or audit is promised.
+Composition graph lifetime remains caller-owned: destroy instances, then unload their modules.
+Do not keep calling a returned handle after destroying its owning graph.
