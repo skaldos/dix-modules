@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 import pytest
-from test_cockpit_store_workspace import drain_terminal, tmux, wait_for
+from cockpit_support.terminal import drain_terminal, tmux, wait_for
 
 
 @pytest.fixture(params=['catalog', 'types'])

@@ -5,21 +5,15 @@ import os
 import time
 from pathlib import Path
 
-import pytest
-from probes.owned_store_bootstrap import populate
-from roba import RobaClient
-from test_cockpit_interaction_install import (
+from cockpit_support.installed import (
     installed_ui as installed_ui,  # noqa: PLC0414 - pytest fixture re-export
 )
-from test_cockpit_store_workspace import tmux, wait_for
-
-
-@pytest.fixture
-def real_owned_ui(request, store_graph):
-    # Start the native target daemon before attaching a PTY drain thread.
-    _create, runtime, _ = store_graph
-    runtime.require('start')(session='b')
-    return request.getfixturevalue('installed_ui')
+from cockpit_support.installed import (
+    real_owned_ui as real_owned_ui,  # noqa: PLC0414 - shared fixture
+)
+from cockpit_support.terminal import tmux, wait_for
+from probes.owned_store_bootstrap import populate
+from roba import RobaClient
 
 
 def test_installed_owned_stores_with_two_real_contexts_and_instances(real_owned_ui):

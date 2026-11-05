@@ -139,7 +139,7 @@ def test_session_master_orders_start_open_attach_and_rolls_back_only_fresh_resou
 
 
 def test_four_master_roles_geometry_reuse_respawn_foreign_and_cleanup(store_graph):
-    from test_cockpit_store_workspace import tmux, wait_for
+    from cockpit_support.terminal import tmux, wait_for
 
     create, runtime, root = store_graph
     workspace = create('skaldos/cockpit/cockpit_session').api

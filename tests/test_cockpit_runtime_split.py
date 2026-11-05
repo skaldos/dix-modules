@@ -101,6 +101,21 @@ def test_all_sixteen_facade_methods_forward_exact_arguments_and_returns(store_gr
             operation.assert_called_once_with(*arguments, **keywords)
 
 
+def test_cockpit_support_preserves_fixtures_and_has_no_peer_test_imports():
+    for path in (ROOT / 'tests').glob('test_cockpit*.py'):
+        for node in ast.walk(ast.parse(path.read_text())):
+            modules = ([node.module] if isinstance(node, ast.ImportFrom) else
+                       [a.name for a in node.names] if isinstance(node, ast.Import) else [])
+            assert not any(part.startswith('test_') for name in modules if name
+                           for part in name.split('.')), path.name
+    support = ROOT / 'tests/cockpit_support'
+    actual = {node.name: dump(node) for path in support.glob('*.py')
+              for node in ast.parse(path.read_text()).body if isinstance(node, ast.FunctionDef)}
+    original = json.loads((ROOT / 'tests/fixtures/cockpit_test_support_contract.json').read_text())
+    assert actual == {name: value['definition'] for name, value in original['helpers'].items()}
+    assert not list(support.glob('test_*.py'))
+
+
 def test_real_loader_removes_facade_and_all_package_local_modules(tmp_path):
     registry = create_core_component_registry()
     modules = registry.require('module', ModuleComponent)

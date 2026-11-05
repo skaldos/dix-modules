@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 
-from test_cockpit_roba_store import external
+from cockpit_support.targets import external
 
 
 def browser_ui(create):

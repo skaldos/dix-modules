@@ -1,42 +1,26 @@
 from __future__ import annotations
 
-import fcntl
 import json
 import os
-import pty
 import shlex
-import struct
-import subprocess
-import termios
 import time
 from pathlib import Path
 
-import pytest
-from roba import RobaClient
-from test_cockpit_interaction_install import (
+from cockpit_support.installed import (
     installed_ui as installed_ui,  # noqa: PLC0414 - dependency of the shared real fixture
 )
-from test_cockpit_owned_store_e2e import (
+from cockpit_support.installed import (
+    nolspace_client as nolspace_client,  # noqa: PLC0414 - shared fixture
+)
+from cockpit_support.installed import (
     real_owned_ui as real_owned_ui,  # noqa: PLC0414 - shared real installed tmux/PTY fixture
 )
-from test_cockpit_store_workspace import drain_terminal, tmux, wait_for
+from cockpit_support.terminal import tmux, wait_for
+from roba import RobaClient
 
 ROOT = Path(__file__).parents[1]
 
 
-@pytest.fixture
-def nolspace_client(real_owned_ui):
-    sock = real_owned_ui[3]['tmux']['socket']
-    master, slave = pty.openpty()
-    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 45, 160, 0, 0))
-    process = subprocess.Popen(['tmux', '-S', sock, 'attach-session', '-t', 'a'],
-        stdin=slave, stdout=slave, stderr=slave,
-        env={**os.environ, 'TERM': 'xterm-256color', 'TMUX': ''})
-    os.close(slave); drain_terminal(master)
-    try:
-        yield real_owned_ui, master
-    finally:
-        process.terminate(); process.wait(timeout=5); os.close(master)
 
 
 def test_real_installed_nolspace_atomic_mutation_rights_copy_and_paste(nolspace_client):

@@ -6,12 +6,12 @@ import shlex
 import time
 from pathlib import Path
 
+from cockpit_support.installed import installed_ui as installed_ui  # noqa: PLC0414
+from cockpit_support.installed import nolspace_client as nolspace_client  # noqa: PLC0414
+from cockpit_support.installed import real_owned_ui as real_owned_ui  # noqa: PLC0414
+from cockpit_support.terminal import tmux, wait_for
+from cockpit_support.tools import _tool
 from roba import RobaClient
-from test_cockpit_clipboard import _tool
-from test_cockpit_nolspace_e2e import installed_ui as installed_ui  # noqa: PLC0414
-from test_cockpit_nolspace_e2e import nolspace_client as nolspace_client  # noqa: PLC0414
-from test_cockpit_nolspace_e2e import real_owned_ui as real_owned_ui  # noqa: PLC0414
-from test_cockpit_store_workspace import tmux, wait_for
 
 ROOT = Path(__file__).parents[1]
 

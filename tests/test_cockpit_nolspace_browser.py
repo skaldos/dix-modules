@@ -6,7 +6,7 @@ import json
 import subprocess
 
 import pytest
-from test_cockpit_roba_store import external
+from cockpit_support.targets import external
 
 
 def selected(store_graph, *, rights=None):

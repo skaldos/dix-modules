@@ -5,17 +5,13 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from cockpit_support.tools import _tool
 
 ROOT = Path(__file__).parents[1]
 COPY = ROOT / "cockpit/integrations/bin/dix-cockpit-clipboard-copy"
 PASTE = ROOT / "cockpit/integrations/bin/dix-cockpit-clipboard-paste"
 
 
-def _tool(directory: Path, name: str, body: str) -> Path:
-    path = directory / name
-    path.write_text(f"#!/bin/sh\nset -eu\n{body}\n")
-    path.chmod(0o755)
-    return path
 
 
 def _run(path: Path, environment: dict[str, str], data: bytes = b""):
@@ -116,7 +112,7 @@ def test_real_prefix_paste_keeps_original_pane_during_delayed_adapter(store_grap
     import struct
     import termios
 
-    from test_cockpit_store_workspace import drain_terminal, tmux, wait_for
+    from cockpit_support.terminal import drain_terminal, tmux, wait_for
 
     create, _, root = store_graph
     workspace = create("skaldos/cockpit/cockpit_session").api

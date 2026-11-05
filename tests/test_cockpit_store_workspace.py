@@ -8,36 +8,9 @@ import subprocess
 import sys
 import termios
 import time
-from threading import Thread
 
 import pytest
-
-
-def tmux(socket, *args):
-    result = subprocess.run(["tmux", "-S", str(socket), *args], text=True,
-                            capture_output=True, check=False)
-    assert result.returncode == 0, result.stderr
-    return result.stdout.strip()
-
-
-def wait_for(check):
-    end = time.monotonic() + 8
-    while time.monotonic() < end:
-        if check():
-            return
-        time.sleep(0.05)
-    raise AssertionError("timed out waiting for real tmux state")
-
-
-
-def drain_terminal(fd):
-    def drain():
-        try:
-            while os.read(fd, 65536):
-                pass
-        except OSError:
-            pass
-    Thread(target=drain, daemon=True).start()
+from cockpit_support.terminal import drain_terminal, tmux, wait_for
 
 
 def test_real_store_window_roles_reuse_exit_respawn_detach_and_session_isolation(
@@ -132,7 +105,7 @@ def test_installed_legacy_dual_browser_remains_explicitly_available(
 ):
     from pathlib import Path
 
-    from test_cockpit_roba_store import external
+    from cockpit_support.targets import external
 
     root = Path(__file__).parents[1]
     dix = Path(os.environ.get("DIX_REPOSITORY", "/cwd/repos/dix"))

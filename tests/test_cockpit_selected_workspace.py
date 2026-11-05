@@ -4,7 +4,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from test_cockpit_store_workspace import tmux, wait_for
+from cockpit_support.terminal import tmux, wait_for
 
 
 def workspace(store_graph):
