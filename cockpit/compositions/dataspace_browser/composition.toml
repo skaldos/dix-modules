@@ -1,0 +1,9 @@
+[composition]
+id = "dataspace_browser"
+[compositions.values]
+use = "skaldos/visidata/value_workbench"
+
+[functions.create_session]
+description = "Create a provider-blind controller over an already owned four-method handle."
+[functions.start]
+description = "Browse value-free structure and explicitly load, replace or delete whole Field values."
