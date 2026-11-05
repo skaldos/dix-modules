@@ -119,6 +119,11 @@ def test_optional_ui_installer_materializes_only_master_surface(tmp_path: Path) 
         "cockpit/compositions/roba_runtime/runtime.py",
         "cockpit/compositions/tmux_workspace/composition.toml",
         "cockpit/compositions/tmux_workspace/runtime.py",
+        "cockpit/compositions/tmux_workspace/runtime_support/__init__.py",
+        "cockpit/compositions/tmux_workspace/runtime_support/shared.py",
+        "cockpit/compositions/tmux_workspace/runtime_support/lifecycle.py",
+        "cockpit/compositions/tmux_workspace/runtime_support/master.py",
+        "cockpit/compositions/tmux_workspace/runtime_support/stores.py",
         "cockpit/compositions/cockpit_session/composition.toml",
         "cockpit/compositions/cockpit_session/runtime.py",
         "visidata/compositions/loom_workbench/composition.toml",
@@ -134,6 +139,20 @@ def test_optional_ui_installer_materializes_only_master_surface(tmp_path: Path) 
         "visidata/assets/dix.png",
         "visidata/assets/roba.png",
     }
+    probe = subprocess.run(
+        [str(real_python), str(ROOT / "tests/probes/tmux_split_delivery_probe.py"),
+         str(launchers / "dix-cockpit-ui.py")],
+        env=environment, cwd=tmp_path, capture_output=True, text=True, check=False,
+    )
+    assert probe.returncode == 0, probe.stderr
+    assert "native unload left no imports" in probe.stdout
+
+    for name in ("__init__.py", "shared.py", "lifecycle.py", "master.py", "stores.py"):
+        relative = "compositions/tmux_workspace/runtime_support/" + name
+        delivered = (projection / "cockpit") / relative
+        assert delivered.read_bytes() == (ROOT / "cockpit" / relative).read_bytes()
+        assert stat.S_IMODE(delivered.stat().st_mode) == 0o600
+
     assert stat.S_IMODE(projection.stat().st_mode) == 0o700
     assert not any(path.is_symlink() for path in projection.rglob("*"))
     assert not (projection / "cockpit/apps/stale").exists()

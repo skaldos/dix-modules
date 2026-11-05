@@ -80,6 +80,11 @@ def test_installer_builds_only_runtime_launchers_and_private_assets(tmp_path: Pa
         "compositions/roba_runtime/runtime.py",
         "compositions/tmux_workspace/composition.toml",
         "compositions/tmux_workspace/runtime.py",
+        "compositions/tmux_workspace/runtime_support/__init__.py",
+        "compositions/tmux_workspace/runtime_support/shared.py",
+        "compositions/tmux_workspace/runtime_support/lifecycle.py",
+        "compositions/tmux_workspace/runtime_support/master.py",
+        "compositions/tmux_workspace/runtime_support/stores.py",
         "compositions/cockpit_session/composition.toml",
         "compositions/cockpit_session/runtime.py",
         "assets/dix.png",
@@ -87,6 +92,20 @@ def test_installer_builds_only_runtime_launchers_and_private_assets(tmp_path: Pa
         "integrations/tmux/cockpit.conf",
         "integrations/zsh/.zshrc",
     }
+    probe = subprocess.run(
+        [str(real_python), str(ROOT / "tests/probes/tmux_split_delivery_probe.py"),
+         str(launchers / "dix-cockpit.py")],
+        env=environment, cwd=tmp_path, capture_output=True, text=True, check=False,
+    )
+    assert probe.returncode == 0, probe.stderr
+    assert "native unload left no imports" in probe.stdout
+
+    for name in ("__init__.py", "shared.py", "lifecycle.py", "master.py", "stores.py"):
+        relative = "compositions/tmux_workspace/runtime_support/" + name
+        delivered = (runtime_module) / relative
+        assert delivered.read_bytes() == (ROOT / "cockpit" / relative).read_bytes()
+        assert stat.S_IMODE(delivered.stat().st_mode) == 0o600
+
     assert not any(path.is_symlink() for path in runtime_module.rglob("*"))
     assert not (runtime_module / "apps/stale").exists()
 

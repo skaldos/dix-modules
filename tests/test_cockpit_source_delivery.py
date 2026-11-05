@@ -88,7 +88,8 @@ def test_privileged_surface_uses_in_process_roba_and_secret_free_tmux_plans() ->
     runtime = (COCKPIT / "compositions/roba_runtime/runtime.py").read_text()
     assert "subprocess" not in cli + session + runtime
     assert "dix-roba-cli" not in cli + session + runtime
-    tmux = (COCKPIT / "compositions/tmux_workspace/runtime.py").read_text()
+    tmux = "\n".join(path.read_text() for path in
+                     (COCKPIT / "compositions/tmux_workspace").rglob("*.py"))
     assert "control_token" not in tmux and "owner_token" not in tmux
     status = (COCKPIT / "integrations/tmux/cockpit.conf").read_text()
     assert "token" not in status.lower()
