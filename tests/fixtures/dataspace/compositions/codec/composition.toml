@@ -1,0 +1,11 @@
+[composition]
+id = "codec"
+[compositions.text]
+use = "dix/norn/strand"
+config = { spec = "text.strand.toml" }
+[compositions.number]
+use = "dix/norn/strand"
+config = { spec = "number.strand.toml" }
+[functions.process_input]
+[functions.process_output]
+[functions.calls]

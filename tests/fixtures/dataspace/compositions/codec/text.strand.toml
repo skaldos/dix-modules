@@ -1,0 +1,6 @@
+[strand]
+id = "text"
+[input]
+type = "string"
+[output]
+type = "string"

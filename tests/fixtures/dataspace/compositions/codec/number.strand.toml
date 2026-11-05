@@ -1,0 +1,6 @@
+[strand]
+id = "number"
+[input]
+type = "number"
+[output]
+type = "number"

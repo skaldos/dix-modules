@@ -1,0 +1,8 @@
+[dataset]
+id = "project"
+[fields.root]
+contract = "path"
+operations = ["get"]
+[fields.color]
+contract = "color"
+operations = ["get", "set"]

@@ -1,0 +1,8 @@
+[composition]
+id = "layout"
+[components]
+owner = "composition_owner"
+[functions.definition]
+description = "Materialize one immutable layout from immediate-owner dataset dependencies."
+[functions.describe]
+description = "Return detached set and dataset definition metadata."

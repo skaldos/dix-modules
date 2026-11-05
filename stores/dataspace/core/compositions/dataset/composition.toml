@@ -1,0 +1,8 @@
+[composition]
+id = "dataset"
+[components]
+owner = "composition_owner"
+[functions.definition]
+description = "Materialize one immutable owner-local dataset after graph binding."
+[functions.describe]
+description = "Return detached definition metadata without default values."
