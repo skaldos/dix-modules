@@ -30,11 +30,19 @@ def _native(value):
     raise ValueError("Nolspace values must use finite native data types")
 
 
+class NolspaceNotFoundError(RuntimeError):
+    """The requested key is absent, not inaccessible or unparseable."""
+
+
 class Runtime:
     """Local validation over unchanged Norn boundaries, not a backend or registry."""
 
     def __init__(self, *, context, config, reference_shape, object_shape):
         self.reference_shape, self.object_shape = reference_shape, object_shape
+
+    def not_found_type(self) -> object:
+        """Share the loader-local exception identity through an explicit dependency."""
+        return NolspaceNotFoundError
 
     def reference(self, value: object) -> dict[str, str]:
         if not isinstance(value, Mapping) or set(value) != {"name"}:

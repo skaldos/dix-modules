@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
+from roba.transport import StateKeyNotFound
+
 _VALUES = frozenset({"string", "integer", "number", "boolean", "null", "array", "object"})
 
 
@@ -12,6 +14,7 @@ class Runtime:
     def __init__(self, *, context, config, connection, access, data, instances, contract):
         self.connection, self.access, self.data = connection, access, data
         self.instances, self.contract = instances, contract
+        self._not_found = contract.require("not_found_type")()
 
     def _request(self, view, operation):
         try:
@@ -86,10 +89,15 @@ class Runtime:
             if kind == "instances":
                 if name not in self._ids(conn, principal): raise KeyError("Unknown or inaccessible Instance")
                 return self._view(name, "instance", {**conn, "instance_id": name}, principal)
-            value = self.data.require("get")(**self._args(conn), key=name)
+            try:
+                value = self.data.require("get")(**self._args(conn), key=name)
+            except StateKeyNotFound:
+                raise self._not_found("Nolspace key is absent") from None
             types = {str: "string", bool: "boolean", int: "integer", float: "number",
                      type(None): "null", list: "array", dict: "object"}
             return self.contract.require("object")({"name": name, "type": types[type(value)], "value": value})
+        except self._not_found:
+            raise
         except Exception as exc:  # noqa: BLE001 - no value/token echo in normal error logs
             raise RuntimeError(_safe(f"{type(exc).__name__}: {exc}", conn)) from None
 

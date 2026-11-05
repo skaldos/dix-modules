@@ -198,3 +198,64 @@ def test_whole_standard_values_use_one_native_set_no_read(native_nolspace, monke
     target = owner.with_scope('id:' + instance_id) if instance_id else owner
     assert target.get('whole') == value
     assert target.get('same') == ('instance value' if instance_id else 'context value')
+
+
+@pytest.mark.parametrize('instance_id', ['', 'same'])
+def test_only_native_missing_key_is_missing_without_enumeration(native_nolspace, monkeypatch, instance_id):
+    create, _owner, base, _ = native_nolspace
+    api = create('skaldos/stores/nolspace/core/api').api
+    provider = create('skaldos/stores/nolspace/roba/provider').api
+    contract = create('skaldos/stores/nolspace/core/contract').api
+    boot = create('skaldos/stores/nolspace/roba/connection').api
+    missing = contract.require('not_found_type')()
+    root = boot.require('root')({**base, **({'instance_id': instance_id} if instance_id else {})})
+    view = root if instance_id else provider.require('lookup')(root, 'values')
+    calls = []
+    original = TransportClient.request
+    def spy(self, method, path, **kwargs):
+        calls.append((method, path))
+        return original(self, method, path, **kwargs)
+    monkeypatch.setattr(TransportClient, 'request', spy)
+    with pytest.raises(missing) as caught:
+        api.require('lookup')(provider, view, 'not-there')
+    assert str(caught.value) == 'Nolspace key is absent'
+    assert len(calls) == 2 and calls[0][1].endswith('/connect')
+    assert calls[1][1].endswith('/state/not-there')
+    assert not any(path.endswith('state-keys') for _, path in calls)
+    calls.clear()
+    no_caps = copy.deepcopy(view)
+    no_caps['value']['caps'] = []
+    with pytest.raises(PermissionError):
+        api.require('lookup')(provider, no_caps, 'not-there')
+    assert calls == []
+    wrong = copy.deepcopy(view)
+    wrong['value']['target']['connection']['token'] = 'bad-explicit-test-token'
+    with pytest.raises(RuntimeError) as denied:
+        api.require('lookup')(provider, wrong, 'not-there')
+    assert not isinstance(denied.value, missing)
+    assert 'bad-explicit-test-token' not in str(denied.value)
+
+
+@pytest.mark.parametrize('kind', ['timeout', 'transport', 'parse', 'resource', 'permission'])
+def test_other_native_error_classes_never_become_missing(native_nolspace, load_runtime, api, kind):
+    from roba.transport import ResourceNotFound, TransportError
+    create, _, base, _ = native_nolspace
+    contract = create('skaldos/stores/nolspace/core/contract').api
+    missing = contract.require('not_found_type')()
+    error = {'timeout': TimeoutError('late'), 'transport': TransportError('wire'),
+             'parse': ValueError('bad payload'), 'resource': ResourceNotFound('gone'),
+             'permission': PermissionError('denied')}[kind]
+    calls = []
+    def get(**kwargs):
+        calls.append(kwargs['key'])
+        raise error
+    provider = load_runtime('stores/nolspace/roba/compositions/provider/runtime.py')(
+        context=None, config={}, contract=contract, connection=api(validate=lambda x: x),
+        access=api(inspect=lambda *_: {'context': {'id': base['context_id']},
+                                      'principal': {'owner': True, 'access': {}}}),
+        data=api(get=get), instances=api())
+    view = {'name': 'v', 'type': 'nolspace', 'value': {'caps': ['lookup'],
+            'target': {'kind': 'values', 'connection': base}}}
+    with pytest.raises(RuntimeError) as caught:
+        provider.lookup(view, 'key')
+    assert not isinstance(caught.value, missing) and calls == ['key']

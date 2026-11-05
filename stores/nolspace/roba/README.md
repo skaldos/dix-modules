@@ -22,3 +22,8 @@ without reading before/after. Malformed values, nolspace and unknown types are r
 transport. Whole-value atomicity, normalization and concurrent writers remain provider-owned;
 there is no nested-path, patch, merge or CAS API. Delete acts on one key. Native errors remain visible with credential
 redaction; there is no fallback, sync, schema inference, grant management or resource creation.
+
+A native `StateKeyNotFound` from a single value lookup is translated to the core contract's
+`NolspaceNotFoundError`. No enumeration or error-text matching is used. Missing resources,
+authentication, capability, transport, timeout and malformed-response errors retain the existing
+provider error boundary and never mean a missing key.

@@ -19,3 +19,12 @@ read first. Missing view caps fail before provider invocation; providers must st
 native authority on every operation. There is no identity conflict resolution, fallback, sync,
 enter, grant, copy, move, patch or execution protocol. `contract` is validation, not an extra
 backend operation. Root/bootstrap belongs to a provider-specific composition, not the standard.
+
+## Missing keys
+
+Only genuine absence is `NolspaceNotFoundError`. Obtain the loader-local exception class from
+an explicit `skaldos/stores/nolspace/core/contract` dependency:
+`missing = contract.require("not_found_type")()`. Catch that class around `api.lookup(...)`.
+The four positive API operations are unchanged. Other errors must not become defaults or missing
+keys. Exception identity is scoped to the loaded module graph; no global registry/import hook is
+required. Unload the graph through the normal DIX lifecycle.

@@ -112,3 +112,24 @@ def test_duplicate_or_mismatched_names_fail_without_resolution(nolspace_graph):
             return lambda *_:{'name':'different','type':'string','value':'x'}
     for op,arg in [('enumerate',[]),('lookup',['x']),('upsert',[{'name':'x','type':'null','value':None}]),('delete',['x'])]:
         with pytest.raises(ValueError): api.require(op)(Bad(),view,*arg)
+
+
+def test_missing_type_is_shared_by_loaded_contracts_and_api_preserves_errors(nolspace_graph):
+    first = nolspace_graph('skaldos/stores/nolspace/core/contract').api
+    second = nolspace_graph('skaldos/stores/nolspace/core/contract').api
+    missing = first.require('not_found_type')()
+    assert missing is second.require('not_found_type')()
+    assert missing.__name__ == 'NolspaceNotFoundError'
+    api = nolspace_graph('skaldos/stores/nolspace/core/api').api
+    view = {'name': 'v', 'type': 'nolspace', 'value': {'caps': ['lookup']}}
+    class Provider:
+        def require(self, op):
+            assert op == 'lookup', 'No enumerate-before-lookup'
+            def lookup(*_):
+                raise error
+            return lookup
+    for error in (missing('absent'), PermissionError('denied'), TimeoutError('late'),
+                  OSError('transport'), ValueError('parse'), RuntimeError('provider')):
+        with pytest.raises(type(error)) as caught:
+            api.require('lookup')(Provider(), view, 'key')
+        assert caught.value is error

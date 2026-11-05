@@ -12,3 +12,5 @@ description = "Validate one detached name-only Reference."
 description = "Validate one detached named object, including standard value types."
 [functions.view]
 description = "Validate one Nolspace view with effective capabilities and opaque target."
+[functions.not_found_type]
+description = "Return the loader-local provider-neutral missing-key exception type."
