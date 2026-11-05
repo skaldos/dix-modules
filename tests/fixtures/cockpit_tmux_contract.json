@@ -1,0 +1,131 @@
+{
+  "base_commit": "c16d6b2b81c8416c2ac8187b211341c3bf3005ca",
+  "composition_sha256": "945a0761173825481b368c9beffdae39feb1f092cff876c74ee25bbc0364c452",
+  "signatures": {
+    "__init__": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='context', annotation=Name(id='CompositionRuntimeContext', ctx=Load())), arg(arg='config', annotation=Subscript(value=Name(id='Mapping', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='object', ctx=Load())], ctx=Load()), ctx=Load()))], kw_defaults=[None, None], defaults=[])",
+      "returns": "Constant(value=None)"
+    },
+    "socket_path": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self'), arg(arg='runtime_root', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load())))], kwonlyargs=[], kw_defaults=[], defaults=[])",
+      "returns": "Name(id='Path', ctx=Load())"
+    },
+    "config_path": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[], kw_defaults=[], defaults=[])",
+      "returns": "Name(id='Path', ctx=Load())"
+    },
+    "status": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load())))], kw_defaults=[None, None], defaults=[])",
+      "returns": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='object', ctx=Load())], ctx=Load()), ctx=Load())"
+    },
+    "start": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='control_command', annotation=Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load())), arg(arg='environment', annotation=Subscript(value=Name(id='Mapping', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='str', ctx=Load())], ctx=Load()), ctx=Load())), arg(arg='attach', annotation=Name(id='bool', ctx=Load()))], kw_defaults=[None, None, None, None, Constant(value=True)], defaults=[])",
+      "returns": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='object', ctx=Load())], ctx=Load()), ctx=Load())"
+    },
+    "attach": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load())))], kw_defaults=[None, None], defaults=[])",
+      "returns": "Name(id='int', ctx=Load())"
+    },
+    "stop": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load())))], kw_defaults=[None, None], defaults=[])",
+      "returns": "Name(id='bool', ctx=Load())"
+    },
+    "open_window": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='catalog_id', annotation=Name(id='str', ctx=Load())), arg(arg='command', annotation=Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load()))], kw_defaults=[None, None, None, None], defaults=[])",
+      "returns": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='object', ctx=Load())], ctx=Load()), ctx=Load())"
+    },
+    "layout_control": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='header_command', annotation=Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load()))], kw_defaults=[None, None, None], defaults=[])",
+      "returns": "Constant(value=None)"
+    },
+    "layout_runtime": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='status_command', annotation=Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load()))], kw_defaults=[None, None, None], defaults=[])",
+      "returns": "Constant(value=None)"
+    },
+    "open_master_workbench": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='command', annotation=Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load()))], kw_defaults=[None, None, None], defaults=[])",
+      "returns": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='str', ctx=Load())], ctx=Load()), ctx=Load())"
+    },
+    "update_status": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='catalog', annotation=Name(id='str', ctx=Load())), arg(arg='count', annotation=Name(id='int', ctx=Load())), arg(arg='logo', annotation=Name(id='str', ctx=Load()))], kw_defaults=[None, None, None, None, None], defaults=[])",
+      "returns": "Constant(value=None)"
+    },
+    "update_runtime_status": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='logo', annotation=Name(id='str', ctx=Load())), arg(arg='daemon_state', annotation=Name(id='str', ctx=Load()))], kw_defaults=[None, None, None, None], defaults=[])",
+      "returns": "Constant(value=None)"
+    },
+    "window_name": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self'), arg(arg='catalog_id', annotation=Name(id='str', ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[])",
+      "returns": "Name(id='str', ctx=Load())"
+    },
+    "open_stores": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='commands', annotation=Subscript(value=Name(id='Mapping', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load())], ctx=Load()), ctx=Load()))], kw_defaults=[None, None, None], defaults=[])",
+      "returns": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='object', ctx=Load())], ctx=Load()), ctx=Load())"
+    },
+    "open_master_workspace": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='workbench_command', annotation=Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load())), arg(arg='store_command', annotation=Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load()))], kw_defaults=[None, None, None, None], defaults=[])",
+      "returns": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='object', ctx=Load())], ctx=Load()), ctx=Load())"
+    },
+    "open_store": {
+      "args": "arguments(posonlyargs=[], args=[arg(arg='self')], kwonlyargs=[arg(arg='session', annotation=Name(id='str', ctx=Load())), arg(arg='socket', annotation=BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Name(id='Path', ctx=Load()))), arg(arg='store_id', annotation=Name(id='str', ctx=Load())), arg(arg='revision', annotation=Name(id='str', ctx=Load())), arg(arg='commands', annotation=Subscript(value=Name(id='Mapping', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load())], ctx=Load()), ctx=Load()))], kw_defaults=[None, None, None, None, None], defaults=[])",
+      "returns": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='object', ctx=Load())], ctx=Load()), ctx=Load())"
+    }
+  },
+  "bodies": {
+    "socket_path": "12f480e4c6e15f5c39ed3e2c425b3afd6837a2c03923f68991f96ee7735cd6de",
+    "config_path": "40291ad5b408ad14bab930aeac5114fa78dccf2b84eed062c565d0de25fd73be",
+    "status": "0c562da61382176b643b833a4a19ece1e05807ab515cee2b6730450fd49a6783",
+    "start": "ccfb614b3587e0b760ffad80758938c4f7ad27f990d293975fbfbccf4bfa85a4",
+    "attach": "0ce55dd50dc32ab9a7e18da9109f89cdcd1314995039dc8843714ab220b10b92",
+    "stop": "4369f0c8677b296d9abac3f1887e48ad7c63a8298849420908d7804269500ee1",
+    "open_window": "6932c6a475c509be4d92f7e54c535779bc5735d78ffd031af5dce1a83bfa8963",
+    "layout_control": "1aa7b65d399f686f6268fa82eb8e5d4f01ca57d811106cbef546fdc100032474",
+    "layout_runtime": "3dde07214212bbedee99c1d3f30f07298ab2827bf7d3d8b276bb637a6c347aea",
+    "open_master_workspace": "8aca3a35af3e4c3b071f86dc927f664769c4979e9afc6d5336a1ae84e97411b9",
+    "open_master_workbench": "18a1890af5fba18c86c3df76d1913d98196b1b3b8793a3eaf44dad4184908914",
+    "open_stores": "778865444c6aa0bb3ea6ee0135a32727630d05bb830df73fd03324024558ac25",
+    "open_store": "e58a0ed2d4e3b3beced6b0b726be1af361708ee99111b57ae1b9f200fdf094d4",
+    "_open_store": "9dd9e110deae3fc0e2c2810d3ac55f3defbad4d00d1c99141a3682b022005512",
+    "_selected_store_panes": "8a77033e7790dce0d9d46245ca1d3498d8906f01589c22e2e9b679acf1a07ca5",
+    "_mark_selected_pane": "5c7b56fbda04557f2bf99adcc5942cb73a3e3be06b3335da79efbbf3c309d34a",
+    "_mark_store_pane": "684f8de5032eb884875705768ba190be659fe1d2e0c86261a89891b2c9958690",
+    "_panes": "1ab86622c803996e90d26f2b223222e1934c537ef7462960991ab3bbffafd8d4",
+    "_focus_master": "45005aa3274799c6df5facd003f6712c128d7a041d8067be5d1034ed151a86a3",
+    "update_status": "adf6a5983ffa77a6eb4e037ab6d7b65837a29095b1a6266d05574c7e5730fbd7",
+    "update_runtime_status": "ce5fc7215ea78836436ce1eb3b4dde08ee63689c9d5fe28fe325080ea448d962",
+    "window_name": "363da04c189858f1a765f61deac2b9bae160ae38e8a5af4f2cdb91e24b9b4900",
+    "_socket": "79ffc199b431008c689b5c84582d3b688e1690ecba00880b31546322f8ac8fd8",
+    "_base": "cd4ebc7fec3371f074bccfd22e1429f2178c5d451a098f8275280d466c198af1",
+    "_server_status": "b9228d84c5275ef637a3fc6d5f27629c007fe3bdfba30302894e950139f84119",
+    "_owned_session": "dc9aebf34fed211e04670ecea2f10927e61d49eb88cae7a18df622685013ee90",
+    "_public_status": "1ec8f123d722347777da220bd6719fc980728b2d16d13f63655780566aeff6e0",
+    "_run": "baa455aeb8322281cdf8bc542112805eff07b6fa8ee41758f01ad619db0c5b0c",
+    "_require": "61a6f46fbbb8fda859fbe59305ff837f2a09f63ea1cfdc18d44e6d8dceaf849f"
+  },
+  "functions": {
+    "_name": "FunctionDef(name='_name', args=arguments(posonlyargs=[], args=[arg(arg='value', annotation=Name(id='object', ctx=Load())), arg(arg='label', annotation=Name(id='str', ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[If(test=BoolOp(op=Or(), values=[UnaryOp(op=Not(), operand=Call(func=Name(id='isinstance', ctx=Load()), args=[Name(id='value', ctx=Load()), Name(id='str', ctx=Load())], keywords=[])), UnaryOp(op=Not(), operand=Name(id='value', ctx=Load())), UnaryOp(op=Not(), operand=Call(func=Attribute(value=Name(id='_SESSION', ctx=Load()), attr='fullmatch', ctx=Load()), args=[Name(id='value', ctx=Load())], keywords=[]))]), body=[Raise(exc=Call(func=Name(id='ValueError', ctx=Load()), args=[JoinedStr(values=[Constant(value='Cockpit '), FormattedValue(value=Name(id='label', ctx=Load()), conversion=-1), Constant(value=' must match '), FormattedValue(value=Attribute(value=Name(id='_SESSION', ctx=Load()), attr='pattern', ctx=Load()), conversion=-1)])], keywords=[]))], orelse=[]), Return(value=Name(id='value', ctx=Load()))], decorator_list=[], returns=Name(id='str', ctx=Load()), type_params=[])",
+    "_shell_command": "FunctionDef(name='_shell_command', args=arguments(posonlyargs=[], args=[arg(arg='value', annotation=Subscript(value=Name(id='Sequence', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[If(test=BoolOp(op=Or(), values=[Call(func=Name(id='isinstance', ctx=Load()), args=[Name(id='value', ctx=Load()), Tuple(elts=[Name(id='str', ctx=Load()), Name(id='bytes', ctx=Load()), Name(id='bytearray', ctx=Load())], ctx=Load())], keywords=[]), UnaryOp(op=Not(), operand=Name(id='value', ctx=Load()))]), body=[Raise(exc=Call(func=Name(id='TypeError', ctx=Load()), args=[Constant(value='Cockpit child command must be a non-empty argument sequence')], keywords=[]))], orelse=[]), Assign(targets=[Name(id='arguments', ctx=Store())], value=Call(func=Name(id='list', ctx=Load()), args=[Name(id='value', ctx=Load())], keywords=[])), If(test=UnaryOp(op=Not(), operand=Call(func=Name(id='all', ctx=Load()), args=[GeneratorExp(elt=BoolOp(op=And(), values=[Call(func=Name(id='isinstance', ctx=Load()), args=[Name(id='item', ctx=Load()), Name(id='str', ctx=Load())], keywords=[]), Name(id='item', ctx=Load())]), generators=[comprehension(target=Name(id='item', ctx=Store()), iter=Name(id='arguments', ctx=Load()), ifs=[], is_async=0)])], keywords=[])), body=[Raise(exc=Call(func=Name(id='TypeError', ctx=Load()), args=[Constant(value='Cockpit child command arguments must be non-empty strings')], keywords=[]))], orelse=[]), Return(value=Call(func=Attribute(value=Name(id='shlex', ctx=Load()), attr='join', ctx=Load()), args=[Name(id='arguments', ctx=Load())], keywords=[]))], decorator_list=[], returns=Name(id='str', ctx=Load()), type_params=[])",
+    "_string_environment": "FunctionDef(name='_string_environment', args=arguments(posonlyargs=[], args=[arg(arg='value', annotation=Subscript(value=Name(id='Mapping', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='str', ctx=Load())], ctx=Load()), ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[If(test=BoolOp(op=Or(), values=[UnaryOp(op=Not(), operand=Call(func=Name(id='isinstance', ctx=Load()), args=[Name(id='value', ctx=Load()), Name(id='Mapping', ctx=Load())], keywords=[])), UnaryOp(op=Not(), operand=Call(func=Name(id='all', ctx=Load()), args=[GeneratorExp(elt=BoolOp(op=And(), values=[Call(func=Name(id='isinstance', ctx=Load()), args=[Name(id='key', ctx=Load()), Name(id='str', ctx=Load())], keywords=[]), Name(id='key', ctx=Load()), Call(func=Name(id='isinstance', ctx=Load()), args=[Name(id='item', ctx=Load()), Name(id='str', ctx=Load())], keywords=[])]), generators=[comprehension(target=Tuple(elts=[Name(id='key', ctx=Store()), Name(id='item', ctx=Store())], ctx=Store()), iter=Call(func=Attribute(value=Name(id='value', ctx=Load()), attr='items', ctx=Load()), args=[], keywords=[]), ifs=[], is_async=0)])], keywords=[]))]), body=[Raise(exc=Call(func=Name(id='TypeError', ctx=Load()), args=[Constant(value='Cockpit tmux environment must be a string mapping')], keywords=[]))], orelse=[]), Assign(targets=[Name(id='secret', ctx=Store())], value=Call(func=Name(id='next', ctx=Load()), args=[GeneratorExp(elt=Name(id='key', ctx=Load()), generators=[comprehension(target=Name(id='key', ctx=Store()), iter=Name(id='value', ctx=Load()), ifs=[Call(func=Name(id='_secret_key', ctx=Load()), args=[Name(id='key', ctx=Load())], keywords=[])], is_async=0)]), Constant(value=None)], keywords=[])), If(test=Compare(left=Name(id='secret', ctx=Load()), ops=[IsNot()], comparators=[Constant(value=None)]), body=[Raise(exc=Call(func=Name(id='ValueError', ctx=Load()), args=[JoinedStr(values=[Constant(value='Cockpit tmux environment must not contain secret key: '), FormattedValue(value=Name(id='secret', ctx=Load()), conversion=-1)])], keywords=[]))], orelse=[]), Return(value=Call(func=Name(id='dict', ctx=Load()), args=[Name(id='value', ctx=Load())], keywords=[]))], decorator_list=[], returns=Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='str', ctx=Load())], ctx=Load()), ctx=Load()), type_params=[])",
+    "_secret_key": "FunctionDef(name='_secret_key', args=arguments(posonlyargs=[], args=[arg(arg='value', annotation=Name(id='str', ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[Assign(targets=[Name(id='upper', ctx=Store())], value=Call(func=Attribute(value=Name(id='value', ctx=Load()), attr='upper', ctx=Load()), args=[], keywords=[])), Return(value=Call(func=Name(id='any', ctx=Load()), args=[GeneratorExp(elt=Compare(left=Name(id='marker', ctx=Load()), ops=[In()], comparators=[Name(id='upper', ctx=Load())]), generators=[comprehension(target=Name(id='marker', ctx=Store()), iter=Tuple(elts=[Constant(value='TOKEN'), Constant(value='SECRET'), Constant(value='PASSWORD'), Constant(value='CREDENTIAL')], ctx=Load()), ifs=[], is_async=0)])], keywords=[]))], decorator_list=[], returns=Name(id='bool', ctx=Load()), type_params=[])",
+    "_is_socket": "FunctionDef(name='_is_socket', args=arguments(posonlyargs=[], args=[arg(arg='path', annotation=Name(id='Path', ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[Try(body=[Return(value=Call(func=Attribute(value=Name(id='stat', ctx=Load()), attr='S_ISSOCK', ctx=Load()), args=[Attribute(value=Call(func=Attribute(value=Name(id='path', ctx=Load()), attr='stat', ctx=Load()), args=[], keywords=[]), attr='st_mode', ctx=Load())], keywords=[]))], handlers=[ExceptHandler(type=Name(id='FileNotFoundError', ctx=Load()), body=[Return(value=Constant(value=False))])], orelse=[], finalbody=[])], decorator_list=[], returns=Name(id='bool', ctx=Load()), type_params=[])",
+    "_server_absent": "FunctionDef(name='_server_absent', args=arguments(posonlyargs=[], args=[arg(arg='result', annotation=Subscript(value=Attribute(value=Name(id='subprocess', ctx=Load()), attr='CompletedProcess', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load())), arg(arg='socket', annotation=Name(id='Path', ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[If(test=BoolOp(op=And(), values=[UnaryOp(op=Not(), operand=Call(func=Attribute(value=Name(id='socket', ctx=Load()), attr='exists', ctx=Load()), args=[], keywords=[])), UnaryOp(op=Not(), operand=Call(func=Attribute(value=Name(id='socket', ctx=Load()), attr='is_symlink', ctx=Load()), args=[], keywords=[]))]), body=[Return(value=Constant(value=True))], orelse=[]), Assign(targets=[Name(id='detail', ctx=Store())], value=Call(func=Attribute(value=BinOp(left=BinOp(left=Attribute(value=Name(id='result', ctx=Load()), attr='stderr', ctx=Load()), op=Add(), right=Constant(value='\\n')), op=Add(), right=Attribute(value=Name(id='result', ctx=Load()), attr='stdout', ctx=Load())), attr='lower', ctx=Load()), args=[], keywords=[])), Return(value=Call(func=Name(id='any', ctx=Load()), args=[GeneratorExp(elt=Compare(left=Name(id='marker', ctx=Load()), ops=[In()], comparators=[Name(id='detail', ctx=Load())]), generators=[comprehension(target=Name(id='marker', ctx=Store()), iter=Tuple(elts=[Constant(value='no server running'), Constant(value='no such file or directory'), Constant(value='connection refused')], ctx=Load()), ifs=[], is_async=0)])], keywords=[]))], decorator_list=[], returns=Name(id='bool', ctx=Load()), type_params=[])"
+  },
+  "constants": {
+    "_SESSION": "Call(func=Attribute(value=Name(id='re', ctx=Load()), attr='compile', ctx=Load()), args=[Constant(value='[A-Za-z0-9_.-]+\\\\Z')], keywords=[])",
+    "_WINDOW": "Call(func=Attribute(value=Name(id='re', ctx=Load()), attr='compile', ctx=Load()), args=[Constant(value='[A-Za-z0-9_.-]+\\\\Z')], keywords=[])",
+    "_SOCKET_LIMIT": "Constant(value=107)",
+    "_SERVER_OWNER_OPTION": "Constant(value='@cockpit-server-owner')",
+    "_SERVER_OWNER_MARKER": "Constant(value='skaldos.dix-cockpit.tmux-server.v1')",
+    "_SESSION_OWNER_OPTION": "Constant(value='@cockpit-owner')",
+    "_SESSION_OWNER_MARKER": "Constant(value='skaldos.dix-cockpit.tmux-session.v1')",
+    "_PANE_ROLE_OPTION": "Constant(value='@cockpit-pane-role')",
+    "_STATUS_ROLE": "Constant(value='skaldos.dix-cockpit.runtime-status.v1')",
+    "_SHELL_ROLE": "Constant(value='skaldos.dix-cockpit.owner-shell.v1')",
+    "_MASTER_ROLE": "Constant(value='skaldos.dix-cockpit.master-workbench.v1')",
+    "_STORE_ROLE": "Constant(value='skaldos.dix-cockpit.store-workbench.v1')",
+    "_SELECTED_WINDOW_ROLE": "Constant(value='skaldos.dix-cockpit.store-window.v1')",
+    "_SELECTED_ROLES": "Dict(keys=[Constant(value='status'), Constant(value='browser')], values=[Constant(value='skaldos.dix-cockpit.store-status.v1'), Constant(value='skaldos.dix-cockpit.selected-browser.v1')])",
+    "_STORES_WINDOW_ROLE": "Constant(value='skaldos.dix-cockpit.stores.v1')",
+    "_STORES_ROLES": "Dict(keys=[Constant(value='A'), Constant(value='B')], values=[Constant(value='skaldos.dix-cockpit.stores-a.v1'), Constant(value='skaldos.dix-cockpit.stores-b.v1')])"
+  }
+}
